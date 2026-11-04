@@ -12,7 +12,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 
-const VERSION = '1.1';
+const VERSION = '1.2';
 const STATE_KEY = 'turnier/state.json';
 const SESSION_HOURS = 14;
 const START = require('../data/start.json');
@@ -52,29 +52,35 @@ function findEnv(re, ok) {
   const k = Object.keys(env).find((key) => re.test(key) && !/READ_ONLY/i.test(key) && (!ok || ok(env[key] || '')));
   return k ? env[k] : '';
 }
-// Redis über HTTP (Upstash): KV_REST_API_URL + KV_REST_API_TOKEN oder UPSTASH_REDIS_REST_URL + _TOKEN
+// Speicher wird am INHALT der Umgebungsvariablen erkannt – der Name (und ein eigenes Präfix) ist egal.
+const ENV = () => Object.entries(process.env).filter(([k, v]) => typeof v === 'string' && v && !/READ_ONLY/i.test(k));
+// Redis über HTTP (Upstash): eine https://….upstash.io-Adresse plus passender Token
 function redisRest() {
   const e = process.env;
-  const url = e.KV_REST_API_URL || e.UPSTASH_REDIS_REST_URL || findEnv(/(REST_API_URL|REDIS_REST_URL)$/i, (v) => /^https:\/\//.test(v));
-  const token = e.KV_REST_API_TOKEN || e.UPSTASH_REDIS_REST_TOKEN || findEnv(/(REST_API_TOKEN|REDIS_REST_TOKEN)$/i);
-  return url && token ? { url: url.replace(/\/$/, ''), token } : null;
+  if ((e.KV_REST_API_URL || e.UPSTASH_REDIS_REST_URL) && (e.KV_REST_API_TOKEN || e.UPSTASH_REDIS_REST_TOKEN)) return { url: (e.KV_REST_API_URL || e.UPSTASH_REDIS_REST_URL).replace(/\/$/, ''), token: e.KV_REST_API_TOKEN || e.UPSTASH_REDIS_REST_TOKEN };
+  const list = ENV();
+  const u = list.find(([k, v]) => /^https:\/\/[^/\s]+\.upstash\.io\/?$/i.test(v) || (/(REST_API_URL|REST_URL)$/i.test(k) && /^https:\/\//.test(v)));
+  if (!u) return null;
+  const prefix = u[0].replace(/(URL)$/i, '');
+  const tk = list.find(([k]) => k === prefix + 'TOKEN') || list.find(([k]) => /(REST_API_TOKEN|REST_TOKEN)$/i.test(k));
+  return tk ? { url: u[1].replace(/\/$/, ''), token: tk[1] } : null;
 }
-// Redis über eine normale Verbindung: REDIS_URL / KV_URL (redis:// oder rediss://)
+// Redis über eine normale Verbindung: irgendeine Variable mit redis:// oder rediss://
 function redisUrl() {
-  const e = process.env, ok = (v) => /^rediss?:\/\//.test(v);
-  if (ok(e.REDIS_URL || '')) return e.REDIS_URL;
-  if (ok(e.KV_URL || '')) return e.KV_URL;
-  return findEnv(/(REDIS_URL|KV_URL|_URL)$/i, ok) || null;
+  const e = process.env, ok = (v) => /^rediss?:\/\//i.test(v || '');
+  if (ok(e.REDIS_URL)) return e.REDIS_URL;
+  if (ok(e.KV_URL)) return e.KV_URL;
+  const hit = ENV().find(([, v]) => ok(v));
+  return hit ? hit[1] : null;
 }
+// Vercel Blob: irgendein Token, der mit vercel_blob_rw_ beginnt, sonst eine Store-ID
 function blobCreds() {
-  const env = process.env, keys = Object.keys(env);
-  const rwKey = env.BLOB_READ_WRITE_TOKEN ? 'BLOB_READ_WRITE_TOKEN'
-    : keys.find((k) => /READ_WRITE_TOKEN$/i.test(k) && /^vercel_blob_rw_/.test(env[k] || ''));
-  if (rwKey) return { token: env[rwKey] };
-  const idKey = env.BLOB_STORE_ID ? 'BLOB_STORE_ID'
-    : keys.find((k) => /STORE_ID$/i.test(k) && /^(store_)?[A-Za-z0-9]{6,}$/.test(env[k] || ''));
-  if (idKey) return { storeId: env[idKey] };
-  return null;
+  const e = process.env, list = ENV();
+  if (/^vercel_blob_rw_/.test(e.BLOB_READ_WRITE_TOKEN || '')) return { token: e.BLOB_READ_WRITE_TOKEN };
+  const tok = list.find(([, v]) => /^vercel_blob_rw_/.test(v));
+  if (tok) return { token: tok[1] };
+  const id = e.BLOB_STORE_ID ? ['BLOB_STORE_ID', e.BLOB_STORE_ID] : list.find(([k, v]) => /STORE_ID$/i.test(k) && /^(store_)?[A-Za-z0-9]{6,}$/.test(v));
+  return id ? { storeId: id[1] } : null;
 }
 function mode() {
   if (redisRest()) return 'redis';
@@ -84,7 +90,9 @@ function mode() {
   return null;
 }
 // Nur Namen (nie Inhalte) von Variablen, die nach Speicher aussehen – für die Fehlersuche
-function envNames() { return Object.keys(process.env).filter((k) => /redis|kv_|upstash|blob|store|admin_password/i.test(k) && !/TLS|CA_STORE/i.test(k)).sort(); }
+function envNames() {
+  return ENV().filter(([k, v]) => (/redis|kv_|upstash|blob|stor|database|admin_password/i.test(k) || /^(rediss?:\/\/|vercel_blob_rw_|https:\/\/[^/]+\.upstash\.io)/i.test(v)) && !/TLS|CA_STORE/i.test(k)).map(([k]) => k).sort();
+}
 const DATA_DIR = path.join(__dirname, '..', '.data');
 
 async function restCmd(cmd) {
@@ -145,7 +153,7 @@ async function rawSet(key, text) {
 }
 // Selbsttest: einmal schreiben und lesen
 async function check() {
-  const out = { storage: mode(), env: envNames(), vercel: !!process.env.VERCEL, write: false, read: false, error: '' };
+  const out = { storage: mode(), env: envNames(), vercel: !!process.env.VERCEL, vercelEnv: process.env.VERCEL_ENV || '', deployment: (process.env.VERCEL_GIT_COMMIT_SHA || '').slice(0, 7), write: false, read: false, error: '' };
   if (!out.storage) { out.error = 'Kein Speicher verbunden.'; return out; }
   try { const v = 'ok-' + Date.now(); await rawSet('turnier/check.txt', v); out.write = true; out.read = (await rawGet('turnier/check.txt')) === v; if (!out.read) out.error = 'Geschrieben, aber nicht wieder gelesen.'; }
   catch (e) { out.error = e.message || String(e); }

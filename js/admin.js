@@ -523,7 +523,7 @@
     const line = (ok, txt) => `<li style="display:flex;gap:8px"><b style="color:${ok ? 'var(--win)' : 'var(--lose)'}">${ok ? '✓' : '✗'}</b><span>${txt}</span></li>`;
     let tips = '';
     if (!c) tips = `Die Server-Funktionen antworten nicht (${esc(err)}). Prüfe in Vercel unter „Deployments“ den obersten Eintrag: Status „Ready“? Liegt der Ordner <b>api</b> direkt im Repository (nicht in einem Unterordner)?`;
-    else if (!c.storage) tips = 'Kein Speicher verbunden. Vercel-Projekt → <b>Storage</b> → Redis (oder Blob) anlegen → <b>Connect Project</b> → danach <b>Deployments → Redeploy</b>.';
+    else if (!c.storage) tips = c.env && c.env.length ? 'Es gibt Speicher-Variablen, aber keine passt. Bitte schick einen Screenshot dieser Seite.' : 'Diese Version sieht <b>keine Speicher-Variablen</b>. Prüfe in Vercel: <b>Storage</b> → dein Speicher → <b>Projects</b>: ist <b>obt1</b> verbunden und ist dabei <b>Production</b> angehakt? Danach unbedingt <b>Deployments → oberster Eintrag → ⋯ → Redeploy</b>. Variablen gelten erst für neue Deployments.';
     else if (c.error) tips = 'Der Speicher ist verbunden, aber der Test schlug fehl: <b>' + esc(c.error) + '</b>. Meist hilft: Speicher in Vercel erneut mit dem Projekt verbinden und neu deployen.';
     app.innerHTML = shell(`<div style="display:grid;gap:12px">${prefix ? `<div class="notice">${prefix}</div>` : ''}
       <ul style="list-style:none;margin:0;padding:0;display:grid;gap:6px;font-size:14px">
@@ -532,7 +532,7 @@
         ${line(!!(c && c.write), 'Speichern möglich')}
         ${line(!!(c && c.read), 'Lesen möglich')}
       </ul>
-      ${c ? `<div class="hint">Gefundene Variablen: ${c.env && c.env.length ? c.env.map(esc).join(', ') : 'keine'}</div>` : ''}
+      ${c ? `<div class="hint">Gefundene Speicher-Variablen: ${c.env && c.env.length ? c.env.map(esc).join(', ') : 'keine'} · Umgebung: ${esc(c.vercelEnv || '–')} · Deployment: ${esc(c.deployment || '–')}</div>` : ''}
       ${tips ? `<div class="notice">${tips}</div>` : '<div class="notice"><b>Alles in Ordnung.</b></div>'}
       <div class="row"><button class="btn primary" onclick="location.reload()">Erneut prüfen</button><a class="btn" href="/">Zur Website</a></div></div>`);
   }
