@@ -6,7 +6,7 @@ const path = require('path');
 const PORT = +process.env.PORT || 3000;
 const ROOT = __dirname;
 const TYPES = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.svg': 'image/svg+xml' };
-const PAGES = { '/': 'index.html', '/admin': 'admin.html', '/turnierleitung': 'admin.html', '/turnierleitung/': 'admin.html', '/anzeige': 'anzeige.html', '/anzeige/': 'anzeige.html' };
+const PAGES = { '/': 'index.html', '/admin': 'admin.html', '/turnierleitung': 'turnierleitung.html', '/turnierleitung/': 'turnierleitung.html', '/anzeige': 'anzeige.html', '/anzeige/': 'anzeige.html' };
 http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost');
   const m = url.pathname.match(/^\/api\/([a-z]+)$/);

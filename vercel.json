@@ -1,29 +1,7 @@
 {
   "cleanUrls": true,
-  "rewrites": [
-    {
-      "source": "/turnierleitung",
-      "destination": "/admin.html"
-    },
-    {
-      "source": "/turnierleitung/",
-      "destination": "/admin.html"
-    },
-    {
-      "source": "/anzeige/",
-      "destination": "/anzeige.html"
-    }
-  ],
+  "trailingSlash": false,
   "headers": [
-    {
-      "source": "/admin",
-      "headers": [
-        {
-          "key": "X-Robots-Tag",
-          "value": "noindex"
-        }
-      ]
-    },
     {
       "source": "/turnierleitung",
       "headers": [

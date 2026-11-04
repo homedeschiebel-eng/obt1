@@ -20,7 +20,7 @@ Gruppenspiele 7 Min., Viertelfinale und Spiel um Platz 3 10 Min., Halbfinale und
    aus diesem Ordner hochladen. Die Ordnerstruktur muss gleich bleiben:
      api/   (Vercel-Funktionen – müssen im Ordner "api" liegen)
      css/  js/  img/  data/
-     index.html  admin.html  anzeige.html
+     index.html  turnierleitung.html  anzeige.html  admin.html
      package.json  vercel.json  .vercelignore  (beginnt mit Punkt, im Explorer evtl. versteckt)
 
 2. PROJEKT IN VERCEL ANLEGEN
