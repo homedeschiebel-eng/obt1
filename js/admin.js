@@ -165,7 +165,7 @@
     const s = ui.sync; if (!s) return '';
     if (!s.enabled) return 'Automatische Übertragung ist aus.';
     const ago = s.lastOk ? Math.round((Date.now() - s.lastOk) / 1000) : null;
-    if (s.state === 'ok') return 'Online aktuell ✓ – zuletzt übertragen vor ' + (ago < 60 ? ago + ' s' : Math.round(ago / 60) + ' Min.') + '.';
+    if (s.state === 'ok') return 'Online aktuell ✓ – die Website zeigt den Stand vom Laptop (geprüft vor ' + (ago < 60 ? ago + ' s' : Math.round(ago / 60) + ' Min.') + ')' + (s.onlineStorage ? ' · Speicher der Website: ' + s.onlineStorage + (s.onlineStorage === 'blob' ? ' (für Live-Betrieb ist Redis besser)' : '') : '') + '.';
     if (s.state === 'offline') return 'Keine Verbindung zur Website – es geht hier normal weiter, die Übertragung wird automatisch nachgeholt.' + (ago != null ? ' Letzte Übertragung vor ' + (ago < 60 ? ago + ' s' : Math.round(ago / 60) + ' Min.') + '.' : '');
     if (s.state === 'fehler') return 'Übertragung klappt nicht: ' + (s.lastErr || 'unbekannter Fehler');
     return 'Übertragung startet …';

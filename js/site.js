@@ -202,7 +202,7 @@
     <main><div class="wrap">${main}</div></main>
     ${partnersBand()}
     <footer><div class="wrap"><div class="org"><span class="logo logo-school" role="img" aria-label="Logo ${esc(s.school)}"></span><span class="logo logo-smv" role="img" aria-label="Logo der SMV"></span><div>Ein Turnier der SMV<small>${esc([s.school, H.dateText(), s.location].filter(Boolean).join(' · '))}</small></div></div>
-    <div class="small"><span class="conn${online ? '' : ' off'}">${online ? 'Live verbunden' : 'Keine Verbindung – wird erneut versucht'}</span> · <a href="/anzeige">Hallenanzeige</a> · <a href="/turnierleitung">Turnierleitung</a></div></div></footer>`;
+    <div class="small"><span class="conn${online ? '' : ' off'}">${online ? 'Live verbunden' : 'Keine Verbindung – wird erneut versucht'}</span>${S.updated ? ' · Stand ' + new Date(S.updated).toLocaleTimeString('de-DE') : ''} · <a href="/anzeige">Hallenanzeige</a> · <a href="/turnierleitung">Turnierleitung</a></div></div></footer>`;
     document.title = (live ? '● ' + H.tName(H.live(), 'h') + ' ' + H.sc(H.live()).h + ':' + H.sc(H.live()).a + ' ' + H.tName(H.live(), 'a') + ' · ' : '') + 'Parler Oberstufen-Turnier';
   }
 

@@ -4,7 +4,8 @@ try { L = require('./_lib'); } catch (e) { initErr = e; }
 
 // Kurzer Zwischenspeicher pro Server-Instanz, damit viele Zuschauer den Speicher nicht überlasten
 let cache = null;
-const PUBLIC = { 'Cache-Control': 'public, max-age=0, s-maxage=1, stale-while-revalidate=2' };
+// Browser: nie zwischenspeichern. Vercel-CDN: höchstens 1 Sekunde (entlastet bei vielen Zuschauern).
+const PUBLIC = { 'Cache-Control': 'no-store', 'CDN-Cache-Control': 'public, max-age=1', 'Vercel-CDN-Cache-Control': 'public, max-age=1' };
 
 module.exports = async (req, res) => {
   if (initErr) {
@@ -17,7 +18,7 @@ module.exports = async (req, res) => {
 
     if (req.method === 'GET') {
       const fresh = !!L.q(req, 'fresh');
-      if (!fresh && cache && Date.now() - cache.t < 800) return L.send(res, 200, cache.v, PUBLIC);
+      if (!fresh && cache && Date.now() - cache.t < 700) return L.send(res, 200, cache.v, PUBLIC);
       const v = { state: await L.readState() };
       cache = { t: Date.now(), v };
       return L.send(res, 200, v, fresh ? null : PUBLIC);

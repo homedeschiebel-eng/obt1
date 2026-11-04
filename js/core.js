@@ -311,7 +311,7 @@
 
   /* ---------- Daten laden ---------- */
   PT.fetchState = async (fresh) => {
-    const r = await fetch('/api/state' + (fresh ? '?fresh=1&t=' + Date.now() : ''), { cache: fresh ? 'no-store' : 'default' });
+    const r = await fetch('/api/state' + (fresh ? '?fresh=1&t=' + Date.now() : ''), { cache: 'no-store' });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw Object.assign(new Error(j.error || 'Status ' + r.status), { status: r.status, setup: j.setup });
     return PT.normalize(j.state);

@@ -87,7 +87,18 @@ async function pushOnce(cfg) {
       else if (e.status === 401) { session.until = 0; cookie = await login(base, cfg.pass); out = (await send((on.state && on.state.rev) || 0)).j; }
       else throw e;
     }
-    status.pushedRev = local.rev; status.lastOk = Date.now(); status.lastErr = ''; status.state = 'ok'; status.online = out.rev;
+    // Gegenprobe: liefert die Website (wie für Zuschauer) den neuen Stand aus?
+    let seen = null;
+    for (let i = 0; i < 4; i++) {
+      try { const { j: chk } = await req(base + '/api/state?t=' + Date.now(), {}, 8000); seen = chk.state && chk.state.rev; } catch (e) { seen = null; }
+      if (seen != null && seen >= out.rev) break;
+      await new Promise((r) => setTimeout(r, 1200));
+    }
+    if (!status.onlineStorage || Date.now() - (status.storageAt || 0) > 300000) { try { const { j: me } = await req(base + '/api/auth?action=me', {}, 8000); status.onlineStorage = me.storage || ''; status.onlineVersion = me.version || ''; status.storageAt = Date.now(); } catch (e) { /* egal */ } }
+    status.pushedRev = local.rev; status.lastTry = Date.now(); status.online = out.rev;
+    if (seen == null || seen < out.rev) {
+      status.state = 'fehler'; status.lastErr = 'Übertragen, aber die Website zeigt den neuen Stand noch nicht an (Website liefert Stand ' + seen + ', erwartet ' + out.rev + '). Speicher der Website: ' + (status.onlineStorage || 'unbekannt') + '.';
+    } else { status.lastOk = Date.now(); status.lastErr = ''; status.state = 'ok'; }
     return out;
   })();
   try { return await pushing; } finally { pushing = null; }
@@ -102,7 +113,7 @@ function startAuto() {
     if (!cfg.enabled) { status.state = 'aus'; timer = setTimeout(tick, 3000); return; }
     try {
       const rev = (await L.readState()).rev || 0;
-      if (rev !== status.pushedRev || Date.now() - status.lastOk > 60000 || status.state !== 'ok') {
+      if (rev !== status.pushedRev || Date.now() - (status.lastOk || 0) > 60000 || status.state !== 'ok') {
         status.lastTry = Date.now(); await pushOnce(cfg);
       }
       wait = 2000;
