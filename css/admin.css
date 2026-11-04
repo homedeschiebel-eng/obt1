@@ -1,18 +1,18 @@
 /* Turnierleitung – ergänzt site.css */
 body.admin{background:var(--bg)}
-.ad-hdr{background:var(--black);border-bottom:1px solid #121a33;position:sticky;top:0;z-index:20}
-.ad-hdr .wrap{display:flex;align-items:center;gap:10px 22px;min-height:62px;flex-wrap:wrap}
-.ad-tabs{display:flex;gap:4px 18px;flex:1;overflow-x:auto;scrollbar-width:none;min-width:0}
-.ad-tabs button{background:none;border:0;border-bottom:2px solid transparent;padding:4px 0 2px;font-family:var(--f-d);font-style:italic;font-weight:800;text-transform:uppercase;font-size:17px;color:#fff;cursor:pointer;white-space:nowrap}
-.ad-tabs button[aria-pressed="true"]{border-color:var(--cyan);color:var(--cyan)}
-.ad-r{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-@media (max-width:900px){.ad-tabs{order:3;flex-basis:100%;padding-bottom:6px}}
+.tl-head{background:var(--black);border-bottom:1px solid #121a33;position:sticky;top:0;z-index:20}
+.tl-head .wrap{display:flex;align-items:center;gap:10px 22px;min-height:62px;flex-wrap:wrap}
+.tl-nav{display:flex;gap:4px 18px;flex:1;overflow-x:auto;scrollbar-width:none;min-width:0}
+.tl-nav button{background:none;border:0;border-bottom:2px solid transparent;padding:4px 0 2px;font-family:var(--f-d);font-style:italic;font-weight:800;text-transform:uppercase;font-size:17px;color:#fff;cursor:pointer;white-space:nowrap}
+.tl-nav button[aria-pressed="true"]{border-color:var(--cyan);color:var(--cyan)}
+.tl-side{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+@media (max-width:900px){.tl-nav{order:3;flex-basis:100%;padding-bottom:6px}}
 .save{font-size:13px;font-weight:600;color:var(--muted);display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
 .save::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--win)}
 .save.pending::before{background:var(--yellow)}
 .save.err{color:var(--lose)}.save.err::before{background:var(--live)}
-.ad-main .wrap{padding-block:22px 60px;display:grid;gap:18px}
-.ad-main .wrap>*{min-width:0}
+.tl-body .wrap{padding-block:22px 60px;display:grid;gap:18px}
+.tl-body .wrap>*{min-width:0}
 
 /* Buttons */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--row-line);background:var(--row-b);color:#fff;border-radius:5px;padding:7px 12px;font-weight:700;font-size:13.5px;cursor:pointer;text-decoration:none;white-space:nowrap}

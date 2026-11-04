@@ -69,7 +69,7 @@
     const by = (l) => S.sponsors.filter((s) => s.level === l);
     const main = by('Hauptsponsor'), mid = [...by('Premium-Partner'), ...by('Partner')], small = S.sponsors.filter((s) => !main.includes(s) && !mid.includes(s));
     const row = (l, c) => (l.length ? `<div class="prow ${c}">${l.map((s) => `<a href="#partner" title="${esc(s.name)}">${spLogo(s)}</a>`).join('')}</div>` : '');
-    return `<section class="partners"><div class="wrap"><h2>Partner</h2>${row(main, 'main')}${row(mid, '')}${row(small, 'small')}</div></section>`;
+    return `<section class="unterstuetzer"><div class="wrap"><h2>Partner</h2>${row(main, 'main')}${row(mid, '')}${row(small, 'small')}</div></section>`;
   }
 
   /* ---------- Ansichten ---------- */

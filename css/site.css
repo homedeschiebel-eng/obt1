@@ -247,9 +247,9 @@ main .wrap>*{min-width:0}
 .lu li .tag{margin-left:auto;display:flex;gap:3px}
 
 /* Partner */
-.partners{background:var(--paper);color:var(--paper-ink)}
-.partners .wrap{padding-block:34px 38px;display:grid;gap:22px;justify-items:center}
-.partners h2{font-size:34px}
+.unterstuetzer{background:var(--paper);color:var(--paper-ink)}
+.unterstuetzer .wrap{padding-block:34px 38px;display:grid;gap:22px;justify-items:center}
+.unterstuetzer h2{font-size:34px}
 .prow{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:16px 44px}
 .prow a{text-decoration:none;color:var(--paper-ink)}
 .wm{font-family:var(--f-d);font-style:italic;font-weight:900;text-transform:uppercase;font-size:24px;line-height:.95}

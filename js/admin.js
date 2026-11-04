@@ -262,12 +262,14 @@
     ui.needsRender = false;
     const focusCmd = ae && ae.id === 'cmd', cmdVal = focusCmd ? ae.value : '';
     const v = { cockpit: vCockpit, plan: vPlan, teams: vTeams, partner: vPartner, settings: vSettings }[ui.tab] || vCockpit;
-    app.innerHTML = `<header class="ad-hdr"><div class="wrap">
+    app.innerHTML = `<header class="tl-head"><div class="wrap">
       <a class="brand" href="/" target="_blank" rel="noopener"><span class="logo logo-school" role="img" aria-label="Logo"></span><span class="bt"><small>Turnierleitung</small><b>${esc(S.settings.title).replace(/-?(Turnier)$/i, ' <span>$1</span>')}</b></span></a>
-      <nav class="ad-tabs">${TABS.map(([k, l]) => `<button data-act="tab" data-t="${k}" aria-pressed="${ui.tab === k}">${l}</button>`).join('')}</nav>
-      <div class="ad-r"><span id="save" class="save"></span><a class="btn sm" href="/" target="_blank" rel="noopener">Website</a><a class="btn sm" href="/anzeige" target="_blank" rel="noopener">Hallenanzeige</a><button class="btn sm" data-act="logout">Abmelden</button></div>
-    </div></header><main class="ad-main"><div class="wrap">${v()}</div></main>`;
+      <nav class="tl-nav">${TABS.map(([k, l]) => `<button data-act="tab" data-t="${k}" aria-pressed="${ui.tab === k}">${l}</button>`).join('')}</nav>
+      <div class="tl-side"><span id="save" class="save"></span><a class="btn sm" href="/" target="_blank" rel="noopener">Website</a><a class="btn sm" href="/anzeige" target="_blank" rel="noopener">Hallenanzeige</a><button class="btn sm" data-act="logout">Abmelden</button></div>
+    </div></header><main class="tl-body"><div class="wrap">${v()}</div></main>`;
     paintSave();
+    // Falls ein Werbeblocker trotzdem Teile ausblendet: Hinweis zeigen
+    const body = app.querySelector('.tl-body'); if (body && !body.offsetHeight) toast('Eine Browser-Erweiterung (z. B. Werbeblocker) blendet Teile aus. Bitte für diese Seite ausschalten.', true);
     if (focusCmd) { const el = document.getElementById('cmd'); if (el) { el.value = cmdVal; el.focus(); } }
   }
   document.addEventListener('focusout', () => setTimeout(() => { if (ui.needsRender) render(); }, 0));
