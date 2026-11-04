@@ -124,8 +124,13 @@
     async set(k, v) { const db = await this.open(); return new Promise((res, rej) => { const tx = db.transaction('files', 'readwrite'); tx.objectStore('files').put(v, k); tx.oncomplete = () => res(); tx.onerror = () => rej(tx.error); }); },
     async del(k) { const db = await this.open(); return new Promise((res) => { const tx = db.transaction('files', 'readwrite'); tx.objectStore('files').delete(k); tx.oncomplete = () => res(); tx.onerror = () => res(); }); }
   };
-  const anthemCfg = () => { try { return Object.assign({ on: true, vol: 0.9, max: 25 }, JSON.parse(localStorage.getItem('pt-hymne') || '{}')); } catch (e) { return { on: true, vol: 0.9, max: 25 }; } };
-  const saveCfg = (c) => { try { localStorage.setItem('pt-hymne', JSON.stringify(c)); } catch (e) { /* egal */ } };
+  // Standard: Hymne läuft ganz durch (max = 0). Alte Voreinstellung 25 s wird einmalig aufgehoben.
+  const anthemCfg = () => {
+    let c = { on: true, vol: 0.9, max: 0 };
+    try { const s = JSON.parse(localStorage.getItem('pt-hymne') || '{}'); if (!s.v2) { s.max = 0; s.v2 = true; localStorage.setItem('pt-hymne', JSON.stringify(Object.assign({}, c, s))); } c = Object.assign(c, s); } catch (e) { /* Standard */ }
+    return c;
+  };
+  const saveCfg = (c) => { try { localStorage.setItem('pt-hymne', JSON.stringify(Object.assign(c, { v2: true }))); } catch (e) { /* egal */ } };
   let audio = null, audioUrl = null, fadeT = null, stopT = null;
   function stopAnthem(fade) {
     clearTimeout(stopT); clearInterval(fadeT);
@@ -300,7 +305,7 @@
       <div class="frow" style="align-items:end">
         <div class="field"><label for="hy-file">Allgemeine Torhymne (MP3, M4A, WAV …)</label><input id="hy-file" type="file" accept="audio/*"><div class="hint" id="hy-name">…</div></div>
         <div class="field"><label for="hy-vol">Lautstärke</label><input id="hy-vol" type="range" min="0" max="1" step="0.05" value="${anthemCfg().vol}"></div>
-        <div class="field"><label for="hy-max">Spielt höchstens (Sekunden, 0 = ganz)</label><input id="hy-max" type="number" min="0" max="300" value="${anthemCfg().max}"></div>
+        <div class="field"><label for="hy-max">Automatisch ausblenden nach (Sekunden) – 0 = ganz abspielen</label><input id="hy-max" type="number" min="0" max="300" value="${anthemCfg().max}"></div>
       </div>
       <div class="row" style="margin-top:12px"><label class="check"><input id="hy-on" type="checkbox" ${anthemCfg().on ? 'checked' : ''}> Nach jedem Tor abspielen</label><span style="flex:1"></span><button type="button" class="btn" data-act="hy-test">▶ Probe</button><button type="button" class="btn" data-act="hy-stop">■ Stopp</button><button type="button" class="btn danger" data-act="hy-del">Entfernen</button></div>
       <div class="hint" style="margin-top:8px">Die Datei bleibt in diesem Browser gespeichert und wird nicht ins Internet hochgeladen. Eigene Hymnen pro Team: Reiter „Teams“ → Team bearbeiten.</div></div>
