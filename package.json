@@ -1,0 +1,11 @@
+{
+  "name": "parler-oberstufen-turnier",
+  "private": true,
+  "description": "Live-Website für das Oberstufen-Turnier am Parler-Gymnasium. Der Ordner api/ enthält die Vercel-Funktionen.",
+  "engines": { "node": ">=20" },
+  "scripts": { "dev": "node dev-server.js" },
+  "dependencies": {
+    "@vercel/blob": "2.7.0",
+    "redis": "4.7.0"
+  }
+}

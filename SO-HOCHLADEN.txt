@@ -1,0 +1,85 @@
+PARLER OBERSTUFEN-TURNIER – so kommt die Website auf Vercel
+============================================================
+
+Was drin ist
+  /                 Website für Zuschauer und Teams (Live-Spiel, Spielplan, Tabellen,
+                    Statistiken, Teams mit Kader, Partner). Aktualisiert sich alle 2 Sekunden.
+  /turnierleitung   Live-Cockpit mit Passwort: Spiel wählen, Teams wählen (Spieler erscheinen
+                    automatisch), Uhr, Tore/Karten per Antippen oder Befehl ("tor spieler 1 team 2"),
+                    Spielplan-Generator, Teams, Partner, Einstellungen, Sicherung.
+  /anzeige          Vollbild-Anzeigetafel für Beamer/Fernseher in der Halle (Taste F = Vollbild).
+
+Voreingestellt: 12 Teams (Team 1 bis Team 12), Gruppe A = Team 1–6, Gruppe B = Team 7–12,
+je Team 6 Platzhalter-Spieler. 38 Spiele nacheinander auf einem Feld ab 09:00 Uhr:
+Gruppenspiele 7 Min., Viertelfinale und Spiel um Platz 3 10 Min., Halbfinale und Finale 12 Min.,
+2 Min. Wechselpause. Alles lässt sich in der Turnierleitung ändern.
+
+
+1. DATEIEN HOCHLADEN
+   Neues GitHub-Repository anlegen (z. B. "parler-turnier") und ALLE Dateien und Ordner
+   aus diesem Ordner hochladen. Die Ordnerstruktur muss gleich bleiben:
+     api/   (Vercel-Funktionen – müssen im Ordner "api" liegen)
+     css/  js/  img/  data/
+     index.html  admin.html  anzeige.html
+     package.json  vercel.json  .vercelignore  (beginnt mit Punkt, im Explorer evtl. versteckt)
+
+2. PROJEKT IN VERCEL ANLEGEN
+   vercel.com -> Add New -> Project -> das GitHub-Repository importieren.
+   Framework Preset: "Other". Build Command und Output Directory leer lassen. Deploy.
+
+3. SPEICHER VERBINDEN (ohne Speicher läuft nichts)
+   Vercel-Projekt -> Storage -> Create Database -> Redis (Upstash oder Redis, kostenloser Tarif)
+   -> "Connect Project" mit diesem Projekt verbinden.
+   Alternativ geht auch ein Blob-Store wie bei der TSB-Seite (öffentlich oder privat).
+   Redis ist für den Live-Betrieb besser, weil während des Turniers sehr oft gespeichert wird.
+
+4. NEU DEPLOYEN
+   Deployments -> oberster Eintrag -> ... -> Redeploy.
+   Erst danach kennt das Projekt den Speicher.
+
+5. PASSWORT FESTLEGEN
+   https://DEIN-PROJEKT.vercel.app/turnierleitung öffnen. Beim ersten Mal erscheint
+   "Passwort festlegen" – Passwort eingeben, fertig. Ändern geht später unter "Einstellungen".
+   (Wer möchte, kann stattdessen im Vercel-Projekt die Umgebungsvariable ADMIN_PASSWORD setzen,
+   die hat dann Vorrang.)
+
+WENN ETWAS NICHT GEHT
+   Auf /turnierleitung unten auf "Diagnose" klicken (erscheint bei Problemen automatisch).
+   Dort steht, ob die Server-Funktionen laufen, ob ein Speicher verbunden ist und ob
+   Speichern/Lesen klappt. Häufige Ursachen:
+   - Die Dateien liegen im Repository in einem Unterordner (z. B. parler-turnier-vercel/).
+     Dann in Vercel unter Settings -> Build and Deployment -> Root Directory diesen Ordner eintragen.
+   - Speicher angelegt, aber nicht mit dem Projekt verbunden oder nicht neu deployt.
+   - Man hat eine Vorschau-Adresse geöffnet (mit langer Kennung im Namen), die nach einer
+     Vercel-Anmeldung fragt. Für Zuschauer immer die Hauptadresse verwenden (Projekt -> Domains).
+
+VOR DEM TURNIER
+  - /turnierleitung öffnen und anmelden.
+  - Reiter "Teams": Namen, Gruppe, Farbe, Spielerliste (eine Person pro Zeile, Nummer optional
+    vorne), Logo und Teamfoto eintragen.
+  - Reiter "Spielplan": Startzeit, Pausen und Spielzeiten prüfen. Nach Änderungen an den Gruppen
+    "Spielplan neu erstellen" drücken, sonst reicht "Zeiten übernehmen".
+  - Reiter "Partner": Sponsoren mit Logo eintragen (erscheinen im weißen Partnerbereich).
+  - Einmal ein Testspiel durchspielen, danach Reiter "Einstellungen" -> "Alle Ergebnisse löschen".
+  - Vor dem Turnier eine Sicherung herunterladen (Reiter "Einstellungen").
+
+WÄHREND DES TURNIERS
+  - Cockpit: Ausgewählt ist automatisch das nächste Spiel. "Anpfiff" startet die Uhr (läuft rückwärts).
+  - Tor: beim Team "Tor" (Standard), "Eigentor", "Gelb" oder "Rot" wählen und den Spieler antippen.
+  - Oder in die Befehlszeile tippen und Enter:
+      tor 7 h                 Tor von Nr. 7, Team 1 (h = heim/links, g = gast/rechts)
+      tor spieler 2 team 4    Tor nach Name und Teamname
+      et 3 gast               Eigentor von Nr. 3 im Team 2
+      gelb 5 h · rot 4 g      Karten
+      tor 9 h min 5           mit eigener Spielminute
+      start · stopp · abpfiff · zurück · nächstes
+  - Tasten: Leertaste = Uhr an/aus, Z = letzten Eintrag zurücknehmen, / = Befehlszeile.
+  - Nach dem Abpfiff "Nächstes Spiel laden" drücken.
+  - Viertelfinale, Halbfinale und Finale füllen sich automatisch mit den richtigen Teams,
+    sobald die Gruppen bzw. Spiele beendet sind. Bei Unentschieden im K.-o.-Spiel das
+    Neunmeterschießen im Cockpit eintragen.
+  - Mehrere Geräte der Turnierleitung können gleichzeitig angemeldet sein.
+
+LOKAL AUSPROBIEREN (optional)
+  Mit installiertem Node.js im Ordner:  node dev-server.js
+  Dann http://localhost:3000 öffnen. Turnierleitung: /turnierleitung, Passwort lokal: test
