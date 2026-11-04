@@ -339,22 +339,78 @@
   function renumber(S) { S.matches.sort((a, b) => (a.no || 0) - (b.no || 0)).forEach((m, i) => { m.no = i + 1; }); }
 
   /* Bilder verkleinern und hochladen */
-  function resize(file, maxW, maxH, type) {
-    return new Promise((resolve, reject) => {
-      const rd = new FileReader();
-      rd.onload = () => { const img = new Image(); img.onload = () => { const k = Math.min(1, maxW / img.width, maxH / img.height); const c = document.createElement('canvas'); c.width = Math.max(1, Math.round(img.width * k)); c.height = Math.max(1, Math.round(img.height * k)); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); c.toBlob((b) => (b ? resolve(b) : reject(new Error('Bild konnte nicht umgewandelt werden.'))), type, 0.85); }; img.onerror = () => reject(new Error('Dieses Bild konnte nicht gelesen werden. Bitte PNG oder JPG wählen.')); img.src = rd.result; };
-      rd.onerror = () => reject(new Error('Datei konnte nicht gelesen werden.')); rd.readAsDataURL(file);
-    });
+  /* Bilder laden, Logos automatisch zuschneiden und zentrieren, verkleinern, hochladen */
+  function loadImage(src) {
+    return new Promise((resolve, reject) => { const img = new Image(); img.onload = () => resolve(img); img.onerror = () => reject(new Error('Dieses Bild konnte nicht gelesen werden. Bitte PNG oder JPG wählen.')); img.src = src; });
   }
-  async function upload(file, maxW, maxH, type) { const b = await resize(file, maxW, maxH, type); const j = await api('/api/img', { method: 'POST', headers: { 'Content-Type': type }, body: b }); return j.url; }
+  function readFile(file) {
+    return new Promise((resolve, reject) => { const rd = new FileReader(); rd.onload = () => resolve(rd.result); rd.onerror = () => reject(new Error('Datei konnte nicht gelesen werden.')); rd.readAsDataURL(file); });
+  }
+  // Leere oder weiße Ränder finden (Bereich, in dem wirklich etwas zu sehen ist)
+  function contentBox(img) {
+    const W = img.naturalWidth || img.width, Hh = img.naturalHeight || img.height;
+    const k = Math.min(1, 600 / Math.max(W, Hh)), w = Math.max(1, Math.round(W * k)), h = Math.max(1, Math.round(Hh * k));
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    const g = c.getContext('2d'); g.drawImage(img, 0, 0, w, h);
+    const d = g.getImageData(0, 0, w, h).data;
+    let x0 = w, y0 = h, x1 = -1, y1 = -1;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4, a = d[i + 3];
+      if (a > 24 && !(d[i] > 240 && d[i + 1] > 240 && d[i + 2] > 240)) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    }
+    if (x1 < 0) return { x: 0, y: 0, w: W, h: Hh };
+    return { x: x0 / k, y: y0 / k, w: (x1 - x0 + 1) / k, h: (y1 - y0 + 1) / k };
+  }
+  // mode 'circle': quadratisch, Logo mittig mit Abstand, damit es ganz in den runden Rahmen passt
+  // mode 'trim': nur Ränder abschneiden (für Partnerlogos)
+  function prepare(img, maxW, maxH, type, mode) {
+    let sx = 0, sy = 0, sw = img.naturalWidth || img.width, sh = img.naturalHeight || img.height;
+    if (mode) { const b = contentBox(img); sx = b.x; sy = b.y; sw = b.w; sh = b.h; }
+    let cw, ch, dx, dy, dw, dh;
+    if (mode === 'circle') {
+      const side = Math.min(maxW, Math.round(Math.max(sw, sh) / 0.72));
+      const k = (side * 0.72) / Math.max(sw, sh);
+      cw = ch = side; dw = sw * k; dh = sh * k; dx = (side - dw) / 2; dy = (side - dh) / 2;
+    } else {
+      const k = Math.min(1, maxW / sw, maxH / sh); cw = Math.max(1, Math.round(sw * k)); ch = Math.max(1, Math.round(sh * k)); dx = 0; dy = 0; dw = cw; dh = ch;
+    }
+    const c = document.createElement('canvas'); c.width = Math.max(1, Math.round(cw)); c.height = Math.max(1, Math.round(ch));
+    const g = c.getContext('2d'); g.imageSmoothingQuality = 'high'; g.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh);
+    return new Promise((resolve, reject) => c.toBlob((b) => (b ? resolve(b) : reject(new Error('Bild konnte nicht umgewandelt werden.'))), type, 0.85));
+  }
+  async function upload(file, maxW, maxH, type, mode) {
+    const img = await loadImage(await readFile(file));
+    const b = await prepare(img, maxW, maxH, type, mode);
+    const j = await api('/api/img', { method: 'POST', headers: { 'Content-Type': type }, body: b }); return j.url;
+  }
+  // Bereits hochgeladene Teamlogos einmal pro Sitzung automatisch zentrieren
+  let logosChecked = false;
+  async function fixTeamLogos() {
+    if (logosChecked || !S) return; logosChecked = true;
+    let n = 0;
+    for (const t of S.teams.slice()) {
+      if (!t.logo) continue;
+      try {
+        const r = await fetch(t.logo, { cache: 'force-cache' }); if (!r.ok) continue;
+        const img = await loadImage(URL.createObjectURL(await r.blob()));
+        const b = contentBox(img), W = img.naturalWidth, Hh = img.naturalHeight;
+        const cx = (b.x + b.w / 2) / W, cy = (b.y + b.h / 2) / Hh, fill = Math.max(b.w, b.h) / Math.max(W, Hh);
+        if (Math.abs(W - Hh) <= 2 && Math.abs(cx - 0.5) < 0.02 && Math.abs(cy - 0.5) < 0.02 && fill < 0.76) continue; // schon zentriert
+        const blob = await prepare(img, 240, 240, 'image/png', 'circle');
+        const j = await api('/api/img', { method: 'POST', headers: { 'Content-Type': 'image/png' }, body: blob });
+        if (j.url && j.url !== t.logo) { const id = t.id, url = j.url; act((S) => { const x = S.teams.find((y) => y.id === id); if (x) x.logo = url; }); n++; }
+      } catch (e) { /* Logo bleibt, wie es ist */ }
+    }
+    if (n) toast(n === 1 ? '1 Teamlogo wurde automatisch zentriert.' : n + ' Teamlogos wurden automatisch zentriert.');
+  }
   const imgField = (id, label, has, none) => `<div class="field"><label for="${id}">${label}</label><input id="${id}" type="file" accept="image/*"><div class="hint" data-hint="${id}">${has ? `Ein Bild ist hinterlegt. <button type="button" class="btn sm" data-rm="${id}">Entfernen</button>` : none}</div></div>`;
-  function wireImg(form, id, maxW, maxH, type, set) {
+  function wireImg(form, id, maxW, maxH, type, set, mode) {
     const hint = form.querySelector(`[data-hint="${id}"]`);
     form.addEventListener('click', (e) => { if (e.target.closest(`[data-rm="${id}"]`)) { set(''); hint.textContent = 'Wird beim Speichern entfernt.'; } });
     form.querySelector('#' + id).addEventListener('change', async (e) => {
       const f = e.target.files[0]; if (!f) return;
       hint.textContent = 'Bild wird hochgeladen …'; form.dataset.busy = '1';
-      try { const url = await upload(f, maxW, maxH, type); set(url); hint.innerHTML = 'Neues Bild bereit: <img src="' + esc(url) + '" alt="" style="max-height:40px;vertical-align:middle">'; }
+      try { const url = await upload(f, maxW, maxH, type, mode); set(url); hint.innerHTML = 'Neues Bild bereit: <img src="' + esc(url) + '" alt="" style="max-height:40px;vertical-align:middle">'; }
       catch (x) { hint.textContent = x.message; }
       delete form.dataset.busy;
     });
@@ -369,7 +425,7 @@
       ${F('name', 'Teamname', t.name, 'text', 'required')}
       <div class="frow">${F('cls', 'Klasse / Kurs (optional)', t.cls, 'text', 'placeholder="z. B. J1, J2"')}${F('group', 'Gruppe', t.group, 'text', 'placeholder="A oder B"')}${F('color', 'Teamfarbe', t.color, 'color')}</div>
       <div class="field"><label for="f-players">Spielerliste</label><textarea id="f-players" name="players" placeholder="1 Spieler 1&#10;7 Jonas M.&#10;10 Lea K.">${esc(roster)}</textarea><div class="hint">Eine Person pro Zeile, Rückennummer optional vorne. Du kannst eine Liste aus Excel oder WhatsApp einfügen. Tore bleiben erhalten, solange der Name gleich bleibt.</div></div>
-      <div class="frow">${imgField('f-logo', 'Teamlogo (optional)', !!t.logo, 'Ohne Logo zeigen wir das Kürzel.')}${imgField('f-photo', 'Teamfoto (optional)', !!t.photo, 'Erscheint auf der Teamkarte.')}</div>`,
+      <div class="frow">${imgField('f-logo', 'Teamlogo (optional, wird automatisch zentriert)', !!t.logo, 'Ohne Logo zeigen wir das Kürzel.')}${imgField('f-photo', 'Teamfoto (optional)', !!t.photo, 'Erscheint auf der Teamkarte.')}</div>`,
     (fd) => {
       const name = fd.get('name').trim(); if (!name) return 'Bitte einen Teamnamen eingeben.';
       const old = t.players || [];
@@ -377,7 +433,7 @@
       const o = { name, cls: fd.get('cls').trim(), group: fd.get('group').trim().toUpperCase(), color: fd.get('color') || '#2E6BFF', players, logo, photo };
       if (isNew) { const id = uid('t'); act((S) => { S.teams.push(Object.assign({ id }, o)); }); }
       else { const id = t.id; act((S) => { Object.assign(S.teams.find((x) => x.id === id), o); }); }
-    }, { ...(isNew ? {} : { del: () => { const id = t.id, nm = t.name; act((S) => { S.teams = S.teams.filter((x) => x.id !== id); S.matches.forEach((m) => { if (m.home === id) { m.home = null; m.homePh = m.homePh || nm; } if (m.away === id) { m.away = null; m.awayPh = m.awayPh || nm; } }); }); }, delLabel: 'Team löschen' }), after: (form) => { wireImg(form, 'f-logo', 240, 240, 'image/png', (u) => { logo = u; }); wireImg(form, 'f-photo', 900, 560, 'image/jpeg', (u) => { photo = u; }); } });
+    }, { ...(isNew ? {} : { del: () => { const id = t.id, nm = t.name; act((S) => { S.teams = S.teams.filter((x) => x.id !== id); S.matches.forEach((m) => { if (m.home === id) { m.home = null; m.homePh = m.homePh || nm; } if (m.away === id) { m.away = null; m.awayPh = m.awayPh || nm; } }); }); }, delLabel: 'Team löschen' }), after: (form) => { wireImg(form, 'f-logo', 240, 240, 'image/png', (u) => { logo = u; }, 'circle'); wireImg(form, 'f-photo', 900, 560, 'image/jpeg', (u) => { photo = u; }); } });
   }
   function sponsorForm(s) {
     const isNew = !s; s = s || { name: '', level: 'Partner', slogan: '', url: '', logo: '' }; let logo = s.logo;
@@ -391,7 +447,7 @@
       const o = { name, level: fd.get('level'), slogan: fd.get('slogan').trim(), url: fd.get('url').trim(), logo };
       if (isNew) { const id = uid('s'); act((S) => { S.sponsors.push(Object.assign({ id }, o)); }); }
       else { const id = s.id; act((S) => { Object.assign(S.sponsors.find((x) => x.id === id), o); }); }
-    }, { ...(isNew ? {} : { del: () => { const id = s.id; act((S) => { S.sponsors = S.sponsors.filter((x) => x.id !== id); }); }, delLabel: 'Partner löschen' }), after: (form) => wireImg(form, 'f-slogo', 600, 240, 'image/png', (u) => { logo = u; }) });
+    }, { ...(isNew ? {} : { del: () => { const id = s.id; act((S) => { S.sponsors = S.sponsors.filter((x) => x.id !== id); }); }, delLabel: 'Partner löschen' }), after: (form) => wireImg(form, 'f-slogo', 600, 240, 'image/png', (u) => { logo = u; }, 'trim') });
   }
 
   /* ---------- Klicks & Eingaben ---------- */
@@ -555,6 +611,7 @@
       await PT.syncTime();
       S = await PT.fetchState(true); H = PT.make(S); render();
       if (S._migrated) { delete S._migrated; act(() => {}); }
+      setTimeout(fixTeamLogos, 800);
       if (queue.length) flush();
     } catch (e) { showDiag('<b>Der Turnierstand konnte nicht geladen werden.</b> ' + esc(e.message)); }
   }

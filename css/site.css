@@ -37,7 +37,7 @@ h1,h2,h3{font-family:var(--f-d);font-style:italic;font-weight:800;text-transform
 .tstrip a{display:block;flex:none;opacity:.85;text-decoration:none}.tstrip a:hover{opacity:1}
 .mono{display:inline-grid;place-items:center;border-radius:50%;background:var(--c,#334);color:#fff;font-family:var(--f-d);font-style:italic;font-weight:800;flex:none;width:34px;height:34px;font-size:13px;line-height:1;box-shadow:inset 0 0 0 2px rgba(255,255,255,.28);overflow:hidden}
 .mono.has-logo{background:#fff;box-shadow:inset 0 0 0 1px rgba(10,20,48,.15)}
-.mono img{width:100%;height:100%;object-fit:contain;object-position:center;padding:10%;display:block}
+.mono img{width:100%;height:100%;object-fit:contain;object-position:center;display:block}
 .mono.s{width:26px;height:26px;font-size:10px}
 .mono.l{width:58px;height:58px;font-size:20px}
 .mono.xl{width:92px;height:92px;font-size:32px}
