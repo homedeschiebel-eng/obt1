@@ -249,6 +249,12 @@
       <div class="frow">${F('win', 'Punkte für Sieg', s.win, 'number', 'min="0" max="5"')}${F('draw', 'Punkte für Unentschieden', s.draw, 'number', 'min="0" max="5"')}</div>
       ${F('ticker', 'Durchsage im Laufband (leer = keine)', s.ticker)}
       <div class="row"><button class="btn primary">Speichern</button></div></div></form>
+    ${ui.local ? `<div class="box"><h3>Website ↔ Laptop abgleichen <small>Offline-Betrieb</small></h3>
+      <div class="field" style="margin-bottom:12px"><label for="sync-url">Adresse der Website</label><input id="sync-url" type="url" value="https://obt1-chi.vercel.app"></div>
+      <div class="frow" style="align-items:end">
+        <div><div class="hint" style="margin-bottom:8px"><b style="color:#fff">Vor dem Offline-Betrieb:</b> holt den aktuellen Stand der Website (Teams, Spielplan, Ergebnisse, Logos) auf den Laptop. Der Stand auf dem Laptop wird ersetzt.</div><button type="button" class="btn primary" data-act="sync-pull" data-confirm="Stand auf dem Laptop ersetzen?">Stand von der Website holen</button></div>
+        <div><div class="hint" style="margin-bottom:8px"><b style="color:#fff">Wenn wieder Internet da ist:</b> lädt den Stand vom Laptop auf die Website. Der Stand auf der Website wird ersetzt.</div><div class="field" style="margin-bottom:8px"><label for="sync-pass">Passwort der Online-Turnierleitung</label><input id="sync-pass" type="password" autocomplete="off"></div><button type="button" class="btn cyan" data-act="sync-push" data-confirm="Stand auf der Website ersetzen?">Stand auf die Website hochladen</button></div>
+      </div><div class="cmd-msg" id="sync-msg"></div></div>` : `<div class="box"><h3>Offline-Betrieb auf dem Laptop</h3><div class="hint">Falls in der Halle das Internet ausfällt: Projekt auf GitHub herunterladen (Code → Download ZIP), auf dem Laptop Node.js installieren und im Ordner <kbd>node server.js</kbd> starten. Die Anleitung steht in OFFLINE-START.txt.</div></div>`}
     <div class="box"><h3>QR-Code-Aushang</h3><div class="hint" style="margin-bottom:10px">A4-Plakat mit QR-Code zur Website für Zuschauer und Teams – zum Ausdrucken oder als PDF speichern.</div><a class="btn primary" href="/aushang" target="_blank" rel="noopener">Aushang öffnen</a></div>
     <div class="box"><h3>Sicherung</h3><div class="row"><button class="btn" data-act="backup">Sicherung herunterladen</button><label class="btn" for="restore">Sicherung einspielen</label><input id="restore" type="file" accept="application/json,.json" hidden></div><div class="hint" style="margin-top:8px">Die Sicherung ist eine JSON-Datei mit allen Teams, Spielen und Ergebnissen.</div></div>
     <form class="box" id="pw-form"><h3>Passwort ändern</h3>${ui.pwSource === 'env' ? '<div class="hint">Das Passwort ist im Vercel-Projekt als ADMIN_PASSWORD festgelegt und kann nur dort geändert werden.</div>' : `<div class="frow" style="align-items:end"><div class="field"><label for="pw-new">Neues Passwort (mind. 6 Zeichen)</label><input id="pw-new" type="password" autocomplete="new-password"></div><div><button class="btn primary">Passwort ändern</button></div></div>`}</form>
@@ -267,7 +273,7 @@
     app.innerHTML = `<header class="tl-head"><div class="wrap">
       <a class="brand" href="/" target="_blank" rel="noopener"><span class="logo logo-school" role="img" aria-label="Logo"></span><span class="bt"><small>Turnierleitung</small><b>${esc(S.settings.title).replace(/-?(Turnier)$/i, ' <span>$1</span>')}</b></span></a>
       <nav class="tl-nav">${TABS.map(([k, l]) => `<button data-act="tab" data-t="${k}" aria-pressed="${ui.tab === k}">${l}</button>`).join('')}</nav>
-      <div class="tl-side"><span id="save" class="save"></span><a class="btn sm" href="/" target="_blank" rel="noopener">Website</a><a class="btn sm" href="/anzeige" target="_blank" rel="noopener">Hallenanzeige</a><button class="btn sm" data-act="logout">Abmelden</button></div>
+      <div class="tl-side">${ui.local ? '<span class="btn sm" style="background:#3DDC97;border-color:#3DDC97;color:#04121F" title="Läuft auf diesem Laptop ohne Internet">Offline · Laptop</span>' : ''}<span id="save" class="save"></span><a class="btn sm" href="/" target="_blank" rel="noopener">Website</a><a class="btn sm" href="/anzeige" target="_blank" rel="noopener">Hallenanzeige</a><button class="btn sm" data-act="logout">Abmelden</button></div>
     </div></header><main class="tl-body"><div class="wrap">${v()}</div></main>`;
     paintSave();
     // Falls ein Werbeblocker trotzdem Teile ausblendet: Hinweis zeigen
@@ -487,6 +493,17 @@
       const l = document.createElement('a'); l.href = URL.createObjectURL(blob); l.download = 'turnier-sicherung-' + new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-') + '.json'; document.body.appendChild(l); l.click(); l.remove();
       return;
     }
+    if (a === 'sync-pull' || a === 'sync-push') {
+      const msg = document.getElementById('sync-msg'), url = document.getElementById('sync-url').value, pass = (document.getElementById('sync-pass') || {}).value || '';
+      msg.className = 'cmd-msg'; msg.textContent = a === 'sync-pull' ? 'Hole den Stand von der Website …' : 'Lade den Stand auf die Website …';
+      api('/api/sync?action=' + (a === 'sync-pull' ? 'pull' : 'push'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url, pass }) })
+        .then(async (j) => {
+          if (a === 'sync-pull') { S = await PT.fetchState(true); H = PT.make(S); logosChecked = false; render(); toast(`Übernommen: ${j.teams} Teams, ${j.matches} Spiele, ${j.images} Bilder.`); }
+          else { msg.className = 'cmd-msg ok'; msg.textContent = 'Fertig: Die Website zeigt jetzt den Stand vom Laptop' + (j.images ? ' (' + j.images + ' Bilder übertragen).' : '.'); const p = document.getElementById('sync-pass'); if (p) p.value = ''; }
+        })
+        .catch((x) => { msg.className = 'cmd-msg no'; msg.textContent = x.message; });
+      return;
+    }
     if (a === 'reset-all') { act((S) => { S.matches.forEach((x) => { x.events = []; x.status = 'scheduled'; x.clock = { run: false, since: null, acc: 0 }; x.pen = null; x.startedAt = null; x.endedAt = null; }); S.current = null; }); toast('Alle Ergebnisse gelöscht.'); return; }
     if (!m) return;
     try {
@@ -609,7 +626,7 @@
     if (!me.storage) { showDiag('<b>Es fehlt noch der Speicher.</b> Ohne ihn können keine Ergebnisse gespeichert werden.'); return; }
     if (!me.passwordSet) { showSetup(); return; }
     if (!me.loggedIn) { showLogin(); return; }
-    ui.pwSource = me.passwordSource;
+    ui.pwSource = me.passwordSource; ui.local = !!me.local;
     try {
       await PT.syncTime();
       S = await PT.fetchState(true); H = PT.make(S); render();

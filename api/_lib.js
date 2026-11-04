@@ -254,7 +254,7 @@ async function storedAuth() {
 }
 async function authInfo() {
   if (process.env.ADMIN_PASSWORD) return { source: 'env', secretBase: 'env|' + process.env.ADMIN_PASSWORD };
-  if (mode() === 'file' && !process.env.PT_NO_DEFAULT && !(await storedAuth())) return { source: 'local', secretBase: 'local|test' };
+  if (mode() === 'file' && process.env.PT_DEV && !(await storedAuth())) return { source: 'local', secretBase: 'local|test' };
   const a = await storedAuth();
   return a && a.hash ? { source: 'stored', secretBase: 'stored|' + a.hash } : { source: null };
 }

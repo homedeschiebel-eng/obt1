@@ -12,7 +12,7 @@ module.exports = async (req, res) => {
   try {
     if (action === 'me') {
       const a = await L.authInfo();
-      return L.send(res, 200, { version: L.VERSION, storage: L.mode(), passwordSet: !!a.source, passwordSource: a.source, loggedIn: await L.isAdmin(req), env: L.envNames(), vercelEnv: process.env.VERCEL_ENV || '', deployment: (process.env.VERCEL_GIT_COMMIT_SHA || '').slice(0, 7) });
+      return L.send(res, 200, { version: L.VERSION, storage: L.mode(), passwordSet: !!a.source, passwordSource: a.source, loggedIn: await L.isAdmin(req), env: L.envNames(), local: !!process.env.PT_LOCAL && L.mode() === 'file', vercelEnv: process.env.VERCEL_ENV || '', deployment: (process.env.VERCEL_GIT_COMMIT_SHA || '').slice(0, 7) });
     }
     if (action === 'check') return L.send(res, 200, Object.assign({ version: L.VERSION }, await L.check()));
     if (req.method !== 'POST') return L.send(res, 405, { error: 'Nicht erlaubt.' });

@@ -1,0 +1,50 @@
+PARLER OBERSTUFEN-TURNIER – OFFLINE AUF DEM LAPTOP
+==================================================
+
+Damit läuft alles ohne Internet auf deinem Laptop: Turnierleitung (Steuerung),
+Hallenanzeige und Website – jeweils in einem eigenen Browserfenster.
+
+VORAUSSETZUNG (einmalig, solange du Internet hast)
+  1. Node.js installieren: https://nodejs.org  -> Version "LTS" -> installieren.
+  2. Diesen Ordner an einen festen Platz legen, z. B. C:\Turnier
+     (nicht im Download-Ordner lassen). Falls du ihn von GitHub holst:
+     github.com/homedeschiebel-eng/obt1 -> grüner Knopf "Code" -> "Download ZIP" -> entpacken.
+
+
+STARTEN (WINDOWS)
+  1. Den Ordner im Explorer öffnen.
+  2. Oben in die Adresszeile klicken, cmd eintippen, Enter.
+  3. Im schwarzen Fenster eintippen:   node server.js   und Enter.
+  4. Fragt die Windows-Firewall nach: "Private Netzwerke" erlauben
+     (nur nötig, wenn andere Geräte wie Beamer-PC oder Handys mitlesen sollen).
+  Die Turnierleitung öffnet sich automatisch im Browser.
+  Das schwarze Fenster offen lassen. Beenden: Strg + C oder Fenster schließen.
+
+STARTEN (MAC)
+  Terminal öffnen, "cd " tippen (mit Leerzeichen), den Ordner ins Fenster ziehen, Enter,
+  dann:   node server.js
+
+
+DIE FENSTER
+  Turnierleitung:  http://localhost:3000/turnierleitung
+  Hallenanzeige:   http://localhost:3000/anzeige   (ins zweite Fenster/auf den Beamer ziehen, Taste F = Vollbild)
+  Website:         http://localhost:3000/
+  Andere Geräte im selben WLAN/Hotspot: Die Adressen mit 192.168… stehen im schwarzen Fenster.
+  Beim ersten Start fragt die Turnierleitung nach einem Passwort für den Laptop.
+
+
+ONLINE UND OFFLINE ABGLEICHEN (Turnierleitung -> Einstellungen -> "Website ↔ Laptop abgleichen")
+  Vor dem Offline-Betrieb (Internet ist noch da):
+    "Stand von der Website holen" – Teams, Spielplan, Ergebnisse und Logos kommen auf den Laptop.
+    Ein laufendes Spiel läuft mit seiner Uhr einfach weiter.
+  Dann offline weiterspielen wie gewohnt.
+  Wenn wieder Internet da ist:
+    Passwort der Online-Turnierleitung eingeben -> "Stand auf die Website hochladen".
+    Danach zeigt die Website wieder alles live – auch für die Zuschauer am Handy.
+
+  Wichtig: Immer nur an EINER Stelle eintragen – entweder online oder auf dem Laptop.
+  Beim Abgleich wird der Stand auf der anderen Seite komplett ersetzt.
+
+TIPP
+  Den Laptop am Turniertag morgens einmal starten und "Stand von der Website holen" drücken.
+  Dann ist er bereit, falls das Internet in der Halle ausfällt.
