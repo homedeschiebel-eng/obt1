@@ -90,7 +90,13 @@
     H.resolvePh = (ph, depth) => {
       if (!ph || depth > 5) return null;
       let x = ph.match(/^\s*(\d+)\.\s*(?:Gruppe|Gr\.?)\s*(\S+)/i);
-      if (x) { const g = x[2].toUpperCase(); if (!H.groupDone(g)) return null; const r = H.standings(g)[+x[1] - 1]; return r ? r.t : null; }
+      if (x) {
+        const g = x[2].toUpperCase(), n = +x[1];
+        if (H.groupDone(g)) { const r = H.standings(g)[n - 1]; return r ? r.t : null; }
+        // Schon vor Gruppenende fest, wenn der Platz rechnerisch sicher ist
+        const c = H.clinch(g), id = Object.keys(c).find((k) => c[k].place === n);
+        return id ? H.T(id) : null;
+      }
       x = ph.match(/^\s*(Sieger|Gewinner|Verlierer)\s+(.+)$/i);
       if (x) {
         const lbl = x[2].trim().replace(/^HF\s*/i, 'Halbfinale ').replace(/^VF\s*/i, 'Viertelfinale ').toLowerCase();
@@ -99,6 +105,71 @@
         return H.teamOf(mm, /^verl/i.test(x[1]) ? (w === 'h' ? 'a' : 'h') : w, depth + 1);
       }
       return null;
+    };
+    /* Was ist in der Gruppe noch möglich? Für jedes Team: bester und schlechtester möglicher Platz.
+       Gleichstand zählt vorsichtig (Tordifferenz unbekannt) – „sicher“ heißt also wirklich sicher. */
+    const clinchMemo = {};
+    H.clinch = (g) => {
+      if (clinchMemo[g]) return clinchMemo[g];
+      const W = +S.settings.win, D = +S.settings.draw;
+      const ids = S.teams.filter((t) => (t.group || '') === g).map((t) => t.id), pts = {};
+      ids.forEach((id) => { pts[id] = 0; });
+      const rest = [];
+      S.matches.forEach((m) => {
+        if (m.stage !== 'group' || !H.inGroup(m, g)) return;
+        if (m.status !== 'done') { rest.push([m.home, m.away]); return; }
+        const r = H.sc(m); if (r.h > r.a) pts[m.home] += W; else if (r.h < r.a) pts[m.away] += W; else { pts[m.home] += D; pts[m.away] += D; }
+      });
+      const best = {}, worst = {}; ids.forEach((id) => { best[id] = ids.length; worst[id] = 1; });
+      const note = (p) => ids.forEach((id) => {
+        let above = 0, tie = 0; ids.forEach((o) => { if (o !== id) { if (p[o] > p[id]) above++; else if (p[o] === p[id]) tie++; } });
+        best[id] = Math.min(best[id], above + 1); worst[id] = Math.max(worst[id], above + tie + 1);
+      });
+      if (rest.length <= 10) {
+        // alle Ausgänge durchspielen (Sieg/Unentschieden/Niederlage)
+        const p = Object.assign({}, pts), total = Math.pow(3, rest.length);
+        for (let k = 0; k < total; k++) {
+          ids.forEach((id) => { p[id] = pts[id]; });
+          let c = k;
+          for (const [h, a] of rest) { const o = c % 3; c = (c - o) / 3; if (o === 0) p[h] += W; else if (o === 1) p[a] += W; else { p[h] += D; p[a] += D; } }
+          note(p);
+        }
+      } else {
+        // zu viele Spiele offen: sichere Abschätzung über Mindest- und Höchstpunkte
+        const left = {}; ids.forEach((id) => { left[id] = 0; }); rest.forEach(([h, a]) => { left[h]++; left[a]++; });
+        ids.forEach((id) => {
+          const max = pts[id] + W * left[id];
+          best[id] = 1 + ids.filter((o) => o !== id && pts[o] > max).length;
+          worst[id] = 1 + ids.filter((o) => o !== id && pts[o] + W * left[o] >= pts[id]).length;
+        });
+      }
+      const N = H.qualN(), out = {};
+      ids.forEach((id) => { out[id] = { best: best[id], worst: worst[id], q: N > 0 && worst[id] <= N, out: N > 0 && best[id] > N, place: best[id] === worst[id] ? best[id] : null, open: rest.length }; });
+      return (clinchMemo[g] = out);
+    };
+    // Für den K.-o.-Baum: festes Team, vorläufiges Team (Tabellenstand/laufendes Spiel) oder offen
+    H.predict = (m, side, depth) => {
+      depth = depth || 0;
+      const id = side === 'h' ? m.home : m.away; if (id) return { t: H.T(id), fixed: true };
+      const ph = (side === 'h' ? m.homePh : m.awayPh) || '';
+      const fixedT = H.resolvePh(ph, 1); if (fixedT) return { t: fixedT, fixed: true };
+      if (depth > 5) return { t: null, fixed: false, ph };
+      let x = ph.match(/^\s*(\d+)\.\s*(?:Gruppe|Gr\.?)\s*(\S+)/i);
+      if (x) {
+        const g = x[2].toUpperCase(), rows = H.standings(g), r = rows[+x[1] - 1];
+        const played = S.matches.some((mm) => mm.stage === 'group' && mm.status !== 'scheduled' && H.inGroup(mm, g));
+        return r && played ? { t: r.t, fixed: false, ph } : { t: null, fixed: false, ph };
+      }
+      x = ph.match(/^\s*(Sieger|Gewinner|Verlierer)\s+(.+)$/i);
+      if (x) {
+        const lbl = x[2].trim().replace(/^HF\s*/i, 'Halbfinale ').replace(/^VF\s*/i, 'Viertelfinale ').toLowerCase();
+        const mm = S.matches.find((q) => String(q.label || '').trim().toLowerCase() === lbl);
+        if (mm && mm.status === 'live') {
+          const s = H.sc(mm);
+          if (s.h !== s.a) { const lead = s.h > s.a ? 'h' : 'a', pick = /^verl/i.test(x[1]) ? (lead === 'h' ? 'a' : 'h') : lead; const p = H.predict(mm, pick, depth + 1); return { t: p.t, fixed: false, ph }; }
+        }
+      }
+      return { t: null, fixed: false, ph };
     };
     H.teamOf = (m, side, depth) => { const id = side === 'h' ? m.home : m.away; if (id) return H.T(id); return H.resolvePh(side === 'h' ? m.homePh : m.awayPh, (depth || 0) + 1); };
     H.phOf = (m, side) => (side === 'h' ? m.homePh : m.awayPh) || 'offen';

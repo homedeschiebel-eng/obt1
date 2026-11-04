@@ -47,8 +47,9 @@
   function standTable(g, compact) {
     const rows = H.standings(g);
     if (!rows.length) return `<div class="empty">Noch keine Teams${g ? ' in Gruppe ' + esc(g) : ''}.</div>`;
-    const qn = H.qualN(), c = compact ? ' c' : '';
-    const row = (r, i) => `<a class="st-r${c}${i < qn ? ' q' : ''}" href="#team-${r.t.id}"><span>${i + 1}</span><span class="club">${monoHTML(r.t, 's')}<span class="nm">${esc(r.t.name)}</span>${r.live ? '<span class="lvd" title="spielt gerade"></span>' : ''}</span><span>${r.sp}</span>${compact ? '' : `<span class="x">${r.s}</span><span class="x">${r.u}</span><span class="x">${r.n}</span>`}<span>${r.tf}:${r.ta}</span><span>${r.tf - r.ta > 0 ? '+' : ''}${r.tf - r.ta}</span><span class="pts">${r.pts}</span></a>`;
+    const qn = H.qualN(), c = compact ? ' c' : '', cl = H.clinch(g), done = H.groupDone(g);
+    const tags = (id) => { const x = cl[id]; if (!x || done) return ''; return (x.q ? `<abbr class="tag q" title="Sicher in der K.-o.-Phase">Q</abbr>` : '') + (x.out ? `<abbr class="tag a" title="Sicher ausgeschieden">A</abbr>` : '') + (x.place ? `<abbr class="tag p" title="Platz ${x.place} ist sicher">P</abbr>` : ''); };
+    const row = (r, i) => `<a class="st-r${c}${i < qn ? ' q' : ''}" href="#team-${r.t.id}"><span>${i + 1}</span><span class="club">${monoHTML(r.t, 's')}<span class="nm">${esc(r.t.name)}</span>${tags(r.t.id)}${r.live ? '<span class="lvd" title="spielt gerade"></span>' : ''}</span><span>${r.sp}</span>${compact ? '' : `<span class="x">${r.s}</span><span class="x">${r.u}</span><span class="x">${r.n}</span>`}<span>${r.tf}:${r.ta}</span><span>${r.tf - r.ta > 0 ? '+' : ''}${r.tf - r.ta}</span><span class="pts">${r.pts}</span></a>`;
     const head = `<div class="st-h${c}"><span>#</span><span>Team</span><span>Sp</span>${compact ? '' : '<span class="x">S</span><span class="x">U</span><span class="x">N</span>'}<span>Tore</span><span>Diff</span><span>Pkt</span></div>`;
     return `<div class="stand">${head}${qn ? `<div class="qgrp"><span class="ql">${H.qualLabel()}</span>${rows.slice(0, qn).map(row).join('')}</div>` : ''}${rows.slice(qn).map((r, i) => row(r, i + qn)).join('')}</div>`;
   }
@@ -100,10 +101,28 @@
       ${list.length ? '' : '<div class="empty">Keine Spiele in dieser Auswahl.</div>'}
       <p class="legend">Alle Spiele finden nacheinander auf einem Feld statt. Die Uhrzeiten passen sich live an: Bei Verspätung verschiebt sich der Plan automatisch, die Verspätung steht gelb daneben.</p></section>`;
   }
+  const tableTabs = (cur) => `<div class="tabs"><a class="tablink" href="#tabelle"${cur === 'tabelle' ? ' aria-current="page"' : ''}>Gruppen</a><a class="tablink" href="#baum"${cur === 'baum' ? ' aria-current="page"' : ''}>K.-o.-Baum</a></div>`;
   function vTable() {
     const multi = H.groups().length > 1;
-    return `${H.groups().map((g) => `<section>${multi ? `<h2 class="gname">Gruppe ${esc(g)}</h2>` : ''}${standTable(g, false)}</section>`).join('')}
-    <div class="legend">${multi ? `Die ersten ${H.qualN()} jeder Gruppe ziehen ins <b>${H.qualLabel()}</b> ein. ` : ''}Punkte: Sieg ${esc(S.settings.win)}, Unentschieden ${esc(S.settings.draw)}. Bei Punktgleichheit zählt die Tordifferenz, dann die Zahl der Tore.${S.matches.some((m) => m.status === 'live') ? '<br>Ein roter Punkt heißt: Das Team spielt gerade, der aktuelle Stand ist schon eingerechnet.' : ''}</div>`;
+    return `${tableTabs('tabelle')}${H.groups().map((g) => `<section>${multi ? `<h2 class="gname">Gruppe ${esc(g)}</h2>` : ''}${standTable(g, false)}</section>`).join('')}
+    <div class="legend">${multi ? `Die ersten ${H.qualN()} jeder Gruppe ziehen ins <b>${H.qualLabel()}</b> ein. ` : ''}Punkte: Sieg ${esc(S.settings.win)}, Unentschieden ${esc(S.settings.draw)}. Bei Punktgleichheit zählt die Tordifferenz, dann die Zahl der Tore.<br><abbr class="tag q">Q</abbr> sicher in der K.-o.-Phase · <abbr class="tag p">P</abbr> Platz sicher · <abbr class="tag a">A</abbr> sicher ausgeschieden – egal wie die restlichen Spiele ausgehen.${S.matches.some((m) => m.status === 'live') ? '<br>Ein roter Punkt heißt: Das Team spielt gerade, der aktuelle Stand ist schon eingerechnet.' : ''}</div>`;
+  }
+  function vBracket() {
+    const ko = H.sorted().filter((m) => m.stage !== 'group');
+    if (!ko.length) return `${tableTabs('baum')}<div class="empty">Es ist noch keine Finalrunde geplant.</div>`;
+    const cols = [['qf', 'Viertelfinale'], ['sf', 'Halbfinale'], ['final', 'Finale']].map(([k, l]) => [l, ko.filter((m) => m.stage === k)]).filter((x) => x[1].length);
+    const third = ko.filter((m) => m.stage === 'third');
+    const box = (m) => {
+      const r = H.sc(m), w = H.winnerSide(m), started = m.status !== 'scheduled';
+      const row = (side) => { const p = H.predict(m, side), t = p.t; const cls = t ? (p.fixed ? 'fixed' : 'prov') : 'open'; return `<div class="bx-t ${cls}${w ? (w === side ? ' win' : ' lost') : ''}">${monoHTML(t, 's')}<span class="nm">${esc(t ? t.name : (p.ph || H.phOf(m, side)))}</span>${started ? `<b class="sc">${r[side]}</b>` : (t && !p.fixed ? '<small class="pv">vorläufig</small>' : '')}</div>`; };
+      return `<a class="bx${m.status === 'live' ? ' live' : ''}" href="#spiel-${m.id}"><div class="bx-h"><span>${esc(m.label)}</span><span>${m.status === 'live' ? '<span class="livechip">Live</span>' : m.status === 'done' ? 'Endstand' + (m.pen ? ' · ' + m.pen.h + ':' + m.pen.a + ' n.N.' : '') : 'ca. <span data-exp="' + m.id + '">' + H.expTime(m) + '</span> Uhr'}</span></div>${row('h')}${row('a')}</a>`;
+    };
+    const fin = ko.find((m) => m.stage === 'final'), champ = fin && H.winnerSide(fin) ? H.teamOf(fin, H.winnerSide(fin)) : null;
+    return `${tableTabs('baum')}
+      ${champ ? `<div class="champ">${monoHTML(champ, 'l')}<div><small>Turniersieger ${esc(S.settings.season || '')}</small><b>${esc(champ.name)}</b></div></div>` : ''}
+      <div class="br-wrap"><div class="bracket" style="--cols:${cols.length}">${cols.map(([l, ms], i) => `<div class="br-col${i === cols.length - 1 ? ' last' : ''}"><h3>${l}</h3><div class="br-list">${ms.map(box).join('')}</div></div>`).join('')}</div></div>
+      ${third.length ? `<h2 class="sh" style="margin-top:26px">Spiel um Platz 3</h2><div class="br-third">${third.map(box).join('')}</div>` : ''}
+      <div class="legend"><span class="lg-fixed">Team steht fest</span> · <span class="lg-prov">vorläufig</span> = nach aktuellem Tabellenstand bzw. Zwischenstand des laufenden Spiels · grau = noch offen.<br>Der Baum aktualisiert sich live.</div>`;
   }
   function vStats() {
     const f = ui.stTeam;
@@ -160,10 +179,11 @@
   function render() {
     if (!S) return;
     const r = route(), s = S.settings, eb = esc(s.title) + (s.season ? ' ' + esc(s.season) : '');
-    const cur = r.startsWith('team-') ? 'teams' : r.startsWith('spiel-') ? 'spielplan' : r;
+    const cur = r.startsWith('team-') ? 'teams' : r.startsWith('spiel-') ? 'spielplan' : r === 'baum' ? 'tabelle' : r;
     let hero = '', main = '';
     if (r === 'spielplan') { hero = band(eb, 'Spielplan'); main = vSchedule(); }
     else if (r === 'tabelle') { hero = band(eb, 'Tabelle'); main = vTable(); }
+    else if (r === 'baum') { hero = band(eb, 'K.-o.-Baum'); main = vBracket(); }
     else if (r === 'statistiken') { hero = band(eb, 'Spieler-Statistiken'); main = vStats(); }
     else if (r === 'teams') { hero = band(eb, 'Teams'); main = vTeams(); }
     else if (r === 'partner') { hero = band(eb, 'Partner'); main = vPartner(); }
