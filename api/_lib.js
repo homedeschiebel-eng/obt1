@@ -185,6 +185,7 @@ function cleanState(inp) {
   inp = obj(inp); const s = obj(inp.settings);
   const settings = {};
   ['title', 'school', 'season', 'date', 'location', 'sport', 'ticker', 'start', 'koFormat'].forEach((k) => { settings[k] = cut(s[k], k === 'ticker' ? 300 : 80); });
+  settings.day = /^\d{4}-\d{2}-\d{2}$/.test(String(s.day || '')) ? s.day : '';
   ['win', 'draw', 'durGroup', 'durKo', 'durFinal', 'gap'].forEach((k) => { settings[k] = Math.max(0, Math.min(90, num(s[k], 0))); });
   settings.third = !!s.third;
   const teams = arr(inp.teams).slice(0, 40).map((t) => {
@@ -204,6 +205,7 @@ function cleanState(inp) {
       home: id(m.home), away: id(m.away), homePh: cut(m.homePh, 40), awayPh: cut(m.awayPh, 40),
       status: ['scheduled', 'live', 'done'].includes(m.status) ? m.status : 'scheduled',
       clock: { run: !!c.run, since: num(c.since, null), acc: num(c.acc, 0) },
+      startedAt: num(m.startedAt, null), endedAt: num(m.endedAt, null),
       dur: num(m.dur, null), pen: m.pen && typeof m.pen === 'object' ? { h: num(m.pen.h, 0), a: num(m.pen.a, 0) } : null,
       events: arr(m.events).slice(0, 200).map((e) => ({ id: id(obj(e).id) || 'e' + crypto.randomBytes(4).toString('hex'), type: TYPES.includes(obj(e).type) ? e.type : 'goal', side: obj(e).side === 'a' ? 'a' : 'h', player: id(obj(e).player), min: num(obj(e).min, null), at: num(obj(e).at, 0) }))
     };

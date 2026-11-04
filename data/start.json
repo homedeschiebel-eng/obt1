@@ -9,14 +9,15 @@
   "sport": "Fußball",
   "ticker": "",
   "start": "11:30",
-  "gap": 2,
+  "gap": 1,
   "koFormat": "qf",
   "third": true,
   "win": 3,
   "draw": 1,
   "durGroup": 7,
   "durKo": 10,
-  "durFinal": 12
+  "durFinal": 12,
+  "day": "2026-12-22"
  },
  "teams": [
   {
@@ -536,7 +537,7 @@
   {
    "id": "m2",
    "no": 2,
-   "time": "11:39",
+   "time": "11:38",
    "status": "scheduled",
    "clock": {
     "run": false,
@@ -556,7 +557,7 @@
   {
    "id": "m3",
    "no": 3,
-   "time": "11:48",
+   "time": "11:46",
    "status": "scheduled",
    "clock": {
     "run": false,
@@ -576,7 +577,7 @@
   {
    "id": "m4",
    "no": 4,
-   "time": "11:57",
+   "time": "11:54",
    "status": "scheduled",
    "clock": {
     "run": false,
@@ -596,7 +597,7 @@
   {
    "id": "m5",
    "no": 5,
-   "time": "12:06",
+   "time": "12:02",
    "status": "scheduled",
    "clock": {
     "run": false,
@@ -616,7 +617,7 @@
   {
    "id": "m6",
    "no": 6,
-   "time": "12:15",
+   "time": "12:10",
    "status": "scheduled",
    "clock": {
     "run": false,
@@ -636,7 +637,7 @@
   {
    "id": "m7",
    "no": 7,
-   "time": "12:24",
+   "time": "12:18",
    "status": "scheduled",
    "clock": {
     "run": false,
@@ -656,7 +657,7 @@
   {
    "id": "m8",
    "no": 8,
-   "time": "12:33",
+   "time": "12:26",
    "status": "scheduled",
    "clock": {
     "run": false,
@@ -676,7 +677,7 @@
   {
    "id": "m9",
    "no": 9,
-   "time": "12:42",
+   "time": "12:34",
    "status": "scheduled",
    "clock": {
     "run": false,
@@ -696,7 +697,7 @@
   {
    "id": "m10",
    "no": 10,
-   "time": "12:51",
+   "time": "12:42",
    "status": "scheduled",
    "clock": {
     "run": false,
@@ -716,7 +717,7 @@
   {
    "id": "m11",
    "no": 11,
-   "time": "13:00",
+   "time": "12:50",
    "status": "scheduled",
    "clock": {
     "run": false,
@@ -736,7 +737,7 @@
   {
    "id": "m12",
    "no": 12,
-   "time": "13:09",
+   "time": "12:58",
    "status": "scheduled",
    "clock": {
     "run": false,
@@ -756,7 +757,7 @@
   {
    "id": "m13",
    "no": 13,
-   "time": "13:18",
+   "time": "13:06",
    "status": "scheduled",
    "clock": {
     "run": false,
@@ -776,7 +777,7 @@
   {
    "id": "m14",
    "no": 14,
-   "time": "13:27",
+   "time": "13:14",
    "status": "scheduled",
    "clock": {
     "run": false,
@@ -796,7 +797,7 @@
   {
    "id": "m15",
    "no": 15,
-   "time": "13:36",
+   "time": "13:22",
    "status": "scheduled",
    "clock": {
     "run": false,
@@ -816,7 +817,7 @@
   {
    "id": "m16",
    "no": 16,
-   "time": "13:45",
+   "time": "13:30",
    "status": "scheduled",
    "clock": {
     "run": false,
@@ -836,7 +837,7 @@
   {
    "id": "m17",
    "no": 17,
-   "time": "13:54",
+   "time": "13:38",
    "status": "scheduled",
    "clock": {
     "run": false,
@@ -856,7 +857,7 @@
   {
    "id": "m18",
    "no": 18,
-   "time": "14:03",
+   "time": "13:46",
    "status": "scheduled",
    "clock": {
     "run": false,
@@ -876,7 +877,7 @@
   {
    "id": "m19",
    "no": 19,
-   "time": "14:12",
+   "time": "13:54",
    "status": "scheduled",
    "clock": {
     "run": false,
@@ -896,7 +897,7 @@
   {
    "id": "m20",
    "no": 20,
-   "time": "14:21",
+   "time": "14:02",
    "status": "scheduled",
    "clock": {
     "run": false,
@@ -916,7 +917,7 @@
   {
    "id": "m21",
    "no": 21,
-   "time": "14:30",
+   "time": "14:10",
    "status": "scheduled",
    "clock": {
     "run": false,
@@ -936,7 +937,7 @@
   {
    "id": "m22",
    "no": 22,
-   "time": "14:39",
+   "time": "14:18",
    "status": "scheduled",
    "clock": {
     "run": false,
@@ -956,7 +957,7 @@
   {
    "id": "m23",
    "no": 23,
-   "time": "14:48",
+   "time": "14:26",
    "status": "scheduled",
    "clock": {
     "run": false,
@@ -976,7 +977,7 @@
   {
    "id": "m24",
    "no": 24,
-   "time": "14:57",
+   "time": "14:34",
    "status": "scheduled",
    "clock": {
     "run": false,
@@ -996,7 +997,7 @@
   {
    "id": "m25",
    "no": 25,
-   "time": "15:06",
+   "time": "14:42",
    "status": "scheduled",
    "clock": {
     "run": false,
@@ -1016,7 +1017,7 @@
   {
    "id": "m26",
    "no": 26,
-   "time": "15:15",
+   "time": "14:50",
    "status": "scheduled",
    "clock": {
     "run": false,
@@ -1036,7 +1037,7 @@
   {
    "id": "m27",
    "no": 27,
-   "time": "15:24",
+   "time": "14:58",
    "status": "scheduled",
    "clock": {
     "run": false,
@@ -1056,7 +1057,7 @@
   {
    "id": "m28",
    "no": 28,
-   "time": "15:33",
+   "time": "15:06",
    "status": "scheduled",
    "clock": {
     "run": false,
@@ -1076,7 +1077,7 @@
   {
    "id": "m29",
    "no": 29,
-   "time": "15:42",
+   "time": "15:14",
    "status": "scheduled",
    "clock": {
     "run": false,
@@ -1096,7 +1097,7 @@
   {
    "id": "m30",
    "no": 30,
-   "time": "15:51",
+   "time": "15:22",
    "status": "scheduled",
    "clock": {
     "run": false,
@@ -1116,7 +1117,7 @@
   {
    "id": "m31",
    "no": 31,
-   "time": "16:00",
+   "time": "15:30",
    "status": "scheduled",
    "clock": {
     "run": false,
@@ -1136,7 +1137,7 @@
   {
    "id": "m32",
    "no": 32,
-   "time": "16:12",
+   "time": "15:41",
    "status": "scheduled",
    "clock": {
     "run": false,
@@ -1156,7 +1157,7 @@
   {
    "id": "m33",
    "no": 33,
-   "time": "16:24",
+   "time": "15:52",
    "status": "scheduled",
    "clock": {
     "run": false,
@@ -1176,7 +1177,7 @@
   {
    "id": "m34",
    "no": 34,
-   "time": "16:36",
+   "time": "16:03",
    "status": "scheduled",
    "clock": {
     "run": false,
@@ -1196,7 +1197,7 @@
   {
    "id": "m35",
    "no": 35,
-   "time": "16:48",
+   "time": "16:14",
    "status": "scheduled",
    "clock": {
     "run": false,
@@ -1216,7 +1217,7 @@
   {
    "id": "m36",
    "no": 36,
-   "time": "17:02",
+   "time": "16:27",
    "status": "scheduled",
    "clock": {
     "run": false,
@@ -1236,7 +1237,7 @@
   {
    "id": "m37",
    "no": 37,
-   "time": "17:16",
+   "time": "16:40",
    "status": "scheduled",
    "clock": {
     "run": false,
@@ -1256,7 +1257,7 @@
   {
    "id": "m38",
    "no": 38,
-   "time": "17:28",
+   "time": "16:51",
    "status": "scheduled",
    "clock": {
     "run": false,

@@ -77,17 +77,18 @@
       if (other) throw new Error('Spiel ' + other.no + ' läuft noch. Bitte zuerst abpfeifen.');
       if (m.status === 'scheduled') { pinTeams(S, m); m.status = 'live'; m.clock = { run: true, since: PT.now(), acc: 0 }; }
       else if (m.status === 'live' && !m.clock.run) { m.clock.run = true; m.clock.since = PT.now(); }
+      if (!m.startedAt) m.startedAt = PT.now();
       S.current = id;
     },
     stop: (id) => (S) => { const m = find(S, id); if (!m || !m.clock.run) return; m.clock.acc = elapsedNow(S, m); m.clock.run = false; m.clock.since = null; },
     adjust: (id, sec) => (S) => { const m = find(S, id); if (!m) return; m.clock.acc = Math.max(0, (m.clock.acc || 0) + sec); if (elapsedNow(S, m) < 0) m.clock.acc = 0; },
-    reset: (id) => (S) => { const m = find(S, id); if (!m) return; m.clock = { run: false, since: null, acc: 0 }; },
-    final: (id) => (S) => { const m = find(S, id); if (!m) return; m.clock.acc = elapsedNow(S, m); m.clock.run = false; m.clock.since = null; m.status = 'done'; },
+    reset: (id) => (S) => { const m = find(S, id); if (!m) return; m.clock = { run: false, since: null, acc: 0 }; m.startedAt = null; },
+    final: (id) => (S) => { const m = find(S, id); if (!m) return; m.clock.acc = elapsedNow(S, m); m.clock.run = false; m.clock.since = null; m.status = 'done'; m.endedAt = PT.now(); },
     reopen: (id) => (S) => {
       const m = find(S, id); if (!m) return;
       const other = S.matches.find((x) => x.status === 'live' && x.id !== id);
       if (other) throw new Error('Spiel ' + other.no + ' läuft gerade. Bitte zuerst abpfeifen.');
-      m.status = 'live'; S.current = id;
+      m.status = 'live'; m.endedAt = null; S.current = id;
     },
     event: (id, type, teamSide, pid, min) => (S) => {
       const m = find(S, id); if (!m) return;
@@ -166,7 +167,7 @@
   const clockHTML = (m, big) => `<span class="clk${big ? ' big' : ''}" data-clock="${m.id}">${H.clockText(m)}</span>`;
   const stateHTML = (m) => `<span class="cstate" data-cstate="${m.id}">${H.clockState(m)}</span>`;
   const teamOptions = (sel, ph) => `<option value="">${ph ? 'Platzhalter: ' + esc(ph) : '– Team wählen –'}</option>` + S.teams.slice().sort((a, b) => a.name.localeCompare(b.name, 'de', { numeric: true })).map((t) => `<option value="${t.id}"${t.id === sel ? ' selected' : ''}>${esc(t.name)}${t.group ? ' (Gr. ' + esc(t.group) + ')' : ''}</option>`).join('');
-  const matchLabel = (x) => `${x.no}. · ${x.time} · ${x.label || STAGES[x.stage].l} – ${H.tName(x, 'h')} vs ${H.tName(x, 'a')}${x.status === 'live' ? ' · LIVE' : x.status === 'done' ? ' · ✓ ' + H.sc(x).h + ':' + H.sc(x).a : ''}`;
+  const matchLabel = (x) => `${x.no}. · ${H.expTime(x)}${H.delay(x) > 0 ? ' (+' + H.delay(x) + ')' : ''} · ${x.label || STAGES[x.stage].l} – ${H.tName(x, 'h')} vs ${H.tName(x, 'a')}${x.status === 'live' ? ' · LIVE' : x.status === 'done' ? ' · ✓ ' + H.sc(x).h + ':' + H.sc(x).a : ''}`;
 
   function vCockpit() {
     const list = H.sorted(), m = cur();
@@ -195,7 +196,7 @@
     return `
     <div class="ck-pick"><div class="field"><label for="ck-match">Aktuelles Spiel (wird auf der Website und der Hallenanzeige gezeigt)</label><select id="ck-match">${list.map((x) => `<option value="${x.id}"${x === m ? ' selected' : ''}>${esc(matchLabel(x))}</option>`).join('')}</select></div>
       <div class="row"><button class="btn" data-act="prev">◀</button><button class="btn" data-act="next">▶</button><button class="btn" data-act="edit-match" data-id="${m.id}">Details</button></div></div>
-    <div class="box"><h3>Paarung <small>${esc(m.label || STAGES[m.stage].l)} · Spielzeit ${H.durOf(m)} Minuten</small></h3><div class="frow">
+    <div class="box"><h3>Paarung <small>${esc(m.label || STAGES[m.stage].l)} · Spielzeit ${H.durOf(m)} Minuten · geplant ${esc(m.time)} Uhr${m.status === 'scheduled' ? ` · voraussichtlich <b data-exp="${m.id}">${H.expTime(m)}</b> ${H.delayHTML(m)}` : ''}</small></h3><div class="frow">
       <div class="field"><label for="ck-home">Team 1</label><select id="ck-home">${teamOptions(m.home, !m.home && m.homePh ? (h ? m.homePh + ' → ' + h.name : m.homePh) : '')}</select></div>
       <div class="field"><label for="ck-away">Team 2</label><select id="ck-away">${teamOptions(m.away, !m.away && m.awayPh ? (a ? m.awayPh + ' → ' + a.name : m.awayPh) : '')}</select></div>
     </div></div>
@@ -219,16 +220,16 @@
     return `<div class="box"><h3>Spielplan erstellen <small>Ein Feld, alle Spiele nacheinander</small></h3>
       <form id="gen-form" class="frow" style="align-items:end">
         <div class="field"><label for="g-start">Erstes Spiel um</label><input id="g-start" name="start" type="time" value="${esc(s.start)}"></div>
-        <div class="field"><label for="g-gap">Wechselpause (Min.)</label><input id="g-gap" name="gap" type="number" min="0" max="30" value="${esc(s.gap)}"></div>
+        <div class="field"><label for="g-gap">Wechselzeit zwischen Spielen (Min.)</label><input id="g-gap" name="gap" type="number" min="0" max="30" value="${esc(s.gap)}"></div>
         <div class="field"><label for="g-dg">Gruppenspiel (Min.)</label><input id="g-dg" name="durGroup" type="number" min="1" max="60" value="${esc(s.durGroup)}"></div>
         <div class="field"><label for="g-dk">Viertelfinale & Platz 3 (Min.)</label><input id="g-dk" name="durKo" type="number" min="1" max="60" value="${esc(s.durKo)}"></div>
         <div class="field"><label for="g-df">Halbfinale & Finale (Min.)</label><input id="g-df" name="durFinal" type="number" min="1" max="60" value="${esc(s.durFinal)}"></div>
         <div class="field"><label for="g-ko">Finalrunde</label><select id="g-ko" name="koFormat"><option value="qf"${s.koFormat !== 'sf' ? ' selected' : ''}>Viertelfinale (Top 4 je Gruppe)</option><option value="sf"${s.koFormat === 'sf' ? ' selected' : ''}>Halbfinale (Top 2 je Gruppe)</option></select></div>
         <div class="row" style="grid-column:1/-1;gap:14px"><label class="check"><input type="checkbox" name="third" ${s.third ? 'checked' : ''}> Spiel um Platz 3</label><span style="flex:1"></span><button type="button" class="btn primary" data-act="save-times">Zeiten übernehmen</button><button type="button" class="btn danger" data-act="gen" data-confirm="Alle Spiele und Ergebnisse werden ersetzt. Sicher?">Spielplan neu erstellen</button></div>
       </form>
-      <div class="hint" style="margin-top:10px">„Zeiten übernehmen“ speichert Spielzeiten und Pause und rechnet die Uhrzeiten neu, ohne Ergebnisse zu ändern. „Spielplan neu erstellen“ baut alle Gruppenspiele (jeder gegen jeden) und die Finalrunde neu auf.</div></div>
+      <div class="hint" style="margin-top:10px">„Zeiten übernehmen“ speichert Spielzeiten und Wechselzeit und rechnet die geplanten Uhrzeiten neu, ohne Ergebnisse zu ändern. Bei Verspätung (auch wenn die Uhr angehalten ist) verschieben sich die voraussichtlichen Zeiten automatisch – auf der Website und der Hallenanzeige. „Spielplan neu erstellen“ baut alle Gruppenspiele (jeder gegen jeden) und die Finalrunde neu auf.</div></div>
     <div class="box"><h3>Alle Spiele <small>${list.length} Spiele · Ende ca. ${list.length ? esc(PT.minToTime((PT.timeToMin(list[list.length - 1].time) || 0) + H.durOf(list[list.length - 1]))) : '–'} Uhr</small> <button class="btn sm primary" data-act="new-match">+ Spiel</button></h3>
-      <div class="alist">${list.map((m, i) => `<div class="ar${m.status === 'live' ? ' live' : ''}"><span class="no">${esc(m.no)}</span><span class="tm">${esc(m.time)}</span><span class="rd">${esc(m.label || STAGES[m.stage].l)}<br><small style="color:var(--muted)">${H.durOf(m)} Min.</small></span><span class="pair">${esc(H.tName(m, 'h'))} – ${esc(H.tName(m, 'a'))} ${m.status === 'done' ? `<small>· ${H.sc(m).h}:${H.sc(m).a}</small>` : m.status === 'live' ? '<small>· läuft</small>' : ''}</span>
+      <div class="alist">${list.map((m, i) => `<div class="ar${m.status === 'live' ? ' live' : ''}"><span class="no">${esc(m.no)}</span><span class="tm"><span data-exp="${m.id}">${H.expTime(m)}</span> ${H.delayHTML(m)}<br><small style="color:var(--muted);font-size:11px">geplant ${esc(m.time)}</small></span><span class="rd">${esc(m.label || STAGES[m.stage].l)}<br><small style="color:var(--muted)">${H.durOf(m)} Min.</small></span><span class="pair">${esc(H.tName(m, 'h'))} – ${esc(H.tName(m, 'a'))} ${m.status === 'done' ? `<small>· ${H.sc(m).h}:${H.sc(m).a}</small>` : m.status === 'live' ? '<small>· läuft</small>' : ''}</span>
         <span class="row"><button class="btn sm" data-act="up" data-id="${m.id}"${i ? '' : ' disabled'} aria-label="Nach oben">▲</button><button class="btn sm" data-act="down" data-id="${m.id}"${i < list.length - 1 ? '' : ' disabled'} aria-label="Nach unten">▼</button><button class="btn sm" data-act="edit-match" data-id="${m.id}">Bearbeiten</button><button class="btn sm cyan" data-act="select" data-id="${m.id}" data-go="1">Ins Cockpit</button></span></div>`).join('')}</div></div>`;
   }
   function vTeams() {
@@ -244,10 +245,11 @@
     const s = S.settings;
     return `<form class="box" id="set-form"><h3>Turnierdaten</h3><div style="display:grid;gap:12px">
       <div class="frow">${F('title', 'Turniername', s.title)}${F('season', 'Jahr', s.season)}${F('school', 'Schule', s.school)}</div>
-      <div class="frow">${F('date', 'Datum', s.date, 'text', 'placeholder="z. B. Freitag, 18. Dezember 2026"')}${F('location', 'Ort', s.location)}${F('sport', 'Sportart', s.sport)}</div>
+      <div class="frow">${F('day', 'Turniertag', s.day, 'date')}${F('location', 'Ort', s.location)}${F('sport', 'Sportart', s.sport)}</div>
       <div class="frow">${F('win', 'Punkte für Sieg', s.win, 'number', 'min="0" max="5"')}${F('draw', 'Punkte für Unentschieden', s.draw, 'number', 'min="0" max="5"')}</div>
       ${F('ticker', 'Durchsage im Laufband (leer = keine)', s.ticker)}
       <div class="row"><button class="btn primary">Speichern</button></div></div></form>
+    <div class="box"><h3>QR-Code-Aushang</h3><div class="hint" style="margin-bottom:10px">A4-Plakat mit QR-Code zur Website für Zuschauer und Teams – zum Ausdrucken oder als PDF speichern.</div><a class="btn primary" href="/aushang" target="_blank" rel="noopener">Aushang öffnen</a></div>
     <div class="box"><h3>Sicherung</h3><div class="row"><button class="btn" data-act="backup">Sicherung herunterladen</button><label class="btn" for="restore">Sicherung einspielen</label><input id="restore" type="file" accept="application/json,.json" hidden></div><div class="hint" style="margin-top:8px">Die Sicherung ist eine JSON-Datei mit allen Teams, Spielen und Ergebnissen.</div></div>
     <form class="box" id="pw-form"><h3>Passwort ändern</h3>${ui.pwSource === 'env' ? '<div class="hint">Das Passwort ist im Vercel-Projekt als ADMIN_PASSWORD festgelegt und kann nur dort geändert werden.</div>' : `<div class="frow" style="align-items:end"><div class="field"><label for="pw-new">Neues Passwort (mind. 6 Zeichen)</label><input id="pw-new" type="password" autocomplete="new-password"></div><div><button class="btn primary">Passwort ändern</button></div></div>`}</form>
     <div class="box"><h3>Ergebnisse zurücksetzen</h3><div class="hint" style="margin-bottom:10px">Löscht alle Tore, Karten und Spielzeiten. Teams und Spielplan bleiben. Praktisch nach einem Testlauf.</div><button class="btn danger" data-act="reset-all" data-confirm="Wirklich alle Ergebnisse löschen?">Alle Ergebnisse löschen</button></div>`;
@@ -278,6 +280,7 @@
     document.querySelectorAll('[data-clock]').forEach((el) => { const m = H.M(el.dataset.clock); if (m) el.textContent = H.clockText(m); });
     document.querySelectorAll('[data-bar]').forEach((el) => { const m = H.M(el.dataset.bar); if (m) el.style.width = H.pct(m) + '%'; });
     document.querySelectorAll('[data-cstate]').forEach((el) => { const m = H.M(el.dataset.cstate); if (m) el.textContent = H.clockState(m); });
+    H.tickTimes();
   }, 250);
 
   /* ---------- Dialoge ---------- */
@@ -425,7 +428,7 @@
       const l = document.createElement('a'); l.href = URL.createObjectURL(blob); l.download = 'turnier-sicherung-' + new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-') + '.json'; document.body.appendChild(l); l.click(); l.remove();
       return;
     }
-    if (a === 'reset-all') { act((S) => { S.matches.forEach((x) => { x.events = []; x.status = 'scheduled'; x.clock = { run: false, since: null, acc: 0 }; x.pen = null; }); S.current = null; }); toast('Alle Ergebnisse gelöscht.'); return; }
+    if (a === 'reset-all') { act((S) => { S.matches.forEach((x) => { x.events = []; x.status = 'scheduled'; x.clock = { run: false, since: null, acc: 0 }; x.pen = null; x.startedAt = null; x.endedAt = null; }); S.current = null; }); toast('Alle Ergebnisse gelöscht.'); return; }
     if (!m) return;
     try {
       if (a === 'start') act(A.start(m.id));
@@ -453,7 +456,8 @@
     }
     if (e.target.id === 'set-form') {
       e.preventDefault(); const fd = new FormData(e.target), vals = {};
-      ['title', 'season', 'school', 'date', 'location', 'sport', 'ticker'].forEach((k) => { vals[k] = String(fd.get(k) || '').trim(); });
+      ['title', 'season', 'school', 'day', 'location', 'sport', 'ticker'].forEach((k) => { vals[k] = String(fd.get(k) || '').trim(); });
+      vals.date = vals.day ? new Date(vals.day + 'T12:00').toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : '';
       ['win', 'draw'].forEach((k) => { const v = parseInt(fd.get(k), 10); if (!isNaN(v)) vals[k] = v; });
       document.activeElement && document.activeElement.blur();
       act((S) => { Object.assign(S.settings, vals); }); toast('Turnierdaten gespeichert.');
@@ -550,6 +554,7 @@
     try {
       await PT.syncTime();
       S = await PT.fetchState(true); H = PT.make(S); render();
+      if (S._migrated) { delete S._migrated; act(() => {}); }
       if (queue.length) flush();
     } catch (e) { showDiag('<b>Der Turnierstand konnte nicht geladen werden.</b> ' + esc(e.message)); }
   }

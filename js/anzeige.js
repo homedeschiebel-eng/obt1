@@ -17,7 +17,7 @@
     const logos = S.sponsors.filter((x) => x.logo).slice(0, 6).map((x) => `<img src="${esc(x.logo)}" alt="">`).join('') || S.sponsors.slice(0, 4).map((x) => `<span>${esc(x.name)}</span>`).join('');
     app.innerHTML = top + `<div class="hx-mid">
       <div class="hx-sb">${team(h, 'h')}<div class="hx-score">${m.status === 'scheduled' ? '<span class="vs">VS</span>' : `<span>${r.h}</span><i>:</i><span>${r.a}</span>`}</div>${team(a, 'a')}</div>
-      <div class="hx-clock"><span class="clk" data-clock="${m.id}">${H.clockText(m)}</span><span class="cstate" data-cstate="${m.id}">${m.status === 'scheduled' ? 'Anpfiff ca. ' + esc(m.time) + ' Uhr' : H.clockState(m)}</span></div>
+      <div class="hx-clock"><span class="clk" data-clock="${m.id}">${H.clockText(m)}</span><span class="cstate" data-cstate="${m.id}">${m.status === 'scheduled' ? 'Anpfiff ca. ' + H.expTime(m) + ' Uhr' : H.clockState(m)}</span></div>
       <div class="bar"><i data-bar="${m.id}" style="width:${H.pct(m)}%"></i></div>
       <div class="hx-ev"><div>${evs('h')}</div><div>${evs('a')}</div></div></div>
       <div class="hx-bot"><span>${nxt && nxt !== m ? `Danach: <b>${esc(H.tName(nxt, 'h'))} – ${esc(H.tName(nxt, 'a'))}</b>` : esc(s.ticker || '')}</span><span class="sp">${logos}</span></div>`;
@@ -48,7 +48,7 @@
     if (!H) return;
     document.querySelectorAll('[data-clock]').forEach((el) => { const m = H.M(el.dataset.clock); if (m) { el.textContent = H.clockText(m); el.classList.toggle('over', m.status === 'live' && H.remaining(m) <= 0); } });
     document.querySelectorAll('[data-bar]').forEach((el) => { const m = H.M(el.dataset.bar); if (m) el.style.width = H.pct(m) + '%'; });
-    document.querySelectorAll('[data-cstate]').forEach((el) => { const m = H.M(el.dataset.cstate); if (m && m.status !== 'scheduled') el.textContent = H.clockState(m); });
+    document.querySelectorAll('[data-cstate]').forEach((el) => { const m = H.M(el.dataset.cstate); if (m) el.textContent = m.status === 'scheduled' ? 'Anpfiff ca. ' + H.expTime(m) + ' Uhr' : H.clockState(m); });
   }, 200);
   function fs() { const d = document.documentElement; if (!document.fullscreenElement) (d.requestFullscreen ? d.requestFullscreen() : Promise.reject()).catch(() => {}); else document.exitFullscreen(); }
   document.getElementById('fsbtn').addEventListener('click', fs);

@@ -279,3 +279,7 @@ footer .small a{color:var(--dim)}
 .conn{display:inline-flex;align-items:center;gap:6px}
 .conn::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--win)}
 .conn.off::before{background:var(--live)}
+
+/* Verspätung im Zeitplan */
+.dl{font-family:var(--f-d);font-style:italic;font-weight:800;color:var(--yellow);font-size:.85em;margin-left:4px}
+.dl:empty{display:none}

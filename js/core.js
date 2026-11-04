@@ -40,11 +40,14 @@
 
   PT.normalize = (S) => {
     S = S || {};
-    S.settings = Object.assign({ title: 'Oberstufen-Turnier', school: 'Parler-Gymnasium', season: '', date: '', location: '', sport: 'Fußball', ticker: '', start: '09:00', gap: 2, koFormat: 'qf', third: true, win: 3, draw: 1, durGroup: 7, durKo: 10, durFinal: 12 }, S.settings || {});
+    const old = S.settings && S.settings.day === undefined && (S.settings.title !== undefined);
+    S.settings = Object.assign({ title: 'Oberstufen-Turnier', school: 'Parler-Gymnasium', season: '2026', date: '', day: '2026-12-22', location: '', sport: 'Fußball', ticker: '', start: '11:30', gap: 1, koFormat: 'qf', third: true, win: 3, draw: 1, durGroup: 7, durKo: 10, durFinal: 12 }, S.settings || {});
     S.teams = S.teams || []; S.matches = S.matches || []; S.sponsors = S.sponsors || [];
     S.teams.forEach((t) => { t.players = t.players || []; });
     S.matches.forEach((m) => { m.events = m.events || []; m.clock = m.clock || { run: false, since: null, acc: 0 }; });
     S.rev = S.rev || 0;
+    // Einmalige Umstellung älterer Stände: Turniertag 22.12.2026, Start 11:30, 1 Minute Wechselzeit
+    if (old) { Object.assign(S.settings, { day: '2026-12-22', date: 'Dienstag, 22. Dezember 2026', start: '11:30', gap: 1, season: '2026' }); PT.retime(S); S._migrated = true; }
     return S;
   };
 
@@ -135,6 +138,41 @@
       return Object.values(r);
     };
     H.evWho = (e) => { const x = H.P(e.player); return x ? x.p.name : ''; };
+    /* Voraussichtlicher Zeitplan: echte Zeiten für gespielte Spiele, „jetzt + Restzeit“ für das laufende,
+       danach jeweils Wechselzeit, aber nie früher als geplant. Läuft live mit – auch wenn die Uhr steht. */
+    H.plannedMs = (m) => {
+      const d = /^(\d{4})-(\d{2})-(\d{2})$/.exec(S.settings.day || ''), mins = PT.timeToMin(m.time);
+      return d && mins != null ? new Date(+d[1], +d[2] - 1, +d[3], Math.floor(mins / 60), mins % 60).getTime() : null;
+    };
+    let tl = null, tlAt = 0;
+    H.timeline = () => {
+      const now = PT.now(); if (tl && now - tlAt < 900) return tl;
+      const gap = (+S.settings.gap || 0) * 60000, out = {}; let cursor = null;
+      H.sorted().forEach((m) => {
+        const dur = H.durOf(m) * 60000, p = H.plannedMs(m); let start, end;
+        if (m.status === 'done') { start = m.startedAt || p; end = m.endedAt || (start != null ? start + dur : null); }
+        else if (m.status === 'live') { start = m.startedAt || now; end = now + H.remaining(m) * 1000; }
+        else {
+          start = p;
+          if (cursor != null && start != null) start = Math.max(start, cursor + gap);
+          if (start != null && p != null && now > start) start = now; // überfällig: beginnt frühestens jetzt
+          end = start != null ? start + dur : null;
+        }
+        out[m.id] = { start, end, planned: p, delay: m.status !== 'done' && start != null && p != null ? Math.max(0, Math.round((start - p) / 60000)) : 0 };
+        if (end != null && (m.status !== 'done' || p == null || Math.abs(end - p) < 12 * 3600e3)) cursor = end;
+      });
+      tl = out; tlAt = now; return out;
+    };
+    const hm = (ms) => { const d = new Date(ms); return PT.pad(d.getHours()) + ':' + PT.pad(d.getMinutes()); };
+    H.expTime = (m) => { const x = H.timeline()[m.id]; return x && x.start != null ? hm(x.start) : m.time; };
+    H.delay = (m) => { const x = H.timeline()[m.id]; return x ? x.delay : 0; };
+    H.delayHTML = (m) => { const d = H.delay(m); return `<span class="dl" data-dl="${m.id}">${d > 0 ? '+' + d : ''}</span>`; };
+    H.dateText = () => S.settings.date || (S.settings.day ? new Date(S.settings.day + 'T12:00').toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : '');
+    // Zeiten und Verspätungen auf der Seite aktualisieren (ohne alles neu zu zeichnen)
+    H.tickTimes = (root) => {
+      (root || document).querySelectorAll('[data-exp]').forEach((el) => { const m = H.M(el.dataset.exp); if (m) el.textContent = H.expTime(m); });
+      (root || document).querySelectorAll('[data-dl]').forEach((el) => { const m = H.M(el.dataset.dl); if (m) { const d = H.delay(m); el.textContent = d > 0 ? '+' + d : ''; } });
+    };
     H.totalGoals = () => S.matches.reduce((n, m) => { const s = H.sc(m); return n + s.h + s.a; }, 0);
     return H;
   };
@@ -180,7 +218,7 @@
       if (st.third) ko('third', 'Spiel um Platz 3', 'Verlierer HF 1', 'Verlierer HF 2');
       ko('final', 'Finale', 'Sieger HF 1', 'Sieger HF 2');
     }
-    let t = PT.timeToMin(st.start) ?? 540;
+    let t = PT.timeToMin(st.start) ?? 690;
     return out.map((m, i) => {
       const dur = +st[PT.STAGES[m.stage].d] || 10;
       const r = Object.assign({ id: 'm' + (i + 1), no: i + 1, time: PT.minToTime(t), status: 'scheduled', clock: { run: false, since: null, acc: 0 }, events: [], pen: null, dur: null }, m);
@@ -190,7 +228,7 @@
   };
   // Uhrzeiten neu berechnen (z. B. nach geänderten Spielzeiten)
   PT.retime = (S) => {
-    const H = PT.make(S); let t = PT.timeToMin(S.settings.start) ?? 540;
+    const H = PT.make(S); let t = PT.timeToMin(S.settings.start) ?? 690;
     H.sorted().forEach((m) => { m.time = PT.minToTime(t); t += H.durOf(m) + (+S.settings.gap || 0); });
   };
 

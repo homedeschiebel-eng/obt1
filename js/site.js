@@ -22,7 +22,7 @@
     let top;
     if (m.status === 'live') top = `<span class="livechip">Live</span>`;
     else if (m.status === 'done') top = `<b>Endstand</b>`;
-    else top = `<b>Nächstes Spiel · ca. ${esc(m.time)} Uhr</b>`;
+    else top = `<b>Nächstes Spiel · ca. <span data-exp="${m.id}">${H.expTime(m)}</span> Uhr ${H.delayHTML(m)}</b>`;
     const nxt = H.nextScheduled(m);
     return `<section class="stage"><div class="wrap">
       <div class="stage-top"><span>Spiel ${esc(m.no || '')} · ${esc(m.label || STAGES[m.stage].l)}</span>${top}</div>
@@ -30,7 +30,7 @@
       ${m.pen ? `<div class="nextline">${m.pen.h}:${m.pen.a} nach Neunmeterschießen</div>` : ''}
       <div class="sb-clock">${clockHTML(m, true)}${stateHTML(m)}</div>${barHTML(m)}
       ${m.events.length ? `<div class="sb-ev">${evs('h')}${evs('a')}</div>` : ''}
-      ${opts.next !== false && nxt && nxt !== m ? `<div class="nextline">Danach: <b>${esc(H.tName(nxt, 'h'))} – ${esc(H.tName(nxt, 'a'))}</b><span>ca. ${esc(nxt.time)} Uhr · ${esc(nxt.label)}</span></div>` : ''}
+      ${opts.next !== false && nxt && nxt !== m ? `<div class="nextline">Danach: <b>${esc(H.tName(nxt, 'h'))} – ${esc(H.tName(nxt, 'a'))}</b><span>ca. <span data-exp="${nxt.id}">${H.expTime(nxt)}</span> Uhr ${H.delayHTML(nxt)} · ${esc(nxt.label)}</span></div>` : ''}
     </div></section>`;
   }
 
@@ -41,7 +41,7 @@
     if (m.status === 'live') res = `<span class="res live">${r.h}:${r.a}<small data-clock="${m.id}">${H.clockText(m)}</small></span>`;
     else if (m.status === 'done') res = `<span class="res">${r.h}:${r.a}${m.pen ? `<small>${m.pen.h}:${m.pen.a} n.N.</small>` : ''}</span>`;
     else res = `<span class="res pending">– : –</span>`;
-    return `<a class="pr ${m.status}" href="#spiel-${m.id}"><span class="meta"><span class="no">${esc(m.no || '')}</span><span class="tm">${esc(m.time)}</span><span class="rd">${esc(m.label || STAGES[m.stage].l)}</span></span>${side('h')}${res}${side('a')}</a>`;
+    return `<a class="pr ${m.status}" href="#spiel-${m.id}"><span class="meta"><span class="no">${esc(m.no || '')}</span><span class="tm"><span data-exp="${m.id}">${H.expTime(m)}</span>${m.status === 'done' ? '' : H.delayHTML(m)}</span><span class="rd">${esc(m.label || STAGES[m.stage].l)}</span></span>${side('h')}${res}${side('a')}</a>`;
   }
 
   function standTable(g, compact) {
@@ -98,7 +98,7 @@
       ${grp.length ? `<h2 class="sh">Gruppenphase <small>${esc(S.settings.durGroup)} Min. pro Spiel</small></h2><div class="plan">${grp.map(planRow).join('')}</div>` : ''}
       ${ko.length ? `<h2 class="sh" style="margin-top:30px">Finalrunde <small>K.-o. ${esc(S.settings.durKo)} Min. · Halbfinale & Finale ${esc(S.settings.durFinal)} Min.</small></h2><div class="plan">${ko.map(planRow).join('')}</div>` : ''}
       ${list.length ? '' : '<div class="empty">Keine Spiele in dieser Auswahl.</div>'}
-      <p class="legend">Alle Spiele finden nacheinander auf einem Feld statt. Die Uhrzeiten sind ungefähre Angaben.</p></section>`;
+      <p class="legend">Alle Spiele finden nacheinander auf einem Feld statt. Die Uhrzeiten passen sich live an: Bei Verspätung verschiebt sich der Plan automatisch, die Verspätung steht gelb daneben.</p></section>`;
   }
   function vTable() {
     const multi = H.groups().length > 1;
@@ -182,7 +182,7 @@
     ${hero}
     <main><div class="wrap">${main}</div></main>
     ${partnersBand()}
-    <footer><div class="wrap"><div class="org"><span class="logo logo-school" role="img" aria-label="Logo ${esc(s.school)}"></span><span class="logo logo-smv" role="img" aria-label="Logo der SMV"></span><div>Ein Turnier der SMV<small>${esc([s.school, s.date, s.location].filter(Boolean).join(' · '))}</small></div></div>
+    <footer><div class="wrap"><div class="org"><span class="logo logo-school" role="img" aria-label="Logo ${esc(s.school)}"></span><span class="logo logo-smv" role="img" aria-label="Logo der SMV"></span><div>Ein Turnier der SMV<small>${esc([s.school, H.dateText(), s.location].filter(Boolean).join(' · '))}</small></div></div>
     <div class="small"><span class="conn${online ? '' : ' off'}">${online ? 'Live verbunden' : 'Keine Verbindung – wird erneut versucht'}</span> · <a href="/anzeige">Hallenanzeige</a> · <a href="/turnierleitung">Turnierleitung</a></div></div></footer>`;
     document.title = (live ? '● ' + H.tName(H.live(), 'h') + ' ' + H.sc(H.live()).h + ':' + H.sc(H.live()).a + ' ' + H.tName(H.live(), 'a') + ' · ' : '') + 'Parler Oberstufen-Turnier';
   }
@@ -193,6 +193,7 @@
     document.querySelectorAll('[data-clock]').forEach((el) => { const m = H.M(el.dataset.clock); if (m) el.textContent = H.clockText(m); });
     document.querySelectorAll('[data-bar]').forEach((el) => { const m = H.M(el.dataset.bar); if (m) el.style.width = H.pct(m) + '%'; });
     document.querySelectorAll('[data-cstate]').forEach((el) => { const m = H.M(el.dataset.cstate); if (m) { el.textContent = H.clockState(m); el.classList.toggle('over', m.status === 'live' && H.remaining(m) <= 0); } });
+    H.tickTimes();
   }, 250);
 
   /* ---------- Laden & regelmäßig aktualisieren ---------- */
