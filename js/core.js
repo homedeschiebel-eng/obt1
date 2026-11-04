@@ -15,8 +15,9 @@
     return (w[0][0] + (w[1] ? w[1][0] : (w[0][1] || ''))).toUpperCase();
   };
   PT.safeUrl = (u) => { u = String(u || '').trim(); if (!u) return ''; if (!/^https?:\/\//i.test(u)) u = 'https://' + u; try { const x = new URL(u); return /^https?:$/.test(x.protocol) ? x.href : ''; } catch (e) { return ''; } };
+  PT.short = (t) => (t && t.short ? t.short : PT.initials(t && t.name));
   PT.monoHTML = (t, cls) => t
-    ? `<span class="mono ${cls || ''}${t.logo ? ' has-logo' : ''}" style="--c:${PT.esc(t.color)}">${t.logo ? `<img src="${PT.esc(t.logo)}" alt="">` : PT.esc(PT.initials(t.name))}</span>`
+    ? `<span class="mono ${cls || ''}${t.logo ? ' has-logo' : ''}" style="--c:${PT.esc(t.color)}">${t.logo ? `<img src="${PT.esc(t.logo)}" alt="">` : PT.esc(PT.short(t))}</span>`
     : `<span class="mono ${cls || ''}" style="--c:#2A3560">?</span>`;
   PT.timeToMin = (t) => { const m = /^(\d{1,2}):(\d{2})$/.exec(t || ''); return m ? +m[1] * 60 + +m[2] : null; };
   PT.minToTime = (n) => PT.pad(Math.floor(n / 60) % 24) + ':' + PT.pad(n % 60);
@@ -40,14 +41,19 @@
 
   PT.normalize = (S) => {
     S = S || {};
-    const old = S.settings && S.settings.day === undefined && (S.settings.title !== undefined);
+    const old = !!(S.settings && S.settings.title !== undefined && !S.settings.day);
     S.settings = Object.assign({ title: 'Oberstufen-Turnier', school: 'Parler-Gymnasium', season: '2026', date: '', day: '2026-12-22', location: '', sport: 'Fußball', ticker: '', start: '11:30', gap: 1, koFormat: 'qf', third: true, win: 3, draw: 1, durGroup: 7, durKo: 10, durFinal: 12 }, S.settings || {});
     S.teams = S.teams || []; S.matches = S.matches || []; S.sponsors = S.sponsors || [];
     S.teams.forEach((t) => { t.players = t.players || []; });
     S.matches.forEach((m) => { m.events = m.events || []; m.clock = m.clock || { run: false, since: null, acc: 0 }; });
     S.rev = S.rev || 0;
     // Einmalige Umstellung älterer Stände: Turniertag 22.12.2026, Start 11:30, 1 Minute Wechselzeit
-    if (old) { Object.assign(S.settings, { day: '2026-12-22', date: 'Dienstag, 22. Dezember 2026', start: '11:30', gap: 1, season: '2026' }); PT.retime(S); S._migrated = true; }
+    if (old) {
+      const wasDefault = !S.settings.start || S.settings.start === '09:00';
+      Object.assign(S.settings, { day: '2026-12-22', date: 'Dienstag, 22. Dezember 2026', season: S.settings.season || '2026' });
+      if (wasDefault) { S.settings.start = '11:30'; S.settings.gap = 1; }
+      PT.retime(S); S._migrated = true;
+    }
     return S;
   };
 

@@ -133,7 +133,7 @@
     <div class="plist">${l.length ? `<div class="ph"><span>#</span><span style="text-align:left">Spieler/in</span><span class="x">Spiele</span><span>Tore</span><span class="x">Gelb</span><span>Rot</span></div>${l.map((x, i) => { if (x.g !== prev) { rank = i + 1; prev = x.g; } return `<a class="ps" href="#team-${x.t.id}"><span class="rk">${rank}</span><span class="who"><span class="avatar" style="--c:${esc(x.t.color)}">${esc(x.p.no || initials(x.p.name))}</span><span><b>${esc(x.p.name)}</b><small>${esc(x.t.name)}</small></span></span><span class="x">${x.sp}</span><span class="big">${x.g}</span><span class="x">${x.y}</span><span>${x.r}</span></a>`; }).join('')}` : '<div class="empty">Noch keine Tore oder Karten.</div>'}</div></div>`;
   }
   function vTeams() {
-    return S.teams.length ? `<div class="tgrid">${S.teams.slice().sort((a, b) => (a.group || '').localeCompare(b.group || '') || a.name.localeCompare(b.name, 'de', { numeric: true })).map((t) => `<a class="tcard" href="#team-${t.id}" style="--c:${esc(t.color)}">${t.photo ? `<span class="ph" style="background-image:url('${esc(t.photo)}')"></span>` : `<span class="ghost">${esc(initials(t.name))}</span>`}<span class="tinfo">${monoHTML(t, 'l')}<h3>${esc(t.name)}</h3><small>${[t.cls, t.group ? 'Gruppe ' + t.group : '', t.players.length + ' Spieler/innen'].filter(Boolean).map(esc).join(' · ')}</small></span></a>`).join('')}</div>` : '<div class="empty">Noch keine Teams angelegt.</div>';
+    return S.teams.length ? `<div class="tgrid">${S.teams.slice().sort((a, b) => (a.group || '').localeCompare(b.group || '') || a.name.localeCompare(b.name, 'de', { numeric: true })).map((t) => `<a class="tcard" href="#team-${t.id}" style="--c:${esc(t.color)}">${t.photo ? `<span class="ph" style="background-image:url('${esc(t.photo)}')"></span>` : `<span class="ghost">${esc(PT.short(t))}</span>`}<span class="tinfo">${monoHTML(t, 'l')}<h3>${esc(t.name)}</h3><small>${[t.cls, t.group ? 'Gruppe ' + t.group : '', t.players.length + ' Spieler/innen'].filter(Boolean).map(esc).join(' · ')}</small></span></a>`).join('')}</div>` : '<div class="empty">Noch keine Teams angelegt.</div>';
   }
   function vTeam(id) {
     const t = H.T(id); if (!t) return '<div class="empty">Dieses Team gibt es nicht. <a href="#teams">Zu allen Teams</a></div>';
@@ -192,11 +192,11 @@
     else { const v = vLive(); hero = v.hero; main = v.main; }
     const live = !!H.live();
     app.innerHTML = `
-    ${S.teams.length ? `<div class="tstrip"><div class="wrap">${S.teams.map((t) => `<a href="#team-${t.id}" title="${esc(t.name)}">${monoHTML(t, 's')}</a>`).join('')}</div></div>` : ''}
+    ${S.teams.length ? `<div class="tstrip"><div class="wrap">${S.teams.map((t) => `<a href="#team-${t.id}" title="${esc(t.name)}">${monoHTML(t, 's')}${t.logo ? `<span class="ts-k">${esc(PT.short(t))}</span>` : ''}</a>`).join('')}</div></div>` : ''}
     <header class="hdr"><div class="wrap">
-      <a class="brand" href="#live"><span class="logo logo-school" role="img" aria-label="Logo ${esc(s.school)}"></span><span class="bt"><small>${esc(s.school)}</small><b>${esc(s.title).replace(/-?(Turnier)$/i, ' <span>$1</span>')}</b></span></a>
+      <a class="brand" href="#live"><span class="lockup"><span class="logo logo-school" role="img" aria-label="Logo ${esc(s.school)}"></span><i class="lk-sep m-only"></i><span class="logo logo-smv m-only" role="img" aria-label="Logo der SMV"></span></span><span class="bt"><small>${esc(s.school)}</small><b>${esc(s.title).replace(/-?(Turnier)$/i, ' <span>$1</span>')}</b></span></a>
       <nav class="nav" aria-label="Bereiche"><a class="pill${live ? ' on' : ''}" href="#live"${cur === 'live' ? ' aria-current="page"' : ''}>Live</a>${NAV.map(([k, l]) => `<a href="#${k}"${cur === k ? ' aria-current="page"' : ''}>${l}</a>`).join('')}</nav>
-      <div class="hdr-r"><span class="logo logo-smv" role="img" aria-label="Logo der SMV"></span></div>
+      <div class="hdr-r"><span class="logo logo-smv d-only" role="img" aria-label="Logo der SMV"></span><button class="burger m-only" type="button" data-act="menu" aria-label="Menü öffnen" aria-expanded="false" aria-controls="mnav"><span></span><span></span><span></span></button></div>
     </div></header>
     ${hero}
     <main><div class="wrap">${main}</div></main>
@@ -235,7 +235,26 @@
     if (b.dataset.act === 'filter') { ui.filter = b.dataset.f; render(); }
     if (b.dataset.act === 'st-team') { ui.stTeam = b.dataset.t; render(); }
   });
-  addEventListener('hashchange', () => { render(); scrollTo(0, 0); });
+  /* Handy-Menü (drei Striche) – liegt außerhalb von #app, damit es beim Aktualisieren offen bleibt */
+  const MENU = [['live', 'Live'], ['spielplan', 'Spielplan'], ['tabelle', 'Tabelle'], ['baum', 'K.-o.-Baum'], ['statistiken', 'Statistiken'], ['teams', 'Teams'], ['partner', 'Partner']];
+  let menuEl = null;
+  function closeMenu() { if (!menuEl) return; menuEl.remove(); menuEl = null; document.body.classList.remove('menu-open'); const b = app.querySelector('.burger'); if (b) { b.setAttribute('aria-expanded', 'false'); b.focus(); } }
+  function openMenu() {
+    if (menuEl) return closeMenu();
+    const r = route(), cur = r.startsWith('team-') ? 'teams' : r.startsWith('spiel-') ? 'spielplan' : r, s = S ? S.settings : {};
+    menuEl = document.createElement('div'); menuEl.className = 'mnav'; menuEl.id = 'mnav'; menuEl.setAttribute('role', 'dialog'); menuEl.setAttribute('aria-label', 'Menü');
+    menuEl.innerHTML = `<div class="mn-top"><span class="lockup"><span class="logo logo-school"></span><i class="lk-sep"></i><span class="logo logo-smv"></span></span><button class="mn-x" type="button" data-mn="close" aria-label="Menü schließen">✕</button></div>
+      <nav class="mn-list">${MENU.map(([k, l]) => `<a href="#${k}"${cur === k ? ' aria-current="page"' : ''}>${k === 'live' && H && H.live() ? '<span class="lvd"></span>' : ''}${l}</a>`).join('')}</nav>
+      <div class="mn-foot">${esc(s.title || '')}${s.date ? ' · ' + esc(s.date) : ''}<br><a href="/anzeige">Hallenanzeige</a> · <a href="/turnierleitung">Turnierleitung</a></div>`;
+    document.body.appendChild(menuEl); document.body.classList.add('menu-open');
+    const b = app.querySelector('.burger'); if (b) b.setAttribute('aria-expanded', 'true');
+    menuEl.addEventListener('click', (e) => { if (e.target.closest('[data-mn="close"]') || e.target.closest('a')) closeMenu(); });
+    const first = menuEl.querySelector('.mn-list a'); if (first) first.focus();
+  }
+  document.addEventListener('click', (e) => { if (e.target.closest('[data-act="menu"]')) openMenu(); });
+  addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(); });
+  addEventListener('resize', () => { if (innerWidth > 860) closeMenu(); });
+  addEventListener('hashchange', () => { closeMenu(); render(); scrollTo(0, 0); });
   PT.syncTime().then(() => load()).then(schedule);
   setInterval(PT.syncTime, 5 * 60e3);
 })();

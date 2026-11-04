@@ -111,3 +111,7 @@ kbd{font-family:ui-monospace,Consolas,monospace;font-size:12px;background:#08112
 .foot .right{display:flex;gap:8px;margin-left:auto}
 .toast{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--cyan);color:#04121F;font-weight:700;padding:10px 18px;z-index:60;box-shadow:0 10px 30px rgba(0,0,0,.4);max-width:calc(100% - 32px)}
 .toast.no{background:var(--live);color:#fff}
+
+/* Torhymne */
+.hymne-stop{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:70;background:#2A0A14;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+.field input[type=range]{padding:0;height:40px}

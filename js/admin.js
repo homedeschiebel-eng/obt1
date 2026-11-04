@@ -111,9 +111,49 @@
     const t = H.teamOf(m, teamSide), x = H.P(pid);
     if (act(A.event(m.id, type, teamSide, pid, H.minuteNow(m)))) {
       toast(`${EV[type]}${x ? ': ' + x.p.name : ''}${t ? ' (' + t.name + ')' : ''} eingetragen`);
-      ui.pick[teamSide] = 'goal'; render();
+      ui.pick[teamSide] = 'goal'; render(); anthemFor(m, type, teamSide);
     }
   }
+
+
+  /* ---------- Torhymne: nur auf diesem Gerät (im Browser gespeichert, nicht auf dem Server) ---------- */
+  const AUD = {
+    db: null,
+    open() { if (this.db) return Promise.resolve(this.db); return new Promise((res, rej) => { try { const r = indexedDB.open('pt-torhymne', 1); r.onupgradeneeded = () => r.result.createObjectStore('files'); r.onsuccess = () => { this.db = r.result; res(this.db); }; r.onerror = () => rej(r.error); } catch (e) { rej(e); } }); },
+    async get(k) { const db = await this.open(); return new Promise((res) => { const q = db.transaction('files').objectStore('files').get(k); q.onsuccess = () => res(q.result || null); q.onerror = () => res(null); }); },
+    async set(k, v) { const db = await this.open(); return new Promise((res, rej) => { const tx = db.transaction('files', 'readwrite'); tx.objectStore('files').put(v, k); tx.oncomplete = () => res(); tx.onerror = () => rej(tx.error); }); },
+    async del(k) { const db = await this.open(); return new Promise((res) => { const tx = db.transaction('files', 'readwrite'); tx.objectStore('files').delete(k); tx.oncomplete = () => res(); tx.onerror = () => res(); }); }
+  };
+  const anthemCfg = () => { try { return Object.assign({ on: true, vol: 0.9, max: 25 }, JSON.parse(localStorage.getItem('pt-hymne') || '{}')); } catch (e) { return { on: true, vol: 0.9, max: 25 }; } };
+  const saveCfg = (c) => { try { localStorage.setItem('pt-hymne', JSON.stringify(c)); } catch (e) { /* egal */ } };
+  let audio = null, audioUrl = null, fadeT = null, stopT = null;
+  function stopAnthem(fade) {
+    clearTimeout(stopT); clearInterval(fadeT);
+    const btn = document.getElementById('hymne-stop'); if (btn) btn.remove();
+    if (!audio) return;
+    const a = audio, u = audioUrl; audio = null; audioUrl = null;
+    if (!fade) { a.pause(); if (u) URL.revokeObjectURL(u); return; }
+    fadeT = setInterval(() => { a.volume = Math.max(0, a.volume - 0.08); if (a.volume <= 0.01) { clearInterval(fadeT); a.pause(); if (u) URL.revokeObjectURL(u); } }, 120);
+  }
+  async function playAnthem(teamId) {
+    const c = anthemCfg(); if (!c.on) return;
+    let f = null; try { f = (teamId && await AUD.get('team:' + teamId)) || await AUD.get('default'); } catch (e) { f = null; }
+    if (!f) return;
+    stopAnthem(false);
+    audioUrl = URL.createObjectURL(f.blob || f); audio = new Audio(audioUrl); audio.volume = Math.max(0, Math.min(1, +c.vol || 0.9));
+    audio.addEventListener('ended', () => stopAnthem(false));
+    try { await audio.play(); } catch (e) { toast('Die Torhymne konnte nicht abgespielt werden. Einmal auf die Seite tippen und erneut versuchen.', true); stopAnthem(false); return; }
+    const b = document.createElement('button'); b.id = 'hymne-stop'; b.type = 'button'; b.className = 'btn danger big hymne-stop'; b.textContent = '■ Torhymne stoppen';
+    b.addEventListener('click', () => stopAnthem(true)); document.body.appendChild(b);
+    if (+c.max > 0) stopT = setTimeout(() => stopAnthem(true), +c.max * 1000);
+  }
+  // Tor (oder Eigentor) → Hymne der Mannschaft, die das Tor bekommt
+  function anthemFor(m, type, teamSide) {
+    if (type !== 'goal' && type !== 'og') return;
+    const side = type === 'og' ? (teamSide === 'h' ? 'a' : 'h') : teamSide;
+    const t = H.teamOf(m, side); playAnthem(t ? t.id : null);
+  }
+  async function anthemInfo(key) { try { const f = await AUD.get(key); return f ? (f.name || 'Datei') : ''; } catch (e) { return ''; } }
 
   /* ---------- Befehlszeile ---------- */
   // Beispiele: „tor spieler 1 team 2“, „tor 7 h“, „gelb 4 gast“, „et 3 team 5“, „start“, „stopp“, „abpfiff“, „zurück“, „nächstes“
@@ -159,6 +199,7 @@
     if (!side) return { ok: false, text: 'Für welches Team? Zum Beispiel „tor h“, „tor gast“ oder den Teamnamen dazuschreiben.' };
     try {
       if (!act(A.event(m.id, type, side, hit ? hit.p.id : null, min || H.minuteNow(m)))) return { ok: false, text: act.err };
+      anthemFor(m, type, side);
       return { ok: true, text: `${EV[type]}${hit ? ': ' + hit.p.name : ''} (${teams[side] ? teams[side].name : side}) eingetragen.` };
     } catch (e) { return { ok: false, text: e.message }; }
   }
@@ -255,6 +296,14 @@
         <div><div class="hint" style="margin-bottom:8px"><b style="color:#fff">Vor dem Offline-Betrieb:</b> holt den aktuellen Stand der Website (Teams, Spielplan, Ergebnisse, Logos) auf den Laptop. Der Stand auf dem Laptop wird ersetzt.</div><button type="button" class="btn primary" data-act="sync-pull" data-confirm="Stand auf dem Laptop ersetzen?">Stand von der Website holen</button></div>
         <div><div class="hint" style="margin-bottom:8px"><b style="color:#fff">Wenn wieder Internet da ist:</b> lädt den Stand vom Laptop auf die Website. Der Stand auf der Website wird ersetzt.</div><div class="field" style="margin-bottom:8px"><label for="sync-pass">Passwort der Online-Turnierleitung</label><input id="sync-pass" type="password" autocomplete="off"></div><button type="button" class="btn cyan" data-act="sync-push" data-confirm="Stand auf der Website ersetzen?">Stand auf die Website hochladen</button></div>
       </div><div class="cmd-msg" id="sync-msg"></div></div>` : `<div class="box"><h3>Offline-Betrieb auf dem Laptop</h3><div class="hint">Falls in der Halle das Internet ausfällt: Projekt auf GitHub herunterladen (Code → Download ZIP), auf dem Laptop Node.js installieren und im Ordner <kbd>node server.js</kbd> starten. Die Anleitung steht in OFFLINE-START.txt.</div></div>`}
+    <div class="box" id="hymne-box"><h3>Torhymne <small>läuft nach jedem Tor nur auf diesem Gerät</small></h3>
+      <div class="frow" style="align-items:end">
+        <div class="field"><label for="hy-file">Allgemeine Torhymne (MP3, M4A, WAV …)</label><input id="hy-file" type="file" accept="audio/*"><div class="hint" id="hy-name">…</div></div>
+        <div class="field"><label for="hy-vol">Lautstärke</label><input id="hy-vol" type="range" min="0" max="1" step="0.05" value="${anthemCfg().vol}"></div>
+        <div class="field"><label for="hy-max">Spielt höchstens (Sekunden, 0 = ganz)</label><input id="hy-max" type="number" min="0" max="300" value="${anthemCfg().max}"></div>
+      </div>
+      <div class="row" style="margin-top:12px"><label class="check"><input id="hy-on" type="checkbox" ${anthemCfg().on ? 'checked' : ''}> Nach jedem Tor abspielen</label><span style="flex:1"></span><button type="button" class="btn" data-act="hy-test">▶ Probe</button><button type="button" class="btn" data-act="hy-stop">■ Stopp</button><button type="button" class="btn danger" data-act="hy-del">Entfernen</button></div>
+      <div class="hint" style="margin-top:8px">Die Datei bleibt in diesem Browser gespeichert und wird nicht ins Internet hochgeladen. Eigene Hymnen pro Team: Reiter „Teams“ → Team bearbeiten.</div></div>
     <div class="box"><h3>QR-Code-Aushang</h3><div class="hint" style="margin-bottom:10px">A4-Plakat mit QR-Code zur Website für Zuschauer und Teams – zum Ausdrucken oder als PDF speichern.</div><a class="btn primary" href="/aushang" target="_blank" rel="noopener">Aushang öffnen</a></div>
     <div class="box"><h3>Sicherung</h3><div class="row"><button class="btn" data-act="backup">Sicherung herunterladen</button><label class="btn" for="restore">Sicherung einspielen</label><input id="restore" type="file" accept="application/json,.json" hidden></div><div class="hint" style="margin-top:8px">Die Sicherung ist eine JSON-Datei mit allen Teams, Spielen und Ergebnissen.</div></div>
     <form class="box" id="pw-form"><h3>Passwort ändern</h3>${ui.pwSource === 'env' ? '<div class="hint">Das Passwort ist im Vercel-Projekt als ADMIN_PASSWORD festgelegt und kann nur dort geändert werden.</div>' : `<div class="frow" style="align-items:end"><div class="field"><label for="pw-new">Neues Passwort (mind. 6 Zeichen)</label><input id="pw-new" type="password" autocomplete="new-password"></div><div><button class="btn primary">Passwort ändern</button></div></div>`}</form>
@@ -276,6 +325,7 @@
       <div class="tl-side">${ui.local ? '<span class="btn sm" style="background:#3DDC97;border-color:#3DDC97;color:#04121F" title="Läuft auf diesem Laptop ohne Internet">Offline · Laptop</span>' : ''}<span id="save" class="save"></span><a class="btn sm" href="/" target="_blank" rel="noopener">Website</a><a class="btn sm" href="/anzeige" target="_blank" rel="noopener">Hallenanzeige</a><button class="btn sm" data-act="logout">Abmelden</button></div>
     </div></header><main class="tl-body"><div class="wrap">${v()}</div></main>`;
     paintSave();
+    const hyName = document.getElementById('hy-name'); if (hyName) anthemInfo('default').then((n) => { hyName.textContent = n ? 'Gespeichert: ' + n : 'Noch keine Torhymne gespeichert.'; });
     // Falls ein Werbeblocker trotzdem Teile ausblendet: Hinweis zeigen
     const body = app.querySelector('.tl-body'); if (body && !body.offsetHeight) toast('Eine Browser-Erweiterung (z. B. Werbeblocker) blendet Teile aus. Bitte für diese Seite ausschalten.', true);
     if (focusCmd) { const el = document.getElementById('cmd'); if (el) { el.value = cmdVal; el.focus(); } }
@@ -431,18 +481,27 @@
     let logo = t.logo, photo = t.photo;
     const roster = t.players.slice().sort((a, b) => (a.no || 99) - (b.no || 99)).map((p) => (p.no != null ? p.no + ' ' : '') + p.name).join('\n');
     openModal(isNew ? 'Team anlegen' : 'Team bearbeiten', `
-      ${F('name', 'Teamname', t.name, 'text', 'required')}
+      <div class="frow">${F('name', 'Teamname', t.name, 'text', 'required')}${F('short', 'Kürzel (max. 4 Zeichen, z. B. SG)', t.short || '', 'text', 'maxlength="4" placeholder="' + esc(PT.initials(t.name)) + '" style="text-transform:uppercase"')}</div>
       <div class="frow">${F('cls', 'Klasse / Kurs (optional)', t.cls, 'text', 'placeholder="z. B. J1, J2"')}${F('group', 'Gruppe', t.group, 'text', 'placeholder="A oder B"')}${F('color', 'Teamfarbe', t.color, 'color')}</div>
       <div class="field"><label for="f-players">Spielerliste</label><textarea id="f-players" name="players" placeholder="1 Spieler 1&#10;7 Jonas M.&#10;10 Lea K.">${esc(roster)}</textarea><div class="hint">Eine Person pro Zeile, Rückennummer optional vorne. Du kannst eine Liste aus Excel oder WhatsApp einfügen. Tore bleiben erhalten, solange der Name gleich bleibt.</div></div>
-      <div class="frow">${imgField('f-logo', 'Teamlogo (optional, wird automatisch quadratisch und mittig)', !!t.logo, 'Ohne Logo zeigen wir das Kürzel.')}${imgField('f-photo', 'Teamfoto (optional)', !!t.photo, 'Erscheint auf der Teamkarte.')}</div>`,
+      <div class="frow">${imgField('f-logo', 'Teamlogo (optional, wird automatisch quadratisch und mittig)', !!t.logo, 'Ohne Logo zeigen wir das Kürzel.')}${imgField('f-photo', 'Teamfoto (optional)', !!t.photo, 'Erscheint auf der Teamkarte.')}</div>
+      ${isNew ? '' : `<div class="field"><label for="f-anthem">Eigene Torhymne für dieses Team (optional, nur auf diesem Gerät)</label><input id="f-anthem" type="file" accept="audio/*"><div class="hint" data-anthem-hint>Ohne eigene Hymne läuft die allgemeine Torhymne.</div></div>`}`,
     (fd) => {
       const name = fd.get('name').trim(); if (!name) return 'Bitte einen Teamnamen eingeben.';
       const old = t.players || [];
       const players = fd.get('players').split('\n').map((l) => l.replace(/\t/g, ' ').trim()).filter(Boolean).map((l) => { const mm = l.match(/^(\d{1,3})\s*[.)\-–:]?\s+(.+)$/); const no = mm ? +mm[1] : null, nm = (mm ? mm[2] : l).trim(); const ex = old.find((p) => p.name.toLowerCase() === nm.toLowerCase()); return { id: ex ? ex.id : uid('p'), no, name: nm }; });
-      const o = { name, cls: fd.get('cls').trim(), group: fd.get('group').trim().toUpperCase(), color: fd.get('color') || '#2E6BFF', players, logo, photo };
+      const o = { name, short: String(fd.get('short') || '').trim().toUpperCase().slice(0, 4), cls: fd.get('cls').trim(), group: fd.get('group').trim().toUpperCase(), color: fd.get('color') || '#2E6BFF', players, logo, photo };
       if (isNew) { const id = uid('t'); act((S) => { S.teams.push(Object.assign({ id }, o)); }); }
       else { const id = t.id; act((S) => { Object.assign(S.teams.find((x) => x.id === id), o); }); }
-    }, { ...(isNew ? {} : { del: () => { const id = t.id, nm = t.name; act((S) => { S.teams = S.teams.filter((x) => x.id !== id); S.matches.forEach((m) => { if (m.home === id) { m.home = null; m.homePh = m.homePh || nm; } if (m.away === id) { m.away = null; m.awayPh = m.awayPh || nm; } }); }); }, delLabel: 'Team löschen' }), after: (form) => { wireImg(form, 'f-logo', 240, 240, 'image/png', (u) => { logo = u; }, 'circle'); wireImg(form, 'f-photo', 900, 560, 'image/jpeg', (u) => { photo = u; }); } });
+    }, { ...(isNew ? {} : { del: () => { const id = t.id, nm = t.name; act((S) => { S.teams = S.teams.filter((x) => x.id !== id); S.matches.forEach((m) => { if (m.home === id) { m.home = null; m.homePh = m.homePh || nm; } if (m.away === id) { m.away = null; m.awayPh = m.awayPh || nm; } }); }); }, delLabel: 'Team löschen' }), after: (form) => {
+      const af = form.querySelector('#f-anthem'), ah = form.querySelector('[data-anthem-hint]');
+      if (af) {
+        const key = 'team:' + t.id, show = async () => { const n = await anthemInfo(key); ah.innerHTML = n ? 'Eigene Hymne: <b>' + esc(n) + '</b> <button type="button" class="btn sm" data-anthem-rm>Entfernen</button>' : 'Ohne eigene Hymne läuft die allgemeine Torhymne.'; };
+        show();
+        af.addEventListener('change', async () => { const f = af.files[0]; if (!f) return; try { await AUD.set(key, { blob: f, name: f.name }); toast('Torhymne für ' + t.name + ' gespeichert.'); } catch (e) { toast('Konnte nicht gespeichert werden: ' + e.message, true); } show(); });
+        form.addEventListener('click', async (e) => { if (e.target.closest('[data-anthem-rm]')) { await AUD.del(key); show(); } });
+      }
+      wireImg(form, 'f-logo', 240, 240, 'image/png', (u) => { logo = u; }, 'circle'); wireImg(form, 'f-photo', 900, 560, 'image/jpeg', (u) => { photo = u; }); } });
   }
   function sponsorForm(s) {
     const isNew = !s; s = s || { name: '', level: 'Partner', slogan: '', url: '', logo: '' }; let logo = s.logo;
@@ -493,6 +552,9 @@
       const l = document.createElement('a'); l.href = URL.createObjectURL(blob); l.download = 'turnier-sicherung-' + new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-') + '.json'; document.body.appendChild(l); l.click(); l.remove();
       return;
     }
+    if (a === 'hy-test') { playAnthem(null); return; }
+    if (a === 'hy-stop') { stopAnthem(true); return; }
+    if (a === 'hy-del') { AUD.del('default').then(() => render()); return; }
     if (a === 'sync-pull' || a === 'sync-push') {
       const msg = document.getElementById('sync-msg'), url = document.getElementById('sync-url').value, pass = (document.getElementById('sync-pass') || {}).value || '';
       msg.className = 'cmd-msg'; msg.textContent = a === 'sync-pull' ? 'Hole den Stand von der Website …' : 'Lade den Stand auf die Website …';
@@ -549,6 +611,8 @@
       if (v && v === m[o]) { toast('Ein Team kann nicht gegen sich selbst spielen.', true); render(); return; }
       act(A.setTeam(m.id, k, v)); return;
     }
+    if (id === 'hy-file') { const f = e.target.files[0]; if (!f) return; AUD.set('default', { blob: f, name: f.name }).then(() => { toast('Torhymne gespeichert: ' + f.name); render(); }).catch((x) => toast('Konnte nicht gespeichert werden: ' + x.message, true)); return; }
+    if (id === 'hy-on' || id === 'hy-max' || id === 'hy-vol') { const c = anthemCfg(); c.on = document.getElementById('hy-on').checked; c.max = Math.max(0, parseInt(document.getElementById('hy-max').value, 10) || 0); c.vol = +document.getElementById('hy-vol').value; saveCfg(c); if (audio && id === 'hy-vol') audio.volume = c.vol; return; }
     if (id === 'restore') {
       const f = e.target.files[0]; if (!f) return;
       f.text().then((txt) => { const d = JSON.parse(txt); if (!d || !Array.isArray(d.teams) || !Array.isArray(d.matches)) throw new Error('Das ist keine Turnier-Sicherung.'); act((S) => { S.settings = d.settings || S.settings; S.teams = d.teams; S.matches = d.matches; S.sponsors = d.sponsors || []; S.current = d.current || null; PT.normalize(S); }); toast('Sicherung eingespielt.'); })

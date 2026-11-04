@@ -191,7 +191,7 @@ function cleanState(inp) {
   const teams = arr(inp.teams).slice(0, 40).map((t) => {
     t = obj(t);
     return {
-      id: id(t.id) || 't' + crypto.randomBytes(4).toString('hex'), name: cut(t.name, 40), cls: cut(t.cls, 30), group: cut(t.group, 4),
+      id: id(t.id) || 't' + crypto.randomBytes(4).toString('hex'), name: cut(t.name, 40), short: cut(t.short, 5), cls: cut(t.cls, 30), group: cut(t.group, 4),
       color: color(t.color), logo: img(t.logo), photo: img(t.photo),
       players: arr(t.players).slice(0, 40).map((p) => ({ id: id(obj(p).id) || 'p' + crypto.randomBytes(4).toString('hex'), no: num(obj(p).no, null), name: cut(obj(p).name, 40) }))
     };
