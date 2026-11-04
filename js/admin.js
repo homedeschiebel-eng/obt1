@@ -368,14 +368,17 @@
     if (mode) { const b = contentBox(img); sx = b.x; sy = b.y; sw = b.w; sh = b.h; }
     let cw, ch, dx, dy, dw, dh;
     if (mode === 'circle') {
-      const side = Math.min(maxW, Math.round(Math.max(sw, sh) / 0.72));
-      const k = (side * 0.72) / Math.max(sw, sh);
+      // Quadrat in der Größe der längeren Seite (4:5 → 5:5, 3:4 → 4:4), Logo voll und mittig, Rest weiß
+      const side = Math.max(1, Math.min(maxW, Math.round(Math.max(sw, sh))));
+      const k = side / Math.max(sw, sh);
       cw = ch = side; dw = sw * k; dh = sh * k; dx = (side - dw) / 2; dy = (side - dh) / 2;
     } else {
       const k = Math.min(1, maxW / sw, maxH / sh); cw = Math.max(1, Math.round(sw * k)); ch = Math.max(1, Math.round(sh * k)); dx = 0; dy = 0; dw = cw; dh = ch;
     }
     const c = document.createElement('canvas'); c.width = Math.max(1, Math.round(cw)); c.height = Math.max(1, Math.round(ch));
-    const g = c.getContext('2d'); g.imageSmoothingQuality = 'high'; g.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh);
+    const g = c.getContext('2d'); g.imageSmoothingQuality = 'high';
+    if (mode === 'circle') { g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); }
+    g.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh);
     return new Promise((resolve, reject) => c.toBlob((b) => (b ? resolve(b) : reject(new Error('Bild konnte nicht umgewandelt werden.'))), type, 0.85));
   }
   async function upload(file, maxW, maxH, type, mode) {
@@ -395,7 +398,7 @@
         const img = await loadImage(URL.createObjectURL(await r.blob()));
         const b = contentBox(img), W = img.naturalWidth, Hh = img.naturalHeight;
         const cx = (b.x + b.w / 2) / W, cy = (b.y + b.h / 2) / Hh, fill = Math.max(b.w, b.h) / Math.max(W, Hh);
-        if (Math.abs(W - Hh) <= 2 && Math.abs(cx - 0.5) < 0.02 && Math.abs(cy - 0.5) < 0.02 && fill < 0.76) continue; // schon zentriert
+        if (Math.abs(W - Hh) <= 2 && Math.abs(cx - 0.5) < 0.02 && Math.abs(cy - 0.5) < 0.02 && fill > 0.97) continue; // schon quadratisch, mittig und voll
         const blob = await prepare(img, 240, 240, 'image/png', 'circle');
         const j = await api('/api/img', { method: 'POST', headers: { 'Content-Type': 'image/png' }, body: blob });
         if (j.url && j.url !== t.logo) { const id = t.id, url = j.url; act((S) => { const x = S.teams.find((y) => y.id === id); if (x) x.logo = url; }); n++; }
@@ -425,7 +428,7 @@
       ${F('name', 'Teamname', t.name, 'text', 'required')}
       <div class="frow">${F('cls', 'Klasse / Kurs (optional)', t.cls, 'text', 'placeholder="z. B. J1, J2"')}${F('group', 'Gruppe', t.group, 'text', 'placeholder="A oder B"')}${F('color', 'Teamfarbe', t.color, 'color')}</div>
       <div class="field"><label for="f-players">Spielerliste</label><textarea id="f-players" name="players" placeholder="1 Spieler 1&#10;7 Jonas M.&#10;10 Lea K.">${esc(roster)}</textarea><div class="hint">Eine Person pro Zeile, Rückennummer optional vorne. Du kannst eine Liste aus Excel oder WhatsApp einfügen. Tore bleiben erhalten, solange der Name gleich bleibt.</div></div>
-      <div class="frow">${imgField('f-logo', 'Teamlogo (optional, wird automatisch zentriert)', !!t.logo, 'Ohne Logo zeigen wir das Kürzel.')}${imgField('f-photo', 'Teamfoto (optional)', !!t.photo, 'Erscheint auf der Teamkarte.')}</div>`,
+      <div class="frow">${imgField('f-logo', 'Teamlogo (optional, wird automatisch quadratisch und mittig)', !!t.logo, 'Ohne Logo zeigen wir das Kürzel.')}${imgField('f-photo', 'Teamfoto (optional)', !!t.photo, 'Erscheint auf der Teamkarte.')}</div>`,
     (fd) => {
       const name = fd.get('name').trim(); if (!name) return 'Bitte einen Teamnamen eingeben.';
       const old = t.players || [];
