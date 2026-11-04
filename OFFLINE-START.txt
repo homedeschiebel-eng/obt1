@@ -33,17 +33,20 @@ DIE FENSTER
   Beim ersten Start fragt die Turnierleitung nach einem Passwort für den Laptop.
 
 
-ONLINE UND OFFLINE ABGLEICHEN (Turnierleitung -> Einstellungen -> "Website ↔ Laptop abgleichen")
-  Vor dem Offline-Betrieb (Internet ist noch da):
-    "Stand von der Website holen" – Teams, Spielplan, Ergebnisse und Logos kommen auf den Laptop.
-    Ein laufendes Spiel läuft mit seiner Uhr einfach weiter.
-  Dann offline weiterspielen wie gewohnt.
-  Wenn wieder Internet da ist:
-    Passwort der Online-Turnierleitung eingeben -> "Stand auf die Website hochladen".
-    Danach zeigt die Website wieder alles live – auch für die Zuschauer am Handy.
-
-  Wichtig: Immer nur an EINER Stelle eintragen – entweder online oder auf dem Laptop.
-  Beim Abgleich wird der Stand auf der anderen Seite komplett ersetzt.
+LAPTOP STEUERT, WEBSITE ZEIGT AN (empfohlen)
+  Turnierleitung auf dem Laptop -> Einstellungen -> "Automatisch online stellen":
+    Adresse der Website (https://obt1-chi.vercel.app) und Passwort der Online-Turnierleitung
+    eintragen, Haken bei "Automatisch übertragen", Speichern.
+  Ab dann:
+    - Alles nur noch auf dem Laptop einstellen und eintragen.
+    - Der Laptop schickt jede Änderung nach ein paar Sekunden auf die Website (mit Logos).
+    - Kein Internet? Auf dem Laptop läuft alles normal weiter (oben steht gelb
+      "Kein Internet · läuft weiter"). Sobald die Verbindung zurück ist, wird automatisch
+      nachgeholt (oben steht wieder grün "Laptop → online ✓").
+    - Die Online-Turnierleitung zeigt dann einen Hinweis, dass der Laptop steuert –
+      dort bitte nichts eintragen, es würde überschrieben.
+  Sind online schon Daten eingetragen, vorher einmal "Stand von der Website holen".
+  Das Online-Passwort wird nur auf dem Laptop im Ordner .data gespeichert.
 
 TIPP
   Den Laptop am Turniertag morgens einmal starten und "Stand von der Website holen" drücken.

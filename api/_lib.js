@@ -211,7 +211,7 @@ function cleanState(inp) {
     };
   });
   const sponsors = arr(inp.sponsors).slice(0, 60).map((x) => { x = obj(x); return { id: id(x.id) || 's' + crypto.randomBytes(4).toString('hex'), name: cut(x.name, 60), level: cut(x.level, 30), slogan: cut(x.slogan, 140), url: cut(x.url, 200), logo: img(x.logo) }; });
-  return { settings, teams, matches, sponsors, current: id(inp.current) };
+  return { settings, teams, matches, sponsors, current: id(inp.current), controlledBy: inp.controlledBy === 'laptop' ? 'laptop' : '', controlledAt: num(inp.controlledAt, 0) };
 }
 
 /* ---------- Bilder ---------- */

@@ -68,6 +68,7 @@ function listen(port, tries) {
     }
     console.log('\n  Dieses Fenster offen lassen. Beenden: Strg + C\n' + line + '\n');
     if (!process.argv.includes('--no-open') && !process.env.PT_DEV) openBrowser(base + '/turnierleitung');
+    try { require('./api/sync.js').startAuto(); } catch (e) { console.error('Automatische Übertragung nicht verfügbar:', e.message); }
   });
 }
 listen(START_PORT, 0);

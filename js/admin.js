@@ -160,6 +160,30 @@
   }
   async function anthemInfo(key) { try { const f = await AUD.get(key); return f ? (f.name || 'Datei') : ''; } catch (e) { return ''; } }
 
+  /* ---------- Übertragung Laptop → Website: Zustand ---------- */
+  function syncText() {
+    const s = ui.sync; if (!s) return '';
+    if (!s.enabled) return 'Automatische Übertragung ist aus.';
+    const ago = s.lastOk ? Math.round((Date.now() - s.lastOk) / 1000) : null;
+    if (s.state === 'ok') return 'Online aktuell ✓ – zuletzt übertragen vor ' + (ago < 60 ? ago + ' s' : Math.round(ago / 60) + ' Min.') + '.';
+    if (s.state === 'offline') return 'Keine Verbindung zur Website – es geht hier normal weiter, die Übertragung wird automatisch nachgeholt.' + (ago != null ? ' Letzte Übertragung vor ' + (ago < 60 ? ago + ' s' : Math.round(ago / 60) + ' Min.') + '.' : '');
+    if (s.state === 'fehler') return 'Übertragung klappt nicht: ' + (s.lastErr || 'unbekannter Fehler');
+    return 'Übertragung startet …';
+  }
+  function syncBadge() {
+    if (!ui.local) return '';
+    const s = ui.sync || {}, on = s.enabled;
+    const st = !on ? ['Offline · Laptop', '#3DDC97', '#04121F'] : s.state === 'ok' ? ['Laptop → online ✓', '#3DDC97', '#04121F'] : s.state === 'offline' ? ['Kein Internet · läuft weiter', '#FFD23F', '#1A1405'] : s.state === 'fehler' ? ['Übertragung: Fehler', '#FF3B5C', '#fff'] : ['Verbinde …', '#5CC2FF', '#04121F'];
+    return `<span class="btn sm" id="sync-badge" style="background:${st[1]};border-color:${st[1]};color:${st[2]}" title="${esc(syncText())}">${st[0]}</span>`;
+  }
+  async function pollSync() {
+    if (!ui.local || !S) return;
+    try { ui.sync = await api('/api/sync?action=status'); } catch (e) { return; }
+    const b = document.getElementById('sync-badge'); if (b) b.outerHTML = syncBadge();
+    const m = document.getElementById('sync-msg'); if (m && !m.classList.contains('no')) { m.className = 'cmd-msg' + (ui.sync.state === 'ok' ? ' ok' : ''); m.textContent = syncText(); }
+  }
+  setInterval(pollSync, 3000);
+
   /* ---------- Befehlszeile ---------- */
   // Beispiele: „tor spieler 1 team 2“, „tor 7 h“, „gelb 4 gast“, „et 3 team 5“, „start“, „stopp“, „abpfiff“, „zurück“, „nächstes“
   function runCmd(text) {
@@ -295,12 +319,15 @@
       <div class="frow">${F('win', 'Punkte für Sieg', s.win, 'number', 'min="0" max="5"')}${F('draw', 'Punkte für Unentschieden', s.draw, 'number', 'min="0" max="5"')}</div>
       ${F('ticker', 'Durchsage im Laufband (leer = keine)', s.ticker)}
       <div class="row"><button class="btn primary">Speichern</button></div></div></form>
-    ${ui.local ? `<div class="box"><h3>Website ↔ Laptop abgleichen <small>Offline-Betrieb</small></h3>
-      <div class="field" style="margin-bottom:12px"><label for="sync-url">Adresse der Website</label><input id="sync-url" type="url" value="https://obt1-chi.vercel.app"></div>
+    ${ui.local ? `<div class="box" id="sync-box"><h3>Automatisch online stellen <small>Laptop → Website</small></h3>
+      <div class="hint" style="margin-bottom:12px">Ist das eingeschaltet, überträgt der Laptop jede Änderung nach ein paar Sekunden auf die Website (mit Logos). Ohne Internet läuft hier alles normal weiter – sobald die Verbindung zurück ist, wird automatisch nachgeholt. <b style="color:#fff">Trage dann nur noch hier auf dem Laptop ein.</b></div>
       <div class="frow" style="align-items:end">
-        <div><div class="hint" style="margin-bottom:8px"><b style="color:#fff">Vor dem Offline-Betrieb:</b> holt den aktuellen Stand der Website (Teams, Spielplan, Ergebnisse, Logos) auf den Laptop. Der Stand auf dem Laptop wird ersetzt.</div><button type="button" class="btn primary" data-act="sync-pull" data-confirm="Stand auf dem Laptop ersetzen?">Stand von der Website holen</button></div>
-        <div><div class="hint" style="margin-bottom:8px"><b style="color:#fff">Wenn wieder Internet da ist:</b> lädt den Stand vom Laptop auf die Website. Der Stand auf der Website wird ersetzt.</div><div class="field" style="margin-bottom:8px"><label for="sync-pass">Passwort der Online-Turnierleitung</label><input id="sync-pass" type="password" autocomplete="off"></div><button type="button" class="btn cyan" data-act="sync-push" data-confirm="Stand auf der Website ersetzen?">Stand auf die Website hochladen</button></div>
-      </div><div class="cmd-msg" id="sync-msg"></div></div>` : `<div class="box"><h3>Offline-Betrieb auf dem Laptop</h3><div class="hint">Falls in der Halle das Internet ausfällt: Projekt auf GitHub herunterladen (Code → Download ZIP), auf dem Laptop Node.js installieren und im Ordner <kbd>node server.js</kbd> starten. Die Anleitung steht in OFFLINE-START.txt.</div></div>`}
+        <div class="field"><label for="sync-url">Adresse der Website</label><input id="sync-url" type="url" value="${esc((ui.sync && ui.sync.url) || 'https://obt1-chi.vercel.app')}"></div>
+        <div class="field"><label for="sync-pass">Passwort der Online-Turnierleitung</label><input id="sync-pass" type="password" autocomplete="off" placeholder="${ui.sync && ui.sync.hasPass ? 'gespeichert – nur zum Ändern eingeben' : ''}"></div>
+      </div>
+      <div class="row" style="margin-top:12px"><label class="check"><input id="sync-on" type="checkbox" ${ui.sync && ui.sync.enabled ? 'checked' : ''}> Automatisch übertragen</label><span style="flex:1"></span><button type="button" class="btn primary" data-act="sync-save">Speichern</button><button type="button" class="btn" data-act="sync-push">Jetzt übertragen</button></div>
+      <div class="cmd-msg" id="sync-msg">${esc(syncText())}</div>
+      <div class="hint" style="margin-top:14px;border-top:1px solid var(--line);padding-top:12px">Einmalig, falls online schon Daten eingetragen sind: <button type="button" class="btn sm" data-act="sync-pull" data-confirm="Stand auf dem Laptop durch den der Website ersetzen?">Stand von der Website holen</button></div></div>` : `<div class="box"><h3>Offline-Betrieb auf dem Laptop</h3><div class="hint">Falls in der Halle das Internet ausfällt: Projekt auf GitHub herunterladen (Code → Download ZIP), auf dem Laptop Node.js installieren und im Ordner <kbd>node server.js</kbd> starten. Die Anleitung steht in OFFLINE-START.txt.</div></div>`}
     <div class="box" id="hymne-box"><h3>Torhymne <small>läuft nach jedem Tor nur auf diesem Gerät</small></h3>
       <div class="frow" style="align-items:end">
         <div class="field"><label for="hy-file">Allgemeine Torhymne (MP3, M4A, WAV …)</label><input id="hy-file" type="file" accept="audio/*"><div class="hint" id="hy-name">…</div></div>
@@ -327,8 +354,8 @@
     app.innerHTML = `<header class="tl-head"><div class="wrap">
       <a class="brand" href="/" target="_blank" rel="noopener"><span class="logo logo-school" role="img" aria-label="Logo"></span><span class="bt"><small>Turnierleitung</small><b>${esc(S.settings.title).replace(/-?(Turnier)$/i, ' <span>$1</span>')}</b></span></a>
       <nav class="tl-nav">${TABS.map(([k, l]) => `<button data-act="tab" data-t="${k}" aria-pressed="${ui.tab === k}">${l}</button>`).join('')}</nav>
-      <div class="tl-side">${ui.local ? '<span class="btn sm" style="background:#3DDC97;border-color:#3DDC97;color:#04121F" title="Läuft auf diesem Laptop ohne Internet">Offline · Laptop</span>' : ''}<span id="save" class="save"></span><a class="btn sm" href="/" target="_blank" rel="noopener">Website</a><a class="btn sm" href="/anzeige" target="_blank" rel="noopener">Hallenanzeige</a><button class="btn sm" data-act="logout">Abmelden</button></div>
-    </div></header><main class="tl-body"><div class="wrap">${v()}</div></main>`;
+      <div class="tl-side">${syncBadge()}<span id="save" class="save"></span><a class="btn sm" href="/" target="_blank" rel="noopener">Website</a><a class="btn sm" href="/anzeige" target="_blank" rel="noopener">Hallenanzeige</a><button class="btn sm" data-act="logout">Abmelden</button></div>
+    </div></header>${!ui.local && S.controlledBy === 'laptop' && Date.now() - (S.controlledAt || 0) < 5 * 60e3 ? '<div class="demo" style="background:#3A2A05;color:#FFE7A3;border-bottom:1px solid #6B5210"><div class="wrap"><b>Der Laptop steuert gerade das Turnier</b> und überträgt automatisch hierher. Änderungen auf dieser Seite werden beim nächsten Abgleich überschrieben – bitte auf dem Laptop eintragen.</div></div>' : ''}<main class="tl-body"><div class="wrap">${v()}</div></main>`;
     paintSave();
     const hyName = document.getElementById('hy-name'); if (hyName) anthemInfo('default').then((n) => { hyName.textContent = n ? 'Gespeichert: ' + n : 'Noch keine Torhymne gespeichert.'; });
     // Falls ein Werbeblocker trotzdem Teile ausblendet: Hinweis zeigen
@@ -560,13 +587,16 @@
     if (a === 'hy-test') { playAnthem(null); return; }
     if (a === 'hy-stop') { stopAnthem(true); return; }
     if (a === 'hy-del') { AUD.del('default').then(() => render()); return; }
-    if (a === 'sync-pull' || a === 'sync-push') {
-      const msg = document.getElementById('sync-msg'), url = document.getElementById('sync-url').value, pass = (document.getElementById('sync-pass') || {}).value || '';
-      msg.className = 'cmd-msg'; msg.textContent = a === 'sync-pull' ? 'Hole den Stand von der Website …' : 'Lade den Stand auf die Website …';
-      api('/api/sync?action=' + (a === 'sync-pull' ? 'pull' : 'push'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url, pass }) })
+    if (a === 'sync-save' || a === 'sync-push' || a === 'sync-pull') {
+      const msg = document.getElementById('sync-msg'), url = document.getElementById('sync-url').value, pass = document.getElementById('sync-pass').value, enabled = document.getElementById('sync-on').checked;
+      const action = a === 'sync-save' ? 'config' : a === 'sync-push' ? 'push' : 'pull';
+      msg.className = 'cmd-msg'; msg.textContent = { config: 'Speichere …', push: 'Übertrage auf die Website …', pull: 'Hole den Stand von der Website …' }[action];
+      api('/api/sync?action=' + action, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url, pass, enabled }) })
         .then(async (j) => {
-          if (a === 'sync-pull') { S = await PT.fetchState(true); H = PT.make(S); logosChecked = false; render(); toast(`Übernommen: ${j.teams} Teams, ${j.matches} Spiele, ${j.images} Bilder.`); }
-          else { msg.className = 'cmd-msg ok'; msg.textContent = 'Fertig: Die Website zeigt jetzt den Stand vom Laptop' + (j.images ? ' (' + j.images + ' Bilder übertragen).' : '.'); const p = document.getElementById('sync-pass'); if (p) p.value = ''; }
+          document.getElementById('sync-pass').value = '';
+          if (action === 'pull') { S = await PT.fetchState(true); H = PT.make(S); logosChecked = false; toast(`Übernommen: ${j.teams} Teams, ${j.matches} Spiele, ${j.images} Bilder.`); }
+          else toast(action === 'push' ? 'Auf die Website übertragen.' : (enabled ? 'Automatische Übertragung ist an.' : 'Automatische Übertragung ist aus.'));
+          await pollSync(); render();
         })
         .catch((x) => { msg.className = 'cmd-msg no'; msg.textContent = x.message; });
       return;
@@ -696,6 +726,7 @@
     if (!me.passwordSet) { showSetup(); return; }
     if (!me.loggedIn) { showLogin(); return; }
     ui.pwSource = me.passwordSource; ui.local = !!me.local;
+    if (ui.local) { try { ui.sync = await api('/api/sync?action=status'); } catch (e) { ui.sync = null; } }
     try {
       await PT.syncTime();
       S = await PT.fetchState(true); H = PT.make(S); render();
