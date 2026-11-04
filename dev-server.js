@@ -1,3 +1,4 @@
-// Zum Entwickeln/Testen: wie server.js, aber mit Test-Passwort „test“ und ohne Browser-Start
+// Zum Entwickeln/Testen: Laptop-Server mit Test-Passwort „test“, ohne Browser-Start und ohne Updates
 process.env.PT_DEV = '1';
-require('./server.js');
+process.env.PT_NO_UPDATE = '1';
+require('./app-server.js');

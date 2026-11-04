@@ -196,11 +196,11 @@ function cleanState(inp) {
       players: arr(t.players).slice(0, 40).map((p) => ({ id: id(obj(p).id) || 'p' + crypto.randomBytes(4).toString('hex'), no: num(obj(p).no, null), name: cut(obj(p).name, 40) }))
     };
   });
-  const STAGES = ['group', 'qf', 'third', 'sf', 'final'], TYPES = ['goal', 'og', 'yellow', 'red'];
+  const STAGES = ['group', 'qf', 'third', 'sf', 'final', 'test'], TYPES = ['goal', 'og', 'yellow', 'red'];
   const matches = arr(inp.matches).slice(0, 120).map((m) => {
     m = obj(m); const c = obj(m.clock);
     return {
-      id: id(m.id) || 'm' + crypto.randomBytes(4).toString('hex'), no: num(m.no, 0), time: cut(m.time, 5),
+      id: id(m.id) || 'm' + crypto.randomBytes(4).toString('hex'), no: num(m.no, 0), time: cut(m.time, 5), day: /^\d{4}-\d{2}-\d{2}$/.test(String(m.day || '')) ? m.day : '',
       stage: STAGES.includes(m.stage) ? m.stage : 'group', label: cut(m.label, 40),
       home: id(m.home), away: id(m.away), homePh: cut(m.homePh, 40), awayPh: cut(m.awayPh, 40),
       status: ['scheduled', 'live', 'done'].includes(m.status) ? m.status : 'scheduled',

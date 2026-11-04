@@ -170,6 +170,11 @@
     if (s.state === 'fehler') return 'Übertragung klappt nicht: ' + (s.lastErr || 'unbekannter Fehler');
     return 'Übertragung startet …';
   }
+  const pageLoaded = Date.now();
+  function updText() {
+    const u = ui.sync && ui.sync.update; if (!u) return 'nicht verfügbar.';
+    return 'Version ' + (u.version || '–') + '. ' + (u.last || 'Wird beim Start und alle 10 Minuten geprüft – nie während eines laufenden Spiels.');
+  }
   function syncBadge() {
     if (!ui.local) return '';
     const s = ui.sync || {}, on = s.enabled;
@@ -181,6 +186,8 @@
     try { ui.sync = await api('/api/sync?action=status'); } catch (e) { return; }
     const b = document.getElementById('sync-badge'); if (b) b.outerHTML = syncBadge();
     const m = document.getElementById('sync-msg'); if (m && !m.classList.contains('no')) { m.className = 'cmd-msg' + (ui.sync.state === 'ok' ? ' ok' : ''); m.textContent = syncText(); }
+    const um = document.getElementById('upd-msg'); if (um) um.textContent = updText();
+    const u = ui.sync.update; if (u && u.installedAt > pageLoaded && !document.getElementById('upd-banner')) { const d = document.createElement('div'); d.id = 'upd-banner'; d.className = 'toast'; d.style.bottom = 'auto'; d.style.top = '12px'; d.innerHTML = 'Neue Version installiert – <button class="btn sm" onclick="location.reload()">Seite neu laden</button>'; document.body.appendChild(d); }
   }
   setInterval(pollSync, 3000);
 
@@ -237,7 +244,7 @@
   const clockHTML = (m, big) => `<span class="clk${big ? ' big' : ''}" data-clock="${m.id}">${H.clockText(m)}</span>`;
   const stateHTML = (m) => `<span class="cstate" data-cstate="${m.id}">${H.clockState(m)}</span>`;
   const teamOptions = (sel, ph) => `<option value="">${ph ? 'Platzhalter: ' + esc(ph) : '– Team wählen –'}</option>` + S.teams.slice().sort((a, b) => a.name.localeCompare(b.name, 'de', { numeric: true })).map((t) => `<option value="${t.id}"${t.id === sel ? ' selected' : ''}>${esc(t.name)}${t.group ? ' (Gr. ' + esc(t.group) + ')' : ''}</option>`).join('');
-  const matchLabel = (x) => `${x.no}. · ${H.expTime(x)}${H.delay(x) > 0 ? ' (+' + H.delay(x) + ')' : ''} · ${x.label || STAGES[x.stage].l} – ${H.tName(x, 'h')} vs ${H.tName(x, 'a')}${x.status === 'live' ? ' · LIVE' : x.status === 'done' ? ' · ✓ ' + H.sc(x).h + ':' + H.sc(x).a : ''}`;
+  const matchLabel = (x) => `${H.isTest(x) ? 'TEST ' + H.dayText(x) : x.no + '.'} · ${H.expTime(x)}${H.delay(x) > 0 ? ' (+' + H.delay(x) + ')' : ''} · ${x.label || STAGES[x.stage].l} – ${H.tName(x, 'h')} vs ${H.tName(x, 'a')}${x.status === 'live' ? ' · LIVE' : x.status === 'done' ? ' · ✓ ' + H.sc(x).h + ':' + H.sc(x).a : ''}`;
 
   function vCockpit() {
     const list = H.sorted(), m = cur();
@@ -264,14 +271,14 @@
     };
     const ev = m.events.slice().sort((x, y) => (y.min || 0) - (x.min || 0) || (y.at || 0) - (x.at || 0));
     return `
-    <div class="ck-pick"><div class="field"><label for="ck-match">Aktuelles Spiel (wird auf der Website und der Hallenanzeige gezeigt)</label><select id="ck-match">${list.map((x) => `<option value="${x.id}"${x === m ? ' selected' : ''}>${esc(matchLabel(x))}</option>`).join('')}</select></div>
+    <div class="ck-pick"><div class="field"><label for="ck-match">Aktuelles Spiel (wird auf der Website und der Hallenanzeige gezeigt)</label><select id="ck-match">${H.tests().length ? `<optgroup label="Testspiele (zählen nicht)">${H.tests().map((x) => `<option value="${x.id}"${x === m ? ' selected' : ''}>${esc(matchLabel(x))}</option>`).join('')}</optgroup><optgroup label="Turnier">` : ''}${list.map((x) => `<option value="${x.id}"${x === m ? ' selected' : ''}>${esc(matchLabel(x))}</option>`).join('')}${H.tests().length ? '</optgroup>' : ''}</select></div>
       <div class="row"><button class="btn" data-act="prev">◀</button><button class="btn" data-act="next">▶</button><button class="btn" data-act="edit-match" data-id="${m.id}">Details</button></div></div>
     <div class="box"><h3>Paarung <small>${esc(m.label || STAGES[m.stage].l)} · Spielzeit ${H.durOf(m)} Minuten · geplant ${esc(m.time)} Uhr${m.status === 'scheduled' ? ` · voraussichtlich <b data-exp="${m.id}">${H.expTime(m)}</b> ${H.delayHTML(m)}` : ''}</small></h3><div class="frow">
       <div class="field"><label for="ck-home">Team 1</label><select id="ck-home">${teamOptions(m.home, !m.home && m.homePh ? (h ? m.homePh + ' → ' + h.name : m.homePh) : '')}</select></div>
       <div class="field"><label for="ck-away">Team 2</label><select id="ck-away">${teamOptions(m.away, !m.away && m.awayPh ? (a ? m.awayPh + ' → ' + a.name : m.awayPh) : '')}</select></div>
     </div></div>
     <div class="ck-board">
-      <div class="stage-top"><span>Spiel ${esc(m.no)} · ${esc(m.label || STAGES[m.stage].l)}</span>${m.status === 'live' ? '<span class="livechip">Live</span>' : `<b>${m.status === 'done' ? 'Beendet' : 'Noch nicht angepfiffen'}</b>`}</div>
+      <div class="stage-top"><span>${H.isTest(m) ? "Testspiel · " + esc(H.dayText(m)) : "Spiel " + esc(m.no) + " · " + esc(m.label || STAGES[m.stage].l)}</span>${m.status === 'live' ? '<span class="livechip">Live</span>' : `<b>${m.status === 'done' ? 'Beendet' : 'Noch nicht angepfiffen'}</b>`}</div>
       <div class="sb"><div class="tb">${monoHTML(h, 'l')}<b>${esc(h ? h.name : H.phOf(m, 'h'))}</b></div><div class="score"><span>${r.h}</span><i>:</i><span>${r.a}</span></div><div class="tb">${monoHTML(a, 'l')}<b>${esc(a ? a.name : H.phOf(m, 'a'))}</b></div></div>
       <div class="sb-clock">${clockHTML(m, true)}${stateHTML(m)}</div><div class="bar"><i data-bar="${m.id}" style="width:${H.pct(m)}%"></i></div>
       <div class="ck-ctrl">${ctrl}</div>
@@ -298,6 +305,8 @@
         <div class="row" style="grid-column:1/-1;gap:14px"><label class="check"><input type="checkbox" name="third" ${s.third ? 'checked' : ''}> Spiel um Platz 3</label><span style="flex:1"></span><button type="button" class="btn primary" data-act="save-times">Zeiten übernehmen</button><button type="button" class="btn danger" data-act="gen" data-confirm="Alle Spiele und Ergebnisse werden ersetzt. Sicher?">Spielplan neu erstellen</button></div>
       </form>
       <div class="hint" style="margin-top:10px">„Zeiten übernehmen“ speichert Spielzeiten und Wechselzeit und rechnet die geplanten Uhrzeiten neu, ohne Ergebnisse zu ändern. Bei Verspätung (auch wenn die Uhr angehalten ist) verschieben sich die voraussichtlichen Zeiten automatisch – auf der Website und der Hallenanzeige. „Spielplan neu erstellen“ baut alle Gruppenspiele (jeder gegen jeden) und die Finalrunde neu auf.</div></div>
+    <div class="box"><h3>Testspiele <small>für Vorführungen – eigenes Datum, zählen nicht für Tabelle, Statistik und K.-o.-Baum</small> <button class="btn sm primary" data-act="new-test">+ Testspiel</button>${H.tests().length ? '<button class="btn sm danger" data-act="del-tests" data-confirm="Alle Testspiele löschen?">Alle Testspiele löschen</button>' : ''}</h3>
+      ${H.tests().length ? `<div class="alist">${H.tests().map((m) => `<div class="ar${m.status === 'live' ? ' live' : ''}"><span class="no">T</span><span class="tm">${esc(m.time)}<br><small style="color:var(--muted);font-size:11px">${esc(H.dayText(m))}</small></span><span class="rd">${esc(m.label || 'Testspiel')}<br><small style="color:var(--muted)">${H.durOf(m)} Min.</small></span><span class="pair">${esc(H.tName(m, 'h'))} – ${esc(H.tName(m, 'a'))} ${m.status === 'done' ? `<small>· ${H.sc(m).h}:${H.sc(m).a}</small>` : m.status === 'live' ? '<small>· läuft</small>' : ''}</span><span class="row"><button class="btn sm" data-act="edit-test" data-id="${m.id}">Bearbeiten</button><button class="btn sm cyan" data-act="select" data-id="${m.id}" data-go="1">Ins Cockpit</button></span></div>`).join('')}</div>` : '<div class="hint">Noch keine Testspiele. Lege für deine Präsentation ein oder mehrere an – zum Beispiel mit dem Datum und der Uhrzeit der Vorführung.</div>'}</div>
     <div class="box"><h3>Alle Spiele <small>${list.length} Spiele · Ende ca. ${list.length ? esc(PT.minToTime((PT.timeToMin(list[list.length - 1].time) || 0) + H.durOf(list[list.length - 1]))) : '–'} Uhr</small> <button class="btn sm primary" data-act="new-match">+ Spiel</button></h3>
       <div class="alist">${list.map((m, i) => `<div class="ar${m.status === 'live' ? ' live' : ''}"><span class="no">${esc(m.no)}</span><span class="tm"><span data-exp="${m.id}">${H.expTime(m)}</span> ${H.delayHTML(m)}<br><small style="color:var(--muted);font-size:11px">geplant ${esc(m.time)}</small></span><span class="rd">${esc(m.label || STAGES[m.stage].l)}<br><small style="color:var(--muted)">${H.durOf(m)} Min.</small></span><span class="pair">${esc(H.tName(m, 'h'))} – ${esc(H.tName(m, 'a'))} ${m.status === 'done' ? `<small>· ${H.sc(m).h}:${H.sc(m).a}</small>` : m.status === 'live' ? '<small>· läuft</small>' : ''}</span>
         <span class="row"><button class="btn sm" data-act="up" data-id="${m.id}"${i ? '' : ' disabled'} aria-label="Nach oben">▲</button><button class="btn sm" data-act="down" data-id="${m.id}"${i < list.length - 1 ? '' : ' disabled'} aria-label="Nach unten">▼</button><button class="btn sm" data-act="edit-match" data-id="${m.id}">Bearbeiten</button><button class="btn sm cyan" data-act="select" data-id="${m.id}" data-go="1">Ins Cockpit</button></span></div>`).join('')}</div></div>`;
@@ -327,7 +336,8 @@
       </div>
       <div class="row" style="margin-top:12px"><label class="check"><input id="sync-on" type="checkbox" ${ui.sync && ui.sync.enabled ? 'checked' : ''}> Automatisch übertragen</label><span style="flex:1"></span><button type="button" class="btn primary" data-act="sync-save">Speichern</button><button type="button" class="btn" data-act="sync-push">Jetzt übertragen</button></div>
       <div class="cmd-msg" id="sync-msg">${esc(syncText())}</div>
-      <div class="hint" style="margin-top:14px;border-top:1px solid var(--line);padding-top:12px">Einmalig, falls online schon Daten eingetragen sind: <button type="button" class="btn sm" data-act="sync-pull" data-confirm="Stand auf dem Laptop durch den der Website ersetzen?">Stand von der Website holen</button></div></div>` : `<div class="box"><h3>Offline-Betrieb auf dem Laptop</h3><div class="hint">Falls in der Halle das Internet ausfällt: Projekt auf GitHub herunterladen (Code → Download ZIP), auf dem Laptop Node.js installieren und im Ordner <kbd>node server.js</kbd> starten. Die Anleitung steht in OFFLINE-START.txt.</div></div>`}
+      <div class="hint" style="margin-top:14px;border-top:1px solid var(--line);padding-top:12px"><b style="color:#fff">Automatische Updates:</b> <span id="upd-msg">${esc(updText())}</span> <button type="button" class="btn sm" data-act="upd-check">Jetzt nach Updates suchen</button></div>
+      <div class="hint" style="margin-top:10px">Einmalig, falls online schon Daten eingetragen sind: <button type="button" class="btn sm" data-act="sync-pull" data-confirm="Stand auf dem Laptop durch den der Website ersetzen?">Stand von der Website holen</button></div></div>` : `<div class="box"><h3>Offline-Betrieb auf dem Laptop</h3><div class="hint">Falls in der Halle das Internet ausfällt: Projekt auf GitHub herunterladen (Code → Download ZIP), auf dem Laptop Node.js installieren und im Ordner <kbd>node server.js</kbd> starten. Die Anleitung steht in OFFLINE-START.txt.</div></div>`}
     <div class="box" id="hymne-box"><h3>Torhymne <small>läuft nach jedem Tor nur auf diesem Gerät</small></h3>
       <div class="frow" style="align-items:end">
         <div class="field"><label for="hy-file">Allgemeine Torhymne (MP3, M4A, WAV …)</label><input id="hy-file" type="file" accept="audio/*"><div class="hint" id="hy-name">…</div></div>
@@ -424,7 +434,27 @@
       ['home', 'away'].forEach((k) => form.querySelector('#f-' + k).addEventListener('change', (e) => { form.querySelector(`[data-prev="${k}"]`).innerHTML = rosterPreview(e.target.value); }));
     } });
   }
-  function renumber(S) { S.matches.sort((a, b) => (a.no || 0) - (b.no || 0)).forEach((m, i) => { m.no = i + 1; }); }
+  function testForm(m) {
+    const isNew = !m, today = new Date(), iso = today.getFullYear() + '-' + PT.pad(today.getMonth() + 1) + '-' + PT.pad(today.getDate());
+    m = m || { day: iso, time: PT.pad(today.getHours()) + ':' + PT.pad(Math.ceil(today.getMinutes() / 5) * 5 % 60), label: 'Testspiel', home: null, away: null, dur: +S.settings.durGroup || 7 };
+    const opt = (sel) => '<option value="">– Team wählen –</option>' + S.teams.slice().sort((a, b) => a.name.localeCompare(b.name, 'de', { numeric: true })).map((t) => `<option value="${t.id}"${t.id === sel ? ' selected' : ''}>${esc(t.name)}</option>`).join('');
+    openModal(isNew ? 'Testspiel anlegen' : 'Testspiel bearbeiten', `
+      <div class="frow">${F('day', 'Datum', m.day, 'date')}${F('time', 'Uhrzeit', m.time, 'time')}${F('dur', 'Spielzeit (Min.)', m.dur || S.settings.durGroup, 'number', 'min="1" max="60"')}</div>
+      ${F('label', 'Bezeichnung', m.label || 'Testspiel', 'text', 'placeholder="z. B. Vorführung für das Kollegium"')}
+      <div class="frow"><div class="field"><label for="f-home">Team 1</label><select id="f-home" name="home">${opt(m.home)}</select><div class="rprev" data-prev="home">${rosterPreview(m.home)}</div></div><div class="field"><label for="f-away">Team 2</label><select id="f-away" name="away">${opt(m.away)}</select><div class="rprev" data-prev="away">${rosterPreview(m.away)}</div></div></div>
+      <div class="hint">Testspiele laufen wie echte Spiele (Uhr, Tore, Hallenanzeige, Website), zählen aber nicht für Tabelle, Statistik und K.-o.-Baum. Der Spielplan vom Turniertag bleibt unverändert.</div>`,
+    (fd) => {
+      const o = { stage: 'test', day: fd.get('day'), time: fd.get('time'), dur: parseInt(fd.get('dur'), 10) || null, label: fd.get('label').trim() || 'Testspiel', home: fd.get('home') || null, away: fd.get('away') || null, homePh: '', awayPh: '' };
+      if (!o.day || !o.time) return 'Bitte Datum und Uhrzeit angeben.';
+      if (!o.home || !o.away) return 'Bitte beide Teams wählen.';
+      if (o.home === o.away) return 'Ein Team kann nicht gegen sich selbst spielen.';
+      if (isNew) { const id = uid('x'); act((S) => { S.matches.push(Object.assign({ id, no: 0, status: 'scheduled', clock: { run: false, since: null, acc: 0 }, events: [], pen: null }, o)); S.current = id; }); toast('Testspiel angelegt und ins Cockpit geladen.'); }
+      else { const id = m.id; act((S) => { Object.assign(find(S, id), o); }); }
+    }, { ...(isNew ? {} : { del: () => { const id = m.id; act((S) => { S.matches = S.matches.filter((x) => x.id !== id); if (S.current === id) S.current = null; }); }, delLabel: 'Testspiel löschen' }), after: (form) => {
+      ['home', 'away'].forEach((k) => form.querySelector('#f-' + k).addEventListener('change', (e) => { form.querySelector(`[data-prev="${k}"]`).innerHTML = rosterPreview(e.target.value); }));
+    } });
+  }
+  function renumber(S) { S.matches.filter((m) => m.stage !== 'test').sort((a, b) => (a.no || 0) - (b.no || 0)).forEach((m, i) => { m.no = i + 1; }); }
 
   /* Bilder verkleinern und hochladen */
   /* Bilder laden, Logos automatisch zuschneiden und zentrieren, verkleinern, hochladen */
@@ -565,7 +595,10 @@
     if (a === 'ev') { addEvent(ui.pick[b.dataset.side], b.dataset.side, b.dataset.player); return; }
     if (a === 'select') { act(A.select(b.dataset.id)); if (b.dataset.go) { ui.tab = 'cockpit'; render(); scrollTo(0, 0); } return; }
     if (a === 'prev' || a === 'next') { const l = H.sorted(), i = l.indexOf(m), n = l[i + (a === 'next' ? 1 : -1)]; if (n) act(A.select(n.id)); return; }
-    if (a === 'edit-match') { matchForm(H.M(b.dataset.id)); return; }
+    if (a === 'edit-match') { const mm = H.M(b.dataset.id); if (H.isTest(mm)) testForm(mm); else matchForm(mm); return; }
+    if (a === 'new-test') { testForm(null); return; }
+    if (a === 'edit-test') { testForm(H.M(b.dataset.id)); return; }
+    if (a === 'del-tests') { act((S) => { const ids = S.matches.filter((x) => x.stage === 'test').map((x) => x.id); S.matches = S.matches.filter((x) => x.stage !== 'test'); if (ids.includes(S.current)) S.current = null; }); toast('Alle Testspiele gelöscht.'); return; }
     if (a === 'new-match') { matchForm(null); return; }
     if (a === 'new-team') { teamForm(null); return; }
     if (a === 'edit-team') { teamForm(H.T(b.dataset.id)); return; }
@@ -575,7 +608,7 @@
     if (a === 'save-times' || a === 'gen') {
       const f = document.getElementById('gen-form'), fd = new FormData(f);
       const vals = { start: fd.get('start') || '09:00', gap: +fd.get('gap') || 0, durGroup: +fd.get('durGroup') || 7, durKo: +fd.get('durKo') || 10, durFinal: +fd.get('durFinal') || 12, koFormat: fd.get('koFormat'), third: !!fd.get('third') };
-      if (a === 'gen') { act((S) => { Object.assign(S.settings, vals); S.matches = PT.genSchedule(S); S.current = null; }); toast('Spielplan neu erstellt: ' + S.matches.length + ' Spiele.'); }
+      if (a === 'gen') { act((S) => { Object.assign(S.settings, vals); S.matches = PT.genSchedule(S).concat(S.matches.filter((m) => m.stage === 'test')); S.current = null; }); toast('Spielplan neu erstellt: ' + S.matches.length + ' Spiele.'); }
       else { act((S) => { Object.assign(S.settings, vals); PT.retime(S); }); toast('Zeiten übernommen.'); }
       return;
     }
@@ -587,6 +620,7 @@
     if (a === 'hy-test') { playAnthem(null); return; }
     if (a === 'hy-stop') { stopAnthem(true); return; }
     if (a === 'hy-del') { AUD.del('default').then(() => render()); return; }
+    if (a === 'upd-check') { const um = document.getElementById('upd-msg'); um.textContent = 'Suche nach Updates …'; api('/api/sync?action=update', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }).then(() => pollSync()).catch((x) => { um.textContent = x.message; }); return; }
     if (a === 'sync-save' || a === 'sync-push' || a === 'sync-pull') {
       const msg = document.getElementById('sync-msg'), url = document.getElementById('sync-url').value, pass = document.getElementById('sync-pass').value, enabled = document.getElementById('sync-on').checked;
       const action = a === 'sync-save' ? 'config' : a === 'sync-push' ? 'push' : 'pull';

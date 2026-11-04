@@ -8,7 +8,7 @@
   function render() {
     const m = H.featured(), s = S.settings;
     const top = `<div class="hx-top"><div class="l"><span class="logo logo-school"></span><span class="t">${esc(s.title).replace(/-?(Turnier)$/i, ' <span>$1</span>')}</span></div>
-      <div class="r">${m ? `Spiel ${esc(m.no)} · <b>${esc(m.label || STAGES[m.stage].l)}</b>` : ''}</div><span class="logo logo-smv"></span></div>`;
+      <div class="r">${m ? (H.isTest(m) ? `<b>Testspiel</b>` : `Spiel ${esc(m.no)} · <b>${esc(m.label || STAGES[m.stage].l)}</b>`) : ''}</div><span class="logo logo-smv"></span></div>`;
     if (!m) { app.innerHTML = top + `<div class="hx-mid"><div class="idle-t">Gleich geht's los</div></div><div></div>`; return; }
     const r = H.sc(m), h = H.teamOf(m, 'h'), a = H.teamOf(m, 'a');
     const team = (t, side) => `<div class="hx-team" style="--c:${t ? esc(t.color) : '#2A3560'}">${monoHTML(t)}<b>${esc(t ? t.name : H.phOf(m, side))}</b><span class="bar2"></span></div>`;

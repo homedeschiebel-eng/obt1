@@ -4,3 +4,6 @@ dev-server.js
 node_modules/
 OFFLINE-START.txt
 server.js
+app-server.js
+updater.js
+tools/

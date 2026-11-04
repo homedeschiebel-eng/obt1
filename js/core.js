@@ -34,7 +34,8 @@
     qf: { l: 'Viertelfinale', d: 'durKo' },
     sf: { l: 'Halbfinale', d: 'durFinal' },
     third: { l: 'Spiel um Platz 3', d: 'durKo' },
-    final: { l: 'Finale', d: 'durFinal' }
+    final: { l: 'Finale', d: 'durFinal' },
+    test: { l: 'Testspiel', d: 'durGroup' }
   };
   PT.LEVELS = ['Hauptsponsor', 'Premium-Partner', 'Partner', 'Förderer'];
   PT.EV = { goal: 'Tor', og: 'Eigentor', yellow: 'Gelbe Karte', red: 'Rote Karte' };
@@ -65,7 +66,11 @@
     H.P = (id) => { if (!id) return null; for (const t of S.teams) { const p = t.players.find((x) => x.id === id); if (p) return { p, t }; } return null; };
     H.isGoal = (e) => e.type === 'goal' || e.type === 'og';
     H.sc = (m) => { let h = 0, a = 0; m.events.forEach((e) => { if (H.isGoal(e)) { if (e.side === 'h') h++; else a++; } }); return { h, a }; };
-    H.sorted = () => S.matches.slice().sort((a, b) => (a.no || 0) - (b.no || 0) || String(a.time).localeCompare(String(b.time)));
+    // Turnierspiele (ohne Testspiele) in Spielreihenfolge; Testspiele getrennt nach Datum und Uhrzeit
+    H.sorted = () => S.matches.filter((m) => m.stage !== 'test').sort((a, b) => (a.no || 0) - (b.no || 0) || String(a.time).localeCompare(String(b.time)));
+    H.tests = () => S.matches.filter((m) => m.stage === 'test').sort((a, b) => String(a.day || '').localeCompare(String(b.day || '')) || String(a.time).localeCompare(String(b.time)));
+    H.isTest = (m) => !!m && m.stage === 'test';
+    H.dayText = (m) => { const d = (m && m.day) || S.settings.day; return d ? new Date(d + 'T12:00').toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' }) : ''; };
     H.groups = () => { const g = [...new Set(S.teams.map((t) => t.group || ''))].sort(); return g.length ? g : ['']; };
     H.inGroup = (m, g) => { const h = H.T(m.home), a = H.T(m.away); return !!(h && a && (h.group || '') === g && (a.group || '') === g); };
     H.qualN = () => (H.groups().length > 1 ? (S.settings.koFormat === 'sf' ? 2 : 4) : 0);
@@ -197,13 +202,14 @@
     H.pct = (m) => (m.status === 'done' ? 100 : m.status === 'scheduled' ? 0 : Math.min(100, H.elapsed(m) / (H.durOf(m) * 60) * 100));
 
     /* Das Spiel, das gerade im Mittelpunkt steht (es läuft immer nur eins) */
-    H.live = () => H.sorted().find((m) => m.status === 'live') || null;
+    H.live = () => H.sorted().find((m) => m.status === 'live') || H.tests().find((m) => m.status === 'live') || null;
     H.nextScheduled = (after) => { const l = H.sorted(); const i = after ? l.indexOf(after) : -1; return l.slice(i + 1).find((m) => m.status === 'scheduled') || l.find((m) => m.status === 'scheduled') || null; };
     H.featured = () => H.live() || H.M(S.current) || H.nextScheduled() || H.sorted().filter((m) => m.status === 'done').pop() || null;
 
     H.playerStats = () => {
       const st = {}; S.teams.forEach((t) => t.players.forEach((p) => { st[p.id] = { p, t, g: 0, y: 0, r: 0, sp: 0 }; }));
       S.matches.forEach((m) => {
+        if (m.stage === 'test') return; // Testspiele zählen nicht
         m.events.forEach((e) => { const x = st[e.player]; if (!x) return; if (e.type === 'goal') x.g++; if (e.type === 'yellow') x.y++; if (e.type === 'red') x.r++; });
         if (m.status !== 'scheduled') [m.home, m.away].forEach((id) => { const t = H.T(id); if (t) t.players.forEach((p) => { if (st[p.id]) st[p.id].sp++; }); });
       });
@@ -211,14 +217,14 @@
     };
     H.teamTotals = () => {
       const r = {}; S.teams.forEach((t) => { r[t.id] = { t, tf: 0, ta: 0, sp: 0 }; });
-      S.matches.forEach((m) => { if (m.status === 'scheduled') return; const s = H.sc(m), h = r[m.home], a = r[m.away]; if (h) { h.sp++; h.tf += s.h; h.ta += s.a; } if (a) { a.sp++; a.tf += s.a; a.ta += s.h; } });
+      S.matches.forEach((m) => { if (m.status === 'scheduled' || m.stage === 'test') return; const s = H.sc(m), h = r[m.home], a = r[m.away]; if (h) { h.sp++; h.tf += s.h; h.ta += s.a; } if (a) { a.sp++; a.tf += s.a; a.ta += s.h; } });
       return Object.values(r);
     };
     H.evWho = (e) => { const x = H.P(e.player); return x ? x.p.name : ''; };
     /* Voraussichtlicher Zeitplan: echte Zeiten für gespielte Spiele, „jetzt + Restzeit“ für das laufende,
        danach jeweils Wechselzeit, aber nie früher als geplant. Läuft live mit – auch wenn die Uhr steht. */
     H.plannedMs = (m) => {
-      const d = /^(\d{4})-(\d{2})-(\d{2})$/.exec(S.settings.day || ''), mins = PT.timeToMin(m.time);
+      const d = /^(\d{4})-(\d{2})-(\d{2})$/.exec(m.day || S.settings.day || ''), mins = PT.timeToMin(m.time);
       return d && mins != null ? new Date(+d[1], +d[2] - 1, +d[3], Math.floor(mins / 60), mins % 60).getTime() : null;
     };
     let tl = null, tlAt = 0;
@@ -238,6 +244,7 @@
         out[m.id] = { start, end, planned: p, delay: m.status !== 'done' && start != null && p != null ? Math.max(0, Math.round((start - p) / 60000)) : 0 };
         if (end != null && (m.status !== 'done' || p == null || Math.abs(end - p) < 12 * 3600e3)) cursor = end;
       });
+      H.tests().forEach((m) => { const p = H.plannedMs(m), start = m.startedAt || p; out[m.id] = { start, end: start != null ? start + H.durOf(m) * 60000 : null, planned: p, delay: 0 }; });
       tl = out; tlAt = now; return out;
     };
     const hm = (ms) => { const d = new Date(ms); return PT.pad(d.getHours()) + ':' + PT.pad(d.getMinutes()); };
@@ -250,7 +257,7 @@
       (root || document).querySelectorAll('[data-exp]').forEach((el) => { const m = H.M(el.dataset.exp); if (m) el.textContent = H.expTime(m); });
       (root || document).querySelectorAll('[data-dl]').forEach((el) => { const m = H.M(el.dataset.dl); if (m) { const d = H.delay(m); el.textContent = d > 0 ? '+' + d : ''; } });
     };
-    H.totalGoals = () => S.matches.reduce((n, m) => { const s = H.sc(m); return n + s.h + s.a; }, 0);
+    H.totalGoals = () => S.matches.reduce((n, m) => { if (m.stage === 'test') return n; const s = H.sc(m); return n + s.h + s.a; }, 0);
     return H;
   };
 

@@ -25,7 +25,7 @@
     else top = `<b>Nächstes Spiel · ca. <span data-exp="${m.id}">${H.expTime(m)}</span> Uhr ${H.delayHTML(m)}</b>`;
     const nxt = H.nextScheduled(m);
     return `<section class="stage"><div class="wrap">
-      <div class="stage-top"><span>Spiel ${esc(m.no || '')} · ${esc(m.label || STAGES[m.stage].l)}</span>${top}</div>
+      <div class="stage-top"><span>${H.isTest(m) ? 'Testspiel · ' + esc(H.dayText(m)) + (m.label && m.label !== 'Testspiel' ? ' · ' + esc(m.label) : '') : 'Spiel ' + esc(m.no || '') + ' · ' + esc(m.label || STAGES[m.stage].l)}</span>${top}</div>
       <div class="sb">${tb(h, 'h')}<div class="score">${m.status === 'scheduled' ? '<span class="vs">VS</span>' : `<span>${r.h}</span><i>:</i><span>${r.a}</span>`}</div>${tb(a, 'a')}</div>
       ${m.pen ? `<div class="nextline">${m.pen.h}:${m.pen.a} nach Neunmeterschießen</div>` : ''}
       <div class="sb-clock">${clockHTML(m, true)}${stateHTML(m)}</div>${barHTML(m)}
@@ -41,7 +41,7 @@
     if (m.status === 'live') res = `<span class="res live">${r.h}:${r.a}<small data-clock="${m.id}">${H.clockText(m)}</small></span>`;
     else if (m.status === 'done') res = `<span class="res">${r.h}:${r.a}${m.pen ? `<small>${m.pen.h}:${m.pen.a} n.N.</small>` : ''}</span>`;
     else res = `<span class="res pending">– : –</span>`;
-    return `<a class="pr ${m.status}" href="#spiel-${m.id}"><span class="meta"><span class="no">${esc(m.no || '')}</span><span class="tm"><span data-exp="${m.id}">${H.expTime(m)}</span>${m.status === 'done' ? '' : H.delayHTML(m)}</span><span class="rd">${esc(m.label || STAGES[m.stage].l)}</span></span>${side('h')}${res}${side('a')}</a>`;
+    return `<a class="pr ${m.status}" href="#spiel-${m.id}"><span class="meta"><span class="no">${H.isTest(m) ? 'T' : esc(m.no || '')}</span><span class="tm"><span data-exp="${m.id}">${H.expTime(m)}</span>${m.status === 'done' ? '' : H.delayHTML(m)}</span><span class="rd">${H.isTest(m) ? esc(H.dayText(m)) + '<br>' : ''}${esc(m.label || STAGES[m.stage].l)}</span></span>${side('h')}${res}${side('a')}</a>`;
   }
 
   function standTable(g, compact) {
@@ -65,11 +65,13 @@
     return `<div class="grid3">${perfCard('Top-Torschützen', ps)}${perfCard('Bester Angriff', att)}${perfCard('Beste Abwehr', def)}</div>`;
   }
   const spLogo = (s) => (s.logo ? `<img src="${esc(s.logo)}" alt="${esc(s.name)}">` : `<span class="wm">${esc(s.name)}</span>`);
+  // Logo eines Partners; mit Website-Adresse ein Link dorthin (neuer Tab), sonst nur das Logo
+  const partnerLink = (s) => { const u = safeUrl(s.url); return u ? `<a href="${esc(u)}" target="_blank" rel="noopener" title="${esc(s.name)}" aria-label="${esc(s.name)} – Website öffnen">${spLogo(s)}</a>` : `<span title="${esc(s.name)}">${spLogo(s)}</span>`; };
   function partnersBand() {
     if (!S.sponsors.length) return '';
     const by = (l) => S.sponsors.filter((s) => s.level === l);
     const main = by('Hauptsponsor'), mid = [...by('Premium-Partner'), ...by('Partner')], small = S.sponsors.filter((s) => !main.includes(s) && !mid.includes(s));
-    const row = (l, c) => (l.length ? `<div class="prow ${c}">${l.map((s) => `<a href="#partner" title="${esc(s.name)}">${spLogo(s)}</a>`).join('')}</div>` : '');
+    const row = (l, c) => (l.length ? `<div class="prow ${c}">${l.map(partnerLink).join('')}</div>` : '');
     return `<section class="unterstuetzer"><div class="wrap"><h2>Partner</h2>${row(main, 'main')}${row(mid, '')}${row(small, 'small')}</div></section>`;
   }
 
@@ -95,7 +97,9 @@
     const chips = [['all', 'Alle Spiele'], ...labels.map((l) => [l, l]), ['ko', 'Finalrunde']];
     const list = H.sorted().filter((m) => f === 'all' || (f === 'ko' ? m.stage !== 'group' : m.label === f));
     const grp = list.filter((m) => m.stage === 'group'), ko = list.filter((m) => m.stage !== 'group');
+    const tests = H.tests();
     return `<section><div class="tabs">${chips.map(([k, l]) => `<button data-act="filter" data-f="${esc(k)}" aria-pressed="${f === k}">${esc(l)}</button>`).join('')}</div>
+      ${tests.length && f === 'all' ? `<h2 class="sh">Testspiele <small>zählen nicht für Tabelle und Statistik</small></h2><div class="plan" style="margin-bottom:30px">${tests.map(planRow).join('')}</div>` : ''}
       ${grp.length ? `<h2 class="sh">Gruppenphase <small>${esc(S.settings.durGroup)} Min. pro Spiel</small></h2><div class="plan">${grp.map(planRow).join('')}</div>` : ''}
       ${ko.length ? `<h2 class="sh" style="margin-top:30px">Finalrunde <small>K.-o. ${esc(S.settings.durKo)} Min. · Halbfinale & Finale ${esc(S.settings.durFinal)} Min.</small></h2><div class="plan">${ko.map(planRow).join('')}</div>` : ''}
       ${list.length ? '' : '<div class="empty">Keine Spiele in dieser Auswahl.</div>'}
@@ -160,7 +164,9 @@
   }
   function vPartner() {
     const lv = [...LEVELS, ...new Set(S.sponsors.map((s) => s.level).filter((l) => !LEVELS.includes(l)))];
-    return S.sponsors.length ? lv.map((l) => { const list = S.sponsors.filter((s) => s.level === l); if (!list.length) return ''; return `<div class="sp-tier"><h3>${esc(l)}</h3><div class="sgrid">${list.map((s) => { const u = safeUrl(s.url); return `<div class="scard"><div class="lg">${spLogo(s)}</div><b>${esc(s.name)}</b>${s.slogan ? `<p>${esc(s.slogan)}</p>` : ''}${u ? `<a href="${esc(u)}" target="_blank" rel="noopener" style="font-weight:600;font-size:14px;overflow-wrap:anywhere">${esc(u.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, ''))}</a>` : ''}</div>`; }).join('')}</div></div>`; }).join('') : '<div class="empty">Hier erscheinen bald unsere Partner.</div>';
+    if (!S.sponsors.length) return '<div class="empty">Hier erscheinen bald unsere Partner.</div>';
+    const list = lv.flatMap((l) => S.sponsors.filter((s) => s.level === l));
+    return `<div class="plogos">${list.map((s) => `<div class="pl-tile${s.level === 'Hauptsponsor' ? ' main' : ''}">${partnerLink(s)}</div>`).join('')}</div><p class="legend">Logo antippen, um zur Website des Partners zu gelangen.</p>`;
   }
 
   /* ---------- Rahmen ---------- */
@@ -192,7 +198,7 @@
     else { const v = vLive(); hero = v.hero; main = v.main; }
     const live = !!H.live();
     app.innerHTML = `
-    ${S.teams.length ? `<div class="tstrip"><div class="wrap">${S.teams.map((t) => `<a href="#team-${t.id}" title="${esc(t.name)}">${monoHTML(t, 's')}${t.logo ? `<span class="ts-k">${esc(PT.short(t))}</span>` : ''}</a>`).join('')}</div></div>` : ''}
+    ${S.teams.length ? `<div class="tstrip"><div class="wrap">${S.teams.map((t) => `<a href="#team-${t.id}" title="${esc(t.name)}">${monoHTML(t, 's')}</a>`).join('')}</div></div>` : ''}
     <header class="hdr"><div class="wrap">
       <a class="brand" href="#live"><span class="lockup"><span class="logo logo-school" role="img" aria-label="Logo ${esc(s.school)}"></span><i class="lk-sep m-only"></i><span class="logo logo-smv m-only" role="img" aria-label="Logo der SMV"></span></span><span class="bt"><small>${esc(s.school)}</small><b>${esc(s.title).replace(/-?(Turnier)$/i, ' <span>$1</span>')}</b></span></a>
       <nav class="nav" aria-label="Bereiche"><a class="pill${live ? ' on' : ''}" href="#live"${cur === 'live' ? ' aria-current="page"' : ''}>Live</a>${NAV.map(([k, l]) => `<a href="#${k}"${cur === k ? ' aria-current="page"' : ''}>${l}</a>`).join('')}</nav>

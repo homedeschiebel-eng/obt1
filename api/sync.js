@@ -153,9 +153,10 @@ const handler = async (req0, res) => {
     if (L.mode() !== 'file' || !process.env.PT_LOCAL) return L.send(res, 404, { error: 'Den Abgleich gibt es nur im Offline-Betrieb auf dem Laptop.' });
     if (!(await L.isAdmin(req0))) return L.send(res, 401, { error: 'Du bist nicht mehr angemeldet.' });
     const action = L.q(req0, 'action');
+    let upd = null; try { upd = require('../updater.js'); } catch (e) { upd = null; }
     if (req0.method === 'GET' && action === 'status') {
       const c = loadCfg();
-      return L.send(res, 200, Object.assign({ enabled: c.enabled, url: c.url, hasPass: !!c.pass }, status));
+      return L.send(res, 200, Object.assign({ enabled: c.enabled, url: c.url, hasPass: !!c.pass, update: upd ? Object.assign({}, upd.status, { version: upd.status.version || upd.localVersion() }) : null }, status));
     }
     if (req0.method !== 'POST') return L.send(res, 405, { error: 'Nicht erlaubt.' });
     if (req0.headers['x-csrf'] == null) return L.send(res, 403, { error: 'Ungültige Anfrage.' });
@@ -173,6 +174,11 @@ const handler = async (req0, res) => {
       return L.send(res, 200, Object.assign({ ok: true, enabled: c.enabled, url: c.url, hasPass: !!c.pass }, status));
     }
     if (action === 'pull') return L.send(res, 200, Object.assign({ ok: true }, await pull(base)));
+    if (action === 'update') {
+      if (!upd) return L.send(res, 400, { error: 'Automatische Updates sind hier nicht verfügbar.' });
+      try { const done = await upd.check(false); return L.send(res, 200, { ok: true, installed: done, status: upd.status }); }
+      catch (e) { upd.status.error = e.message; upd.status.last = 'Update fehlgeschlagen: ' + e.message; return L.send(res, 500, { error: upd.status.last }); }
+    }
     if (action === 'push') {
       const c = loadCfg(); c.url = base; if (b.pass) { c.pass = b.pass; session.until = 0; } saveCfg(c);
       const out = await pushOnce(c);

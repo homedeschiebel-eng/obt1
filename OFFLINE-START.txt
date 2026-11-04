@@ -48,6 +48,20 @@ LAPTOP STEUERT, WEBSITE ZEIGT AN (empfohlen)
   Sind online schon Daten eingetragen, vorher einmal "Stand von der Website holen".
   Das Online-Passwort wird nur auf dem Laptop im Ordner .data gespeichert.
 
+AUTOMATISCHE UPDATES
+  Der Laptop holt sich neue Versionen selbst von der Website – du musst den Ordner nie
+  wieder austauschen. Geprüft wird beim Start und alle 10 Minuten, installiert wird nur,
+  wenn gerade KEIN Spiel läuft. Danach startet der Server kurz neu, die Daten in .data
+  bleiben erhalten. Browserfenster danach einfach neu laden (die Turnierleitung sagt Bescheid).
+  Ohne Internet läuft die vorhandene Version einfach weiter.
+  Stand und Knopf "Jetzt nach Updates suchen": Turnierleitung -> Einstellungen.
+
+TESTSPIELE (z. B. für eine Vorführung)
+  Turnierleitung -> Spielplan -> "+ Testspiel": eigenes Datum, eigene Uhrzeit, zwei Teams.
+  Testspiele laufen wie echte Spiele (Uhr, Tore, Anzeige, Website), zählen aber nicht für
+  Tabelle, Statistik und K.-o.-Baum. Der Spielplan vom 22.12. bleibt unverändert.
+  Danach: "Alle Testspiele löschen".
+
 TIPP
   Den Laptop am Turniertag morgens einmal starten und "Stand von der Website holen" drücken.
   Dann ist er bereit, falls das Internet in der Halle ausfällt.
