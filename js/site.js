@@ -178,7 +178,6 @@
       <nav class="nav" aria-label="Bereiche"><a class="pill${live ? ' on' : ''}" href="#live"${cur === 'live' ? ' aria-current="page"' : ''}>Live</a>${NAV.map(([k, l]) => `<a href="#${k}"${cur === k ? ' aria-current="page"' : ''}>${l}</a>`).join('')}</nav>
       <div class="hdr-r"><span class="logo logo-smv" role="img" aria-label="Logo der SMV"></span></div>
     </div></header>
-    ${tickerHTML()}
     ${hero}
     <main><div class="wrap">${main}</div></main>
     ${partnersBand()}

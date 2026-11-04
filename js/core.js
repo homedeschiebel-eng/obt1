@@ -16,7 +16,7 @@
   };
   PT.safeUrl = (u) => { u = String(u || '').trim(); if (!u) return ''; if (!/^https?:\/\//i.test(u)) u = 'https://' + u; try { const x = new URL(u); return /^https?:$/.test(x.protocol) ? x.href : ''; } catch (e) { return ''; } };
   PT.monoHTML = (t, cls) => t
-    ? `<span class="mono ${cls || ''}" style="--c:${PT.esc(t.color)}">${t.logo ? `<img src="${PT.esc(t.logo)}" alt="">` : PT.esc(PT.initials(t.name))}</span>`
+    ? `<span class="mono ${cls || ''}${t.logo ? ' has-logo' : ''}" style="--c:${PT.esc(t.color)}">${t.logo ? `<img src="${PT.esc(t.logo)}" alt="">` : PT.esc(PT.initials(t.name))}</span>`
     : `<span class="mono ${cls || ''}" style="--c:#2A3560">?</span>`;
   PT.timeToMin = (t) => { const m = /^(\d{1,2}):(\d{2})$/.exec(t || ''); return m ? +m[1] * 60 + +m[2] : null; };
   PT.minToTime = (n) => PT.pad(Math.floor(n / 60) % 24) + ':' + PT.pad(n % 60);
@@ -151,7 +151,7 @@
       H.sorted().forEach((m) => {
         const dur = H.durOf(m) * 60000, p = H.plannedMs(m); let start, end;
         if (m.status === 'done') { start = m.startedAt || p; end = m.endedAt || (start != null ? start + dur : null); }
-        else if (m.status === 'live') { start = m.startedAt || now; end = now + H.remaining(m) * 1000; }
+        else if (m.status === 'live') { start = m.startedAt || p || now; end = now + H.remaining(m) * 1000; }
         else {
           start = p;
           if (cursor != null && start != null) start = Math.max(start, cursor + gap);
