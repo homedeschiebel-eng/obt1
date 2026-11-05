@@ -116,39 +116,75 @@
   }
 
 
-  /* ---------- Torhymne: nur auf diesem Gerät (im Browser gespeichert, nicht auf dem Server) ---------- */
-  const AUD = {
+  /* ---------- Torhymnen (pro Team + allgemeine) – spielen nur auf diesem Steuergerät ----------
+     Laptop (node server.js): Dateien liegen im Ordner .data/audio. Online: im Browser dieses Geräts.
+     Alle Hymnen werden vorgeladen, damit sie beim Tor sofort starten. Neues Tor = alte Hymne aus, neue an. */
+  const IDB = {
     db: null,
     open() { if (this.db) return Promise.resolve(this.db); return new Promise((res, rej) => { try { const r = indexedDB.open('pt-torhymne', 1); r.onupgradeneeded = () => r.result.createObjectStore('files'); r.onsuccess = () => { this.db = r.result; res(this.db); }; r.onerror = () => rej(r.error); } catch (e) { rej(e); } }); },
     async get(k) { const db = await this.open(); return new Promise((res) => { const q = db.transaction('files').objectStore('files').get(k); q.onsuccess = () => res(q.result || null); q.onerror = () => res(null); }); },
     async set(k, v) { const db = await this.open(); return new Promise((res, rej) => { const tx = db.transaction('files', 'readwrite'); tx.objectStore('files').put(v, k); tx.oncomplete = () => res(); tx.onerror = () => rej(tx.error); }); },
     async del(k) { const db = await this.open(); return new Promise((res) => { const tx = db.transaction('files', 'readwrite'); tx.objectStore('files').delete(k); tx.oncomplete = () => res(); tx.onerror = () => res(); }); }
   };
-  // Standard: Hymne läuft ganz durch (max = 0). Alte Voreinstellung 25 s wird einmalig aufgehoben.
+  const AUD = {
+    async get(key) {
+      if (ui.local) { const r = await fetch('/api/audio?key=' + encodeURIComponent(key), { cache: 'no-store', credentials: 'same-origin' }); if (!r.ok) return null; return { blob: await r.blob(), name: decodeURIComponent(r.headers.get('X-Name') || 'Torhymne') }; }
+      const v = await IDB.get(key); return v ? (v.blob ? v : { blob: v, name: 'Torhymne' }) : null;
+    },
+    async set(key, file) {
+      if (ui.local) { const r = await fetch('/api/audio?key=' + encodeURIComponent(key), { method: 'POST', credentials: 'same-origin', headers: { 'x-csrf': '1', 'X-Name': encodeURIComponent(file.name), 'Content-Type': file.type || 'application/octet-stream' }, body: file }); const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || 'Speichern fehlgeschlagen.'); }
+      else await IDB.set(key, { blob: file, name: file.name });
+      await loadPlayer(key);
+    },
+    async del(key) {
+      if (ui.local) await fetch('/api/audio?key=' + encodeURIComponent(key) + '&action=del', { method: 'POST', credentials: 'same-origin', headers: { 'x-csrf': '1' } });
+      else await IDB.del(key);
+      unloadPlayer(key);
+    }
+  };
   const anthemCfg = () => {
     let c = { on: true, vol: 0.9, max: 0 };
     try { const s = JSON.parse(localStorage.getItem('pt-hymne') || '{}'); if (!s.v2) { s.max = 0; s.v2 = true; localStorage.setItem('pt-hymne', JSON.stringify(Object.assign({}, c, s))); } c = Object.assign(c, s); } catch (e) { /* Standard */ }
     return c;
   };
   const saveCfg = (c) => { try { localStorage.setItem('pt-hymne', JSON.stringify(Object.assign(c, { v2: true }))); } catch (e) { /* egal */ } };
-  let audio = null, audioUrl = null, fadeT = null, stopT = null;
+  const players = {}; // key -> { audio, url, name }
+  function unloadPlayer(key) { const p = players[key]; if (!p) return; if (current === p) stopAnthem(false); try { p.audio.pause(); } catch (e) { /* egal */ } URL.revokeObjectURL(p.url); delete players[key]; }
+  async function loadPlayer(key) {
+    let f = null; try { f = await AUD.get(key); } catch (e) { f = null; }
+    unloadPlayer(key); if (!f || !f.blob) return null;
+    const url = URL.createObjectURL(f.blob), audio = new Audio(); audio.preload = 'auto'; audio.src = url; try { audio.load(); } catch (e) { /* egal */ }
+    audio.addEventListener('ended', () => { if (current && current.audio === audio) stopAnthem(false); });
+    players[key] = { audio, url, name: f.name || 'Torhymne' };
+    return players[key];
+  }
+  let anthemsLoaded = false;
+  async function preloadAnthems() {
+    if (!S) return;
+    const keys = ['default'].concat(S.teams.map((t) => 'team:' + t.id));
+    for (const k of keys) await loadPlayer(k);
+    anthemsLoaded = true;
+    if (ui.tab === 'teams' || ui.tab === 'settings') render();
+  }
+  let current = null, fadeT = null, stopT = null;
   function stopAnthem(fade) {
     clearTimeout(stopT); clearInterval(fadeT);
     const btn = document.getElementById('hymne-stop'); if (btn) btn.remove();
-    if (!audio) return;
-    const a = audio, u = audioUrl; audio = null; audioUrl = null;
-    if (!fade) { a.pause(); if (u) URL.revokeObjectURL(u); return; }
-    fadeT = setInterval(() => { a.volume = Math.max(0, a.volume - 0.08); if (a.volume <= 0.01) { clearInterval(fadeT); a.pause(); if (u) URL.revokeObjectURL(u); } }, 120);
+    const p = current; current = null; if (!p) return;
+    const a = p.audio, vol = anthemCfg().vol;
+    if (!fade) { a.pause(); a.currentTime = 0; a.volume = vol; return; }
+    fadeT = setInterval(() => { a.volume = Math.max(0, a.volume - 0.08); if (a.volume <= 0.01) { clearInterval(fadeT); a.pause(); a.currentTime = 0; a.volume = vol; } }, 120);
   }
-  async function playAnthem(teamId) {
+  // Startet sofort (ohne Warten), damit Browser das Abspielen beim Tippen erlauben
+  function playAnthem(teamId) {
     const c = anthemCfg(); if (!c.on) return;
-    let f = null; try { f = (teamId && await AUD.get('team:' + teamId)) || await AUD.get('default'); } catch (e) { f = null; }
-    if (!f) return;
-    stopAnthem(false);
-    audioUrl = URL.createObjectURL(f.blob || f); audio = new Audio(audioUrl); audio.volume = Math.max(0, Math.min(1, +c.vol || 0.9));
-    audio.addEventListener('ended', () => stopAnthem(false));
-    try { await audio.play(); } catch (e) { toast('Die Torhymne konnte nicht abgespielt werden. Einmal auf die Seite tippen und erneut versuchen.', true); stopAnthem(false); return; }
-    const b = document.createElement('button'); b.id = 'hymne-stop'; b.type = 'button'; b.className = 'btn danger big hymne-stop'; b.textContent = '■ Torhymne stoppen';
+    const p = (teamId && players['team:' + teamId]) || players.default; if (!p) return;
+    stopAnthem(false); clearInterval(fadeT);
+    p.audio.volume = Math.max(0, Math.min(1, +c.vol || 0.9)); p.audio.currentTime = 0;
+    current = p;
+    const pr = p.audio.play();
+    if (pr && pr.catch) pr.catch(() => { if (current === p) { toast('Die Torhymne konnte nicht abgespielt werden. Einmal auf die Seite tippen und erneut versuchen.', true); stopAnthem(false); } });
+    const b = document.createElement('button'); b.id = 'hymne-stop'; b.type = 'button'; b.className = 'btn danger big hymne-stop'; b.textContent = '■ Torhymne stoppen' + (p.name ? ' · ' + p.name : '');
     b.addEventListener('click', () => stopAnthem(true)); document.body.appendChild(b);
     if (+c.max > 0) stopT = setTimeout(() => stopAnthem(true), +c.max * 1000);
   }
@@ -158,7 +194,7 @@
     const side = type === 'og' ? (teamSide === 'h' ? 'a' : 'h') : teamSide;
     const t = H.teamOf(m, side); playAnthem(t ? t.id : null);
   }
-  async function anthemInfo(key) { try { const f = await AUD.get(key); return f ? (f.name || 'Datei') : ''; } catch (e) { return ''; } }
+  async function anthemInfo(key) { if (players[key]) return players[key].name; return ''; }
 
   /* ---------- Übertragung Laptop → Website: Zustand ---------- */
   function syncText() {
@@ -313,7 +349,7 @@
   }
   function vTeams() {
     return `<div class="box"><h3>Teams <small>${S.teams.length} Teams</small> <button class="btn sm primary" data-act="new-team">+ Team</button></h3>
-    <div class="tlist">${S.teams.slice().sort((a, b) => (a.group || '').localeCompare(b.group || '') || a.name.localeCompare(b.name, 'de', { numeric: true })).map((t) => `<div class="ti" style="--c:${esc(t.color)}"><div class="t">${monoHTML(t, 'l')}<div><b>${esc(t.name)}</b><br><small>${esc([t.cls, t.group ? 'Gruppe ' + t.group : 'ohne Gruppe', t.players.length + ' Spieler/innen'].filter(Boolean).join(' · '))}</small></div></div><small>${esc(t.players.slice(0, 8).map((p) => (p.no ? p.no + ' ' : '') + p.name).join(' · '))}${t.players.length > 8 ? ' …' : ''}</small><div class="row"><button class="btn sm primary" data-act="edit-team" data-id="${t.id}">Team & Kader bearbeiten</button></div></div>`).join('')}</div></div>
+    <div class="tlist">${S.teams.slice().sort((a, b) => (a.group || '').localeCompare(b.group || '') || a.name.localeCompare(b.name, 'de', { numeric: true })).map((t) => `<div class="ti" style="--c:${esc(t.color)}"><div class="t">${monoHTML(t, 'l')}<div><b>${esc(t.name)}</b><br><small>${esc([t.cls, t.group ? 'Gruppe ' + t.group : 'ohne Gruppe', t.players.length + ' Spieler/innen'].filter(Boolean).join(' · '))}</small></div></div><small>${esc(t.players.slice(0, 8).map((p) => (p.no ? p.no + ' ' : '') + p.name).join(' · '))}${t.players.length > 8 ? ' …' : ''}</small><small>${players['team:' + t.id] ? '♪ Torhymne: ' + esc(players['team:' + t.id].name) : (anthemsLoaded ? '♪ keine eigene Torhymne' : '')}</small><div class="row"><button class="btn sm primary" data-act="edit-team" data-id="${t.id}">Team & Kader bearbeiten</button></div></div>`).join('')}</div></div>
     <div class="hint">Ändert sich die Gruppeneinteilung, im Reiter „Spielplan“ den Spielplan neu erstellen.</div>`;
   }
   function vPartner() {
@@ -340,12 +376,12 @@
       <div class="hint" style="margin-top:10px">Einmalig, falls online schon Daten eingetragen sind: <button type="button" class="btn sm" data-act="sync-pull" data-confirm="Stand auf dem Laptop durch den der Website ersetzen?">Stand von der Website holen</button></div></div>` : `<div class="box"><h3>Offline-Betrieb auf dem Laptop</h3><div class="hint">Falls in der Halle das Internet ausfällt: Projekt auf GitHub herunterladen (Code → Download ZIP), auf dem Laptop Node.js installieren und im Ordner <kbd>node server.js</kbd> starten. Die Anleitung steht in OFFLINE-START.txt.</div></div>`}
     <div class="box" id="hymne-box"><h3>Torhymne <small>läuft nach jedem Tor nur auf diesem Gerät</small></h3>
       <div class="frow" style="align-items:end">
-        <div class="field"><label for="hy-file">Allgemeine Torhymne (MP3, M4A, WAV …)</label><input id="hy-file" type="file" accept="audio/*"><div class="hint" id="hy-name">…</div></div>
+        <div class="field"><label for="hy-file">Allgemeine Torhymne – für Teams ohne eigene (MP3, M4A, WAV …)</label><input id="hy-file" type="file" accept="audio/*"><div class="hint" id="hy-name">…</div></div>
         <div class="field"><label for="hy-vol">Lautstärke</label><input id="hy-vol" type="range" min="0" max="1" step="0.05" value="${anthemCfg().vol}"></div>
         <div class="field"><label for="hy-max">Automatisch ausblenden nach (Sekunden) – 0 = ganz abspielen</label><input id="hy-max" type="number" min="0" max="300" value="${anthemCfg().max}"></div>
       </div>
       <div class="row" style="margin-top:12px"><label class="check"><input id="hy-on" type="checkbox" ${anthemCfg().on ? 'checked' : ''}> Nach jedem Tor abspielen</label><span style="flex:1"></span><button type="button" class="btn" data-act="hy-test">▶ Probe</button><button type="button" class="btn" data-act="hy-stop">■ Stopp</button><button type="button" class="btn danger" data-act="hy-del">Entfernen</button></div>
-      <div class="hint" style="margin-top:8px">Die Datei bleibt in diesem Browser gespeichert und wird nicht ins Internet hochgeladen. Eigene Hymnen pro Team: Reiter „Teams“ → Team bearbeiten.</div></div>
+      <div class="hint" style="margin-top:8px">${ui.local ? 'Die Dateien liegen auf diesem Laptop (Ordner .data) und werden nicht ins Internet hochgeladen.' : 'Die Dateien bleiben in diesem Browser gespeichert und werden nicht ins Internet hochgeladen.'} Die Hymne jedes Teams legst du im Reiter „Teams“ → Team bearbeiten fest. Neues Tor = laufende Hymne bricht ab, die neue startet sofort.</div></div>
     <div class="box"><h3>QR-Code-Aushang</h3><div class="hint" style="margin-bottom:10px">A4-Plakat mit QR-Code zur Website für Zuschauer und Teams – zum Ausdrucken oder als PDF speichern.</div><a class="btn primary" href="/aushang" target="_blank" rel="noopener">Aushang öffnen</a></div>
     <div class="box"><h3>Sicherung</h3><div class="row"><button class="btn" data-act="backup">Sicherung herunterladen</button><label class="btn" for="restore">Sicherung einspielen</label><input id="restore" type="file" accept="application/json,.json" hidden></div><div class="hint" style="margin-top:8px">Die Sicherung ist eine JSON-Datei mit allen Teams, Spielen und Ergebnissen.</div></div>
     <form class="box" id="pw-form"><h3>Passwort ändern</h3>${ui.pwSource === 'env' ? '<div class="hint">Das Passwort ist im Vercel-Projekt als ADMIN_PASSWORD festgelegt und kann nur dort geändert werden.</div>' : `<div class="frow" style="align-items:end"><div class="field"><label for="pw-new">Neues Passwort (mind. 6 Zeichen)</label><input id="pw-new" type="password" autocomplete="new-password"></div><div><button class="btn primary">Passwort ändern</button></div></div>`}</form>
@@ -367,7 +403,7 @@
       <div class="tl-side">${syncBadge()}<span id="save" class="save"></span><a class="btn sm" href="/" target="_blank" rel="noopener">Website</a><a class="btn sm" href="/anzeige" target="_blank" rel="noopener">Hallenanzeige</a><button class="btn sm" data-act="logout">Abmelden</button></div>
     </div></header>${!ui.local && S.controlledBy === 'laptop' && Date.now() - (S.controlledAt || 0) < 5 * 60e3 ? '<div class="demo" style="background:#3A2A05;color:#FFE7A3;border-bottom:1px solid #6B5210"><div class="wrap"><b>Der Laptop steuert gerade das Turnier</b> und überträgt automatisch hierher. Änderungen auf dieser Seite werden beim nächsten Abgleich überschrieben – bitte auf dem Laptop eintragen.</div></div>' : ''}<main class="tl-body"><div class="wrap">${v()}</div></main>`;
     paintSave();
-    const hyName = document.getElementById('hy-name'); if (hyName) anthemInfo('default').then((n) => { hyName.textContent = n ? 'Gespeichert: ' + n : 'Noch keine Torhymne gespeichert.'; });
+    const hyName = document.getElementById('hy-name'); if (hyName) hyName.textContent = players.default ? 'Gespeichert: ' + players.default.name : 'Noch keine allgemeine Torhymne gespeichert.';
     // Falls ein Werbeblocker trotzdem Teile ausblendet: Hinweis zeigen
     const body = app.querySelector('.tl-body'); if (body && !body.offsetHeight) toast('Eine Browser-Erweiterung (z. B. Werbeblocker) blendet Teile aus. Bitte für diese Seite ausschalten.', true);
     if (focusCmd) { const el = document.getElementById('cmd'); if (el) { el.value = cmdVal; el.focus(); } }
@@ -538,7 +574,7 @@
   }
   const COLORS = ['#2E6BFF', '#E5383B', '#F4B400', '#2BA84A', '#8E44EC', '#F2711C', '#00A8B5', '#E84393', '#6C7A89', '#3DDC97', '#C0392B', '#1ABC9C'];
   function teamForm(t) {
-    const isNew = !t;
+    const isNew = !t, newId = uid('t');
     t = t || { name: 'Team ' + (S.teams.length + 1), cls: '', group: H.groups()[0] || 'A', color: COLORS[S.teams.length % COLORS.length], players: [], logo: '', photo: '' };
     let logo = t.logo, photo = t.photo;
     const roster = t.players.slice().sort((a, b) => (a.no || 99) - (b.no || 99)).map((p) => (p.no != null ? p.no + ' ' : '') + p.name).join('\n');
@@ -547,22 +583,25 @@
       <div class="frow">${F('cls', 'Klasse / Kurs (optional)', t.cls, 'text', 'placeholder="z. B. J1, J2"')}${F('group', 'Gruppe', t.group, 'text', 'placeholder="A oder B"')}${F('color', 'Teamfarbe', t.color, 'color')}</div>
       <div class="field"><label for="f-players">Spielerliste</label><textarea id="f-players" name="players" placeholder="1 Spieler 1&#10;7 Jonas M.&#10;10 Lea K.">${esc(roster)}</textarea><div class="hint">Eine Person pro Zeile, Rückennummer optional vorne. Du kannst eine Liste aus Excel oder WhatsApp einfügen. Tore bleiben erhalten, solange der Name gleich bleibt.</div></div>
       <div class="frow">${imgField('f-logo', 'Teamlogo (optional, wird automatisch quadratisch und mittig)', !!t.logo, 'Ohne Logo zeigen wir das Kürzel.')}${imgField('f-photo', 'Teamfoto (optional)', !!t.photo, 'Erscheint auf der Teamkarte.')}</div>
-      ${isNew ? '' : `<div class="field"><label for="f-anthem">Eigene Torhymne für dieses Team (optional, nur auf diesem Gerät)</label><input id="f-anthem" type="file" accept="audio/*"><div class="hint" data-anthem-hint>Ohne eigene Hymne läuft die allgemeine Torhymne.</div></div>`}`,
+      <div class="field"><label for="f-anthem">Torhymne des Teams (MP3) – läuft bei jedem Tor dieses Teams</label><input id="f-anthem" type="file" accept="audio/*,.mp3"><div class="hint" data-anthem-hint>…</div></div>`,
     (fd) => {
       const name = fd.get('name').trim(); if (!name) return 'Bitte einen Teamnamen eingeben.';
       const old = t.players || [];
       const players = fd.get('players').split('\n').map((l) => l.replace(/\t/g, ' ').trim()).filter(Boolean).map((l) => { const mm = l.match(/^(\d{1,3})\s*[.)\-–:]?\s+(.+)$/); const no = mm ? +mm[1] : null, nm = (mm ? mm[2] : l).trim(); const ex = old.find((p) => p.name.toLowerCase() === nm.toLowerCase()); return { id: ex ? ex.id : uid('p'), no, name: nm }; });
       const o = { name, short: String(fd.get('short') || '').trim().toUpperCase().slice(0, 4), cls: fd.get('cls').trim(), group: fd.get('group').trim().toUpperCase(), color: fd.get('color') || '#2E6BFF', players, logo, photo };
-      if (isNew) { const id = uid('t'); act((S) => { S.teams.push(Object.assign({ id }, o)); }); }
+      if (isNew) { const id = newId; act((S) => { S.teams.push(Object.assign({ id }, o)); }); }
       else { const id = t.id; act((S) => { Object.assign(S.teams.find((x) => x.id === id), o); }); }
     }, { ...(isNew ? {} : { del: () => { const id = t.id, nm = t.name; act((S) => { S.teams = S.teams.filter((x) => x.id !== id); S.matches.forEach((m) => { if (m.home === id) { m.home = null; m.homePh = m.homePh || nm; } if (m.away === id) { m.away = null; m.awayPh = m.awayPh || nm; } }); }); }, delLabel: 'Team löschen' }), after: (form) => {
       const af = form.querySelector('#f-anthem'), ah = form.querySelector('[data-anthem-hint]');
-      if (af) {
-        const key = 'team:' + t.id, show = async () => { const n = await anthemInfo(key); ah.innerHTML = n ? 'Eigene Hymne: <b>' + esc(n) + '</b> <button type="button" class="btn sm" data-anthem-rm>Entfernen</button>' : 'Ohne eigene Hymne läuft die allgemeine Torhymne.'; };
-        show();
-        af.addEventListener('change', async () => { const f = af.files[0]; if (!f) return; try { await AUD.set(key, { blob: f, name: f.name }); toast('Torhymne für ' + t.name + ' gespeichert.'); } catch (e) { toast('Konnte nicht gespeichert werden: ' + e.message, true); } show(); });
-        form.addEventListener('click', async (e) => { if (e.target.closest('[data-anthem-rm]')) { await AUD.del(key); show(); } });
-      }
+      const key = 'team:' + (isNew ? newId : t.id);
+      const show = () => { const p = players[key]; ah.innerHTML = p ? '♪ <b>' + esc(p.name) + '</b> <button type="button" class="btn sm" data-anthem-test>▶ Probe</button> <button type="button" class="btn sm" data-anthem-stop>■ Stopp</button> <button type="button" class="btn sm" data-anthem-rm>Entfernen</button>' : 'Noch keine Hymne. Ohne eigene läuft die allgemeine Torhymne (Einstellungen).'; };
+      show();
+      af.addEventListener('change', async () => { const f = af.files[0]; if (!f) return; ah.textContent = 'Wird gespeichert …'; try { await AUD.set(key, f); toast('Torhymne gespeichert: ' + f.name); } catch (e) { toast(e.message, true); } af.value = ''; show(); });
+      form.addEventListener('click', async (e) => {
+        if (e.target.closest('[data-anthem-test]')) { const p = players[key]; if (p) { stopAnthem(false); current = p; p.audio.currentTime = 0; p.audio.volume = anthemCfg().vol; p.audio.play().catch(() => toast('Abspielen nicht möglich.', true)); } }
+        if (e.target.closest('[data-anthem-stop]')) stopAnthem(false);
+        if (e.target.closest('[data-anthem-rm]')) { await AUD.del(key); show(); }
+      });
       wireImg(form, 'f-logo', 240, 240, 'image/png', (u) => { logo = u; }, 'circle'); wireImg(form, 'f-photo', 900, 560, 'image/jpeg', (u) => { photo = u; }); } });
   }
   function sponsorForm(s) {
@@ -680,8 +719,8 @@
       if (v && v === m[o]) { toast('Ein Team kann nicht gegen sich selbst spielen.', true); render(); return; }
       act(A.setTeam(m.id, k, v)); return;
     }
-    if (id === 'hy-file') { const f = e.target.files[0]; if (!f) return; AUD.set('default', { blob: f, name: f.name }).then(() => { toast('Torhymne gespeichert: ' + f.name); render(); }).catch((x) => toast('Konnte nicht gespeichert werden: ' + x.message, true)); return; }
-    if (id === 'hy-on' || id === 'hy-max' || id === 'hy-vol') { const c = anthemCfg(); c.on = document.getElementById('hy-on').checked; c.max = Math.max(0, parseInt(document.getElementById('hy-max').value, 10) || 0); c.vol = +document.getElementById('hy-vol').value; saveCfg(c); if (audio && id === 'hy-vol') audio.volume = c.vol; return; }
+    if (id === 'hy-file') { const f = e.target.files[0]; if (!f) return; AUD.set('default', f).then(() => { toast('Torhymne gespeichert: ' + f.name); render(); }).catch((x) => toast('Konnte nicht gespeichert werden: ' + x.message, true)); return; }
+    if (id === 'hy-on' || id === 'hy-max' || id === 'hy-vol') { const c = anthemCfg(); c.on = document.getElementById('hy-on').checked; c.max = Math.max(0, parseInt(document.getElementById('hy-max').value, 10) || 0); c.vol = +document.getElementById('hy-vol').value; saveCfg(c); if (current && id === 'hy-vol') current.audio.volume = c.vol; return; }
     if (id === 'restore') {
       const f = e.target.files[0]; if (!f) return;
       f.text().then((txt) => { const d = JSON.parse(txt); if (!d || !Array.isArray(d.teams) || !Array.isArray(d.matches)) throw new Error('Das ist keine Turnier-Sicherung.'); act((S) => { S.settings = d.settings || S.settings; S.teams = d.teams; S.matches = d.matches; S.sponsors = d.sponsors || []; S.current = d.current || null; PT.normalize(S); }); toast('Sicherung eingespielt.'); })
@@ -766,6 +805,7 @@
       S = await PT.fetchState(true); H = PT.make(S); render();
       if (S._migrated) { delete S._migrated; act(() => {}); }
       setTimeout(fixTeamLogos, 800);
+      preloadAnthems();
       if (queue.length) flush();
     } catch (e) { showDiag('<b>Der Turnierstand konnte nicht geladen werden.</b> ' + esc(e.message)); }
   }
