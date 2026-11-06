@@ -11,7 +11,7 @@ process.env.PT_LOCAL = '1';
 let START_PORT = +process.env.PORT || 3000;
 const PORT_FILE = path.join(ROOT, '.data', 'port.txt');
 if (process.env.PT_RESTART) { try { START_PORT = +fs.readFileSync(PORT_FILE, 'utf8') || START_PORT; } catch (e) { /* Standard */ } }
-const TYPES = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.txt': 'text/plain; charset=utf-8' };
+const TYPES = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.svg': 'image/svg+xml', '.webmanifest': 'application/manifest+json', '.woff2': 'font/woff2', '.txt': 'text/plain; charset=utf-8' };
 const BLOCKED = /^(api|\.data|\.git|node_modules|tools|update)(\/|$)|^(server|app-server|dev-server|updater)\.js$|^package(-lock)?\.json$/;
 
 function handler(req, res) {
@@ -67,7 +67,7 @@ function listen(port, tries) {
     const lan = lanAddresses();
     if (lan.length) {
       console.log('\n  Andere Geräte im selben WLAN oder Hotspot (Beamer-PC, Handys):');
-      lan.forEach((ip) => console.log('    http://' + ip + ':' + port + '/anzeige   ·   http://' + ip + ':' + port + '/'));
+      lan.forEach((ip) => console.log('    iPad-Bedienpult: http://' + ip + ':' + port + '/pult   ·   Anzeige: http://' + ip + ':' + port + '/anzeige   ·   Website: http://' + ip + ':' + port + '/'));
     }
     console.log('\n  Dieses Fenster offen lassen. Beenden: Strg + C\n' + line + '\n');
     if (!process.argv.includes('--no-open') && !process.env.PT_DEV && !process.env.PT_RESTART) openBrowser(base + '/turnierleitung');

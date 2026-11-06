@@ -59,6 +59,29 @@ AUTOMATISCHE UPDATES
   Ohne Internet läuft die vorhandene Version einfach weiter.
   Stand und Knopf "Jetzt nach Updates suchen": Turnierleitung -> Einstellungen.
 
+IPAD ALS BEDIENPULT (empfohlen für die Live-Bedienung)
+  Der Laptop bleibt der Chef (Server, Speicher, Übertragung zur Website) – bedient wird
+  aber bequem am iPad. Heim steht dort immer LINKS, Gast immer RECHTS.
+  1. iPad mit dem Laptop verbinden – eine der beiden Möglichkeiten:
+     a) Laptop-Hotspot (am sichersten, läuft auch ohne Hallen-WLAN):
+        Windows: Einstellungen -> Netzwerk und Internet -> Mobiler Hotspot -> Ein.
+        Am iPad: Einstellungen -> WLAN -> den Hotspot des Laptops wählen.
+     b) Oder Laptop und iPad ins gleiche WLAN.
+  2. Im schwarzen Fenster steht "iPad-Bedienpult: http://192.168…:3000/pult".
+     Genau diese Adresse in Safari auf dem iPad eintippen.
+     (Firewall-Frage am Laptop vorher mit "Private Netzwerke erlauben" beantworten.)
+  3. Mit dem Laptop-Passwort anmelden.
+  4. Vollbild: In Safari auf "Teilen" -> "Zum Home-Bildschirm". Danach das neue Symbol
+     "Bedienpult" auf dem Home-Bildschirm öffnen – dann ohne Adressleiste, ganz ohne Scrollen.
+     iPad quer halten. Auto-Sperre am iPad auf "Nie" stellen (Einstellungen -> Anzeige).
+  Bedienung: "Tor" bei der Mannschaft antippen, dann den Torschützen wählen.
+  "Eigentor" bei der Mannschaft antippen, die es verursacht hat – ihre Spieler erscheinen,
+  die ANDERE Mannschaft bekommt +1. Gelb und 2 Minuten genauso.
+  Die Torhymnen laufen auf dem Gerät, auf dem das Tor eingetragen wird (also am iPad –
+  iPad per Kabel/Bluetooth an die Hallenboxen).
+  Die Hallenanzeige zeigt gespiegelt: Gast links, Heim rechts (so wie die Zuschauer auf
+  das Feld schauen). Unten steht das nächste Spiel mit der Seite der Bank für jedes Team.
+
 TESTSPIELE (z. B. für eine Vorführung)
   Turnierleitung -> Spielplan -> "+ Testspiel": eigenes Datum, eigene Uhrzeit, zwei Teams.
   Testspiele laufen wie echte Spiele (Uhr, Tore, Anzeige, Website), zählen aber nicht für

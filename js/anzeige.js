@@ -12,21 +12,27 @@
     if (!m) { app.innerHTML = top + `<div class="hx-mid"><div class="idle-t">Gleich geht's los</div></div><div></div>`; return; }
     const r = H.sc(m), h = H.teamOf(m, 'h'), a = H.teamOf(m, 'a');
     const team = (t, side) => `<div class="hx-team" style="--c:${t ? esc(t.color) : '#2A3560'}">${monoHTML(t)}<b>${esc(t ? t.name : H.phOf(m, side))}</b><span class="bar2"></span></div>`;
+    // Nächstes Spiel unten: Teams stehen auf der Seite ihrer Bank (Anzeige gespiegelt: Gast links, Heim rechts)
+    const bench = (n) => {
+      const bt = (side) => { const t = H.teamOf(n, side); return `<span class="bt" style="--c:${t ? esc(t.color) : '#2A3560'}">${monoHTML(t)}<b>${esc(t ? t.name : H.phOf(n, side))}</b></span>`; };
+      return `<div class="hx-bench"><div class="l"><small>◀ Bank links</small>${bt('a')}</div><div class="c"><small>Nächstes Spiel</small><b>ca. ${esc(H.expTime(n))} Uhr</b></div><div class="r"><small>Bank rechts ▶</small>${bt('h')}</div></div>`;
+    };
     const evs = (side) => m.events.filter((e) => e.side === side).sort((x, y) => (x.min || 0) - (y.min || 0)).map((e) => `<span><span class="mi">${esc(e.min || '')}′</span><i class="ic ${e.type}"></i>${esc(H.evWho(e) || PT.EV[e.type])}</span>`).join('');
     const nxt = H.nextScheduled(m);
     const logos = S.sponsors.filter((x) => x.logo).slice(0, 6).map((x) => `<img src="${esc(x.logo)}" alt="">`).join('') || S.sponsors.slice(0, 4).map((x) => `<span>${esc(x.name)}</span>`).join('');
     app.innerHTML = top + `<div class="hx-mid">
-      <div class="hx-sb">${team(h, 'h')}<div class="hx-score">${m.status === 'scheduled' ? '<span class="vs">VS</span>' : `<span>${r.h}</span><i>:</i><span>${r.a}</span>`}</div>${team(a, 'a')}</div>
+      <div class="hx-sb">${team(a, 'a')}<div class="hx-score">${m.status === 'scheduled' ? '<span class="vs">VS</span>' : `<span>${r.a}</span><i>:</i><span>${r.h}</span>`}</div>${team(h, 'h')}</div>
       <div class="hx-clock"><span class="clk" data-clock="${m.id}">${H.clockText(m)}</span><span class="cstate" data-cstate="${m.id}">${m.status === 'scheduled' ? 'Anpfiff ca. ' + H.expTime(m) + ' Uhr' : H.clockState(m)}</span></div>
       <div class="bar"><i data-bar="${m.id}" style="width:${H.pct(m)}%"></i></div>
       <div class="pens hx-pens" data-pens="${m.id}">${H.penText(m)}</div>
-      <div class="hx-ev"><div>${evs('h')}</div><div>${evs('a')}</div></div></div>
-      <div class="hx-bot"><span>${nxt && nxt !== m ? `Danach: <b>${esc(H.tName(nxt, 'h'))} – ${esc(H.tName(nxt, 'a'))}</b>` : esc(s.ticker || '')}</span><span class="sp">${logos}</span></div>`;
+      <div class="hx-ev"><div>${evs('a')}</div><div>${evs('h')}</div></div></div>
+      ${nxt && nxt !== m ? bench(nxt) : ''}
+      ${s.ticker || logos ? `<div class="hx-bot"><span>${esc(s.ticker || '')}</span><span class="sp">${logos}</span></div>` : ''}`;
   }
   function goalFlash(m, e) {
     const t = H.teamOf(m, e.side), x = H.P(e.player);
     const el = document.createElement('div'); el.className = 'flash';
-    el.innerHTML = `<div><div class="big">${e.type === 'og' ? 'Eigentor' : 'Tor!'}</div>${x ? `<div class="who">${esc(x.p.name)}</div>` : ''}<div class="tm">${esc(t ? t.name : '')} · ${H.sc(m).h}:${H.sc(m).a}</div></div>`;
+    el.innerHTML = `<div><div class="big">${e.type === 'og' ? 'Eigentor' : 'Tor!'}</div>${x ? `<div class="who">${esc(x.p.name)}</div>` : ''}<div class="tm">${esc(t ? t.name : '')} · ${H.sc(m).a}:${H.sc(m).h}</div></div>`;
     document.body.appendChild(el); setTimeout(() => el.remove(), 4600);
   }
 

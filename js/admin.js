@@ -311,6 +311,56 @@
   const teamOptions = (sel, ph) => `<option value="">${ph ? 'Platzhalter: ' + esc(ph) : '– Team wählen –'}</option>` + S.teams.slice().sort((a, b) => a.name.localeCompare(b.name, 'de', { numeric: true })).map((t) => `<option value="${t.id}"${t.id === sel ? ' selected' : ''}>${esc(t.name)}${t.group ? ' (Gr. ' + esc(t.group) + ')' : ''}</option>`).join('');
   const matchLabel = (x) => `${H.isTest(x) ? 'TEST ' + H.dayText(x) : x.no + '.'} · ${H.expTime(x)}${H.delay(x) > 0 ? ' (+' + H.delay(x) + ')' : ''} · ${x.label || STAGES[x.stage].l} – ${H.tName(x, 'h')} vs ${H.tName(x, 'a')}${x.status === 'live' ? ' · LIVE' : x.status === 'done' ? ' · ✓ ' + H.sc(x).h + ':' + H.sc(x).a : ''}`;
 
+  /* ---------- Bedienpult fürs iPad (/pult): Vollbild, ohne Scrollen, Heim links – Gast rechts ---------- */
+  const PULT = !!window.PT_PULT;
+  const other = (sd) => (sd === 'h' ? 'a' : 'h');
+  const PAD_T = { goal: 'Tor', og: 'Eigentor', yellow: 'Gelbe Karte', red: '2-Minuten-Strafe' };
+  function vPult() {
+    const list = H.sorted(), tests = H.tests(), m = cur();
+    if (!m) return `<div class="pu-empty">Noch keine Spiele. Lege den Spielplan in der <a href="/turnierleitung">Turnierleitung</a> an.</div>`;
+    const r = H.sc(m), c = m.clock, canEv = m.status !== 'scheduled';
+    const lbl = H.isTest(m) ? 'Testspiel · ' + H.dayText(m) : 'Spiel ' + m.no + ' · ' + (m.label || STAGES[m.stage].l);
+    const team = (side) => {
+      const t = H.teamOf(m, side);
+      const own = m.events.filter((e) => e.side === side).sort((x, y) => (y.at || 0) - (x.at || 0)).slice(0, 3);
+      return `<section class="pu-team ${side}" style="--c:${t ? esc(t.color) : '#2A3560'}">
+        <div class="pu-head">${monoHTML(t, 'l')}<div class="pu-nm"><small>${side === 'h' ? 'Heim' : 'Gast'}</small><b>${esc(t ? t.name : H.phOf(m, side))}</b></div><span class="pu-sc">${r[side]}</span></div>
+        ${t ? `<div class="pu-btns">
+          <button class="pu-btn goal" data-act="pad" data-side="${side}" data-t="goal"${canEv ? '' : ' disabled'}><i class="ic goal"></i>Tor</button>
+          <button class="pu-btn og" data-act="pad" data-side="${side}" data-t="og"${canEv ? '' : ' disabled'}><i class="ic og"></i>Eigentor</button>
+          <button class="pu-btn yellow" data-act="pad" data-side="${side}" data-t="yellow"${canEv ? '' : ' disabled'}><i class="ic yellow"></i>Gelb</button>
+          <button class="pu-btn red" data-act="pad" data-side="${side}" data-t="red"${canEv ? '' : ' disabled'}><i class="ic red"></i>2 Min.</button>
+        </div>` : `<div class="pu-hint">Team steht noch nicht fest. Teams in der <a href="/turnierleitung">Turnierleitung</a> wählen.</div>`}
+        <div class="pu-feed">${own.map((e) => `<span><b>${esc(e.min || '')}′</b><i class="ic ${e.type}"></i>${esc(H.evWho(e) || EV[e.type])}</span>`).join('') || '<span class="pu-none">–</span>'}</div>
+      </section>`;
+    };
+    let ctrl;
+    if (m.status === 'scheduled') ctrl = `<button class="pu-c go wide" data-act="start"${H.teamOf(m, 'h') && H.teamOf(m, 'a') ? '' : ' disabled'}>▶ Anpfiff</button>`;
+    else if (m.status === 'live') ctrl = (c.run ? `<button class="pu-c pause wide" data-act="stop">❚❚ Uhr anhalten</button>` : `<button class="pu-c go wide" data-act="start">▶ Weiter</button>`)
+      + `<button class="pu-c" data-act="adj" data-s="-10">−10 s</button><button class="pu-c" data-act="adj" data-s="10">+10 s</button>`
+      + `<button class="pu-c" data-act="undo"${m.events.length ? '' : ' disabled'}>↶ Zurück</button><button class="pu-c stop" data-act="final" data-confirm="Wirklich abpfeifen?">Abpfiff</button>`;
+    else { const n = H.nextScheduled(m); ctrl = (n ? `<button class="pu-c go wide" data-act="select" data-id="${n.id}">Nächstes Spiel ▶</button>` : '') + `<button class="pu-c" data-act="reopen">Wieder öffnen</button><button class="pu-c" data-act="reset-match" data-confirm="Spiel zurücksetzen?">Zurücksetzen</button>`; }
+    const opt = (x) => `<option value="${x.id}"${x === m ? ' selected' : ''}>${esc(matchLabel(x))}</option>`;
+    let sheet = '';
+    if (ui.pad) {
+      // Immer die Spieler der Seite, auf der getippt wurde. Eigentor: dieses Team hat es geschossen, der Gegner bekommt das Tor.
+      const listSide = ui.pad.side, lt = H.teamOf(m, listSide), ot = H.teamOf(m, other(listSide));
+      const q = ui.pad.type === 'goal' ? `Tor für ${esc(lt ? lt.name : '')} – wer hat getroffen?` : ui.pad.type === 'og' ? `Eigentor von ${esc(lt ? lt.name : '')} – wer? (${esc(ot ? ot.name : 'Gegner')} bekommt +1)` : `${PAD_T[ui.pad.type]} für ${esc(lt ? lt.name : '')} – wer?`;
+      sheet = `<div class="pu-sheet" data-act="pad-close"><div class="pu-box ${ui.pad.type}" style="--c:${lt ? esc(lt.color) : '#2A3560'}" data-stop="1"><div class="pu-box-h"><b>${q}</b><button class="pu-c" data-act="pad-close">Abbrechen</button></div>
+        <div class="pu-players">${(lt ? lt.players.slice().sort(PT.byNo) : []).map((p) => `<button class="pu-p" data-act="pad-pick" data-player="${p.id}"><span class="no">${esc(PT.noText(p))}</span><span>${esc(p.name)}</span></button>`).join('')}<button class="pu-p anon" data-act="pad-pick" data-player="">Ohne Namen</button></div></div></div>`;
+    }
+    return `<div class="pu">
+      <header class="pu-top"><div class="ck-pick pu-pick"><button class="pu-c sm" data-act="prev" aria-label="Vorheriges Spiel">◀</button><select id="ck-match" aria-label="Spiel wählen">${tests.length ? `<optgroup label="Testspiele">${tests.map(opt).join('')}</optgroup><optgroup label="Turnier">` : ''}${list.map(opt).join('')}${tests.length ? '</optgroup>' : ''}</select><button class="pu-c sm" data-act="next" aria-label="Nächstes Spiel">▶</button></div>
+        <span class="pu-sp"></span>${syncBadge()}<span id="save" class="save"></span><button class="pu-c sm" data-act="fs">⛶ Vollbild</button><a class="pu-c sm" href="/turnierleitung">Turnierleitung</a></header>
+      <main class="pu-main">${team('h')}
+        <section class="pu-center"><div class="pu-lbl">${esc(lbl)}${m.status === 'live' ? ' <span class="livechip">Live</span>' : m.status === 'done' ? ' · Ende' : ''}</div>
+          <div class="pu-score"><span>${r.h}</span><i>:</i><span>${r.a}</span></div>
+          <div class="pu-clock clk" data-clock="${m.id}">${H.clockText(m)}</div><div class="cstate" data-cstate="${m.id}">${H.clockState(m)}</div>
+          <div class="bar"><i data-bar="${m.id}" style="width:${H.pct(m)}%"></i></div>
+          <div class="pens" data-pens="${m.id}">${H.penText(m)}</div>
+          <div class="pu-ctrl">${ctrl}</div></section>
+        ${team('a')}</main>${sheet}</div>`;
+  }
   function vCockpit() {
     const list = H.sorted(), m = cur();
     if (!m) return `<div class="empty">Noch keine Spiele. Im Reiter „Spielplan“ kannst du den Spielplan erstellen.</div>`;
@@ -436,11 +486,12 @@
     if (ae && ae.closest && ae.closest('#app') && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName) && ae.id !== 'cmd' && !ae.closest('.ck-pick') && ae.type !== 'file') { ui.needsRender = true; return; }
     ui.needsRender = false;
     const focusCmd = ae && ae.id === 'cmd', cmdVal = focusCmd ? ae.value : '';
+    if (PULT) { app.innerHTML = vPult(); paintSave(); return; }
     const v = { cockpit: vCockpit, plan: vPlan, teams: vTeams, partner: vPartner, settings: vSettings }[ui.tab] || vCockpit;
     app.innerHTML = `<header class="tl-head"><div class="wrap">
       <a class="brand" href="/" target="_blank" rel="noopener"><span class="logo logo-school" role="img" aria-label="Logo"></span><span class="bt"><small>Turnierleitung</small><b>${esc(S.settings.title).replace(/-?(Turnier)$/i, ' <span>$1</span>')}</b></span></a>
       <nav class="tl-nav">${TABS.map(([k, l]) => `<button data-act="tab" data-t="${k}" aria-pressed="${ui.tab === k}">${l}</button>`).join('')}</nav>
-      <div class="tl-side">${syncBadge()}<span id="save" class="save"></span><a class="btn sm" href="/" target="_blank" rel="noopener">Website</a><a class="btn sm" href="/anzeige" target="_blank" rel="noopener">Hallenanzeige</a><button class="btn sm" data-act="logout">Abmelden</button></div>
+      <div class="tl-side">${syncBadge()}<span id="save" class="save"></span><a class="btn sm" href="/" target="_blank" rel="noopener">Website</a><a class="btn sm" href="/anzeige" target="_blank" rel="noopener">Hallenanzeige</a><a class="btn sm cyan" href="/pult">Bedienpult (iPad)</a><button class="btn sm" data-act="logout">Abmelden</button></div>
     </div></header>${ui.local && ui.sync && ui.sync.state === 'konflikt' ? '<div class="demo" style="background:#3A1A05;color:#FFD7BF;border-bottom:1px solid #FF8A3D"><div class="wrap"><b>Übertragung zur Website angehalten:</b> Online wurde in der Zwischenzeit etwas geändert. Unter <b>Einstellungen → Automatisch online stellen</b> entscheiden, welcher Stand gilt. Auf dem Laptop kannst du normal weiterarbeiten.</div></div>' : ''}${!ui.local && S.controlledBy === 'laptop' && Date.now() - (S.controlledAt || 0) < 5 * 60e3 ? '<div class="demo" style="background:#3A2A05;color:#FFE7A3;border-bottom:1px solid #6B5210"><div class="wrap"><b>Der Laptop steuert gerade das Turnier</b> und überträgt automatisch hierher. Änderungen auf dieser Seite werden beim nächsten Abgleich überschrieben – bitte auf dem Laptop eintragen.</div></div>' : ''}<main class="tl-body"><div class="wrap">${v()}</div></main>`;
     paintSave();
     const hyName = document.getElementById('hy-name'); if (hyName) hyName.textContent = players.default ? 'Gespeichert: ' + players.default.name : 'Noch keine allgemeine Torhymne gespeichert.';
@@ -672,6 +723,10 @@
     if (a === 'tab') { ui.tab = b.dataset.t; try { sessionStorage.setItem('pt-tab', ui.tab); } catch (x) { /* egal */ } render(); scrollTo(0, 0); return; }
     if (a === 'logout') { api('/api/auth?action=logout', { method: 'POST' }).finally(() => showLogin()); return; }
     if (a === 'pick') { ui.pick[b.dataset.side] = b.dataset.t; render(); return; }
+    if (a === 'pad') { ui.pad = { side: b.dataset.side, type: b.dataset.t }; render(); return; }
+    if (a === 'pad-close') { if (e.target.closest('[data-stop]') && !e.target.closest('button')) return; ui.pad = null; render(); return; }
+    if (a === 'pad-pick') { const pd = ui.pad; ui.pad = null; if (!pd) return; addEvent(pd.type, pd.side, b.dataset.player); render(); return; }
+    if (a === 'fs') { const d = document.documentElement, f = d.requestFullscreen || d.webkitRequestFullscreen; if (document.fullscreenElement || document.webkitFullscreenElement) (document.exitFullscreen || document.webkitExitFullscreen).call(document); else if (f) { try { const pr = f.call(d); if (pr && pr.catch) pr.catch(() => toast('Vollbild hier nicht möglich – Seite über „Zum Home-Bildschirm“ öffnen.', true)); } catch (x) { toast('Vollbild hier nicht möglich – Seite über „Zum Home-Bildschirm“ öffnen.', true); } } else toast('Vollbild hier nicht möglich – Seite über „Zum Home-Bildschirm“ öffnen.', true); return; }
     if (a === 'ev') { addEvent(ui.pick[b.dataset.side], b.dataset.side, b.dataset.player); return; }
     if (a === 'select') { act(A.select(b.dataset.id)); if (b.dataset.go) { ui.tab = 'cockpit'; render(); scrollTo(0, 0); } return; }
     if (a === 'prev' || a === 'next') { const l = H.sorted(), i = l.indexOf(m), n = l[i + (a === 'next' ? 1 : -1)]; if (n) act(A.select(n.id)); return; }
@@ -773,7 +828,7 @@
     }
   });
   addEventListener('keydown', (e) => {
-    if (!S || ui.tab !== 'cockpit' || modalEl) return;
+    if (!S || (ui.tab !== 'cockpit' && !PULT) || modalEl || ui.pad) return;
     const t = e.target; if (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     const m = cur(); if (!m) return;
