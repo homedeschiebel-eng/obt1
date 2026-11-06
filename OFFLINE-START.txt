@@ -77,8 +77,12 @@ IPAD ALS BEDIENPULT (empfohlen für die Live-Bedienung)
   Bedienung: "Tor" bei der Mannschaft antippen, dann den Torschützen wählen.
   "Eigentor" bei der Mannschaft antippen, die es verursacht hat – ihre Spieler erscheinen,
   die ANDERE Mannschaft bekommt +1. Gelb und 2 Minuten genauso.
-  Die Torhymnen laufen auf dem Gerät, auf dem das Tor eingetragen wird (also am iPad –
-  iPad per Kabel/Bluetooth an die Hallenboxen).
+  Die Torhymnen laufen am LAPTOP (Laptop an die Hallenboxen anschließen): Tor am iPad ->
+  der Laptop spielt sofort die Hymne. Dafür muss am Laptop die Turnierleitung offen sein
+  (darf im Hintergrund hinter der Hallenanzeige liegen). Nach dem Öffnen einmal in die
+  Turnierleitung klicken – sonst erlaubt der Browser keinen Ton (ein Hinweis erinnert daran).
+  Am iPad: "♪ Hymne" bei jedem Team startet die Hymne am Laptop von Hand,
+  "■ Hymne stopp" hält sie an. In der Mitte steht, ob der Laptop bereit ist und was läuft.
   Die Hallenanzeige zeigt gespiegelt: Gast links, Heim rechts (so wie die Zuschauer auf
   das Feld schauen). Unten steht das nächste Spiel mit der Seite der Bank für jedes Team.
 

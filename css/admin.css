@@ -115,3 +115,4 @@ kbd{font-family:ui-monospace,Consolas,monospace;font-size:12px;background:#08112
 /* Torhymne */
 .hymne-stop{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:70;background:#2A0A14;box-shadow:0 10px 30px rgba(0,0,0,.5)}
 .field input[type=range]{padding:0;height:40px}
+#hy-unlock{position:fixed;left:50%;top:12px;transform:translateX(-50%);z-index:80;box-shadow:0 10px 30px rgba(0,0,0,.5);max-width:calc(100vw - 32px)}

@@ -3,6 +3,11 @@
 //   GET  ?action=list           welche Hymnen es gibt
 //   POST ?key=team:t1           Datei hochladen (Name im Header X-Name)
 //   POST ?key=team:t1&action=del  löschen
+//   Fernbedienung (z. B. iPad-Bedienpult → Laptop spielt ab):
+//   POST ?action=cmd   { cmd: 'play'|'stop', team }   Befehl an das Hymnen-Gerät
+//   GET  ?action=wait&since=N                       wartet (bis 25 s) auf den nächsten Befehl – das Hymnen-Gerät hört so mit
+//   POST ?action=now   { team, name, playing }      Hymnen-Gerät meldet, was gerade läuft
+//   GET  ?action=info                                ist ein Hymnen-Gerät verbunden, was läuft gerade
 const fs = require('fs');
 const path = require('path');
 const L = require('./_lib');
@@ -18,6 +23,10 @@ function sniff(b) {
   if (b.slice(0, 4).toString() === 'fLaC') return 'audio/flac';
   return null;
 }
+// Befehle nur im Arbeitsspeicher – sie sind nur für den Moment gedacht
+const R = { seq: 0, last: null, waiters: new Set(), listenAt: 0, now: null };
+const TEAM = /^[A-Za-z0-9_-]{1,40}$/;
+function wake() { const w = [...R.waiters]; R.waiters.clear(); w.forEach((f) => f()); }
 const meta = (key) => { try { return JSON.parse(fs.readFileSync(fileOf(key) + '.json', 'utf8')); } catch (e) { return null; } };
 
 module.exports = async (req, res) => {
@@ -25,6 +34,31 @@ module.exports = async (req, res) => {
     if (L.mode() !== 'file' || !process.env.PT_LOCAL) return L.send(res, 404, { error: 'Nur im Offline-Betrieb auf dem Laptop.' });
     if (!(await L.isAdmin(req))) return L.send(res, 401, { error: 'Du bist nicht mehr angemeldet.' });
     const action = L.q(req, 'action'), key = L.q(req, 'key');
+    if (req.method === 'GET' && action === 'info') {
+      const listening = R.waiters.size > 0 || Date.now() - R.listenAt < 35000;
+      return L.send(res, 200, { listening, now: listening && R.now && R.now.playing ? R.now : null });
+    }
+    if (req.method === 'GET' && action === 'wait') {
+      R.listenAt = Date.now();
+      const since = parseInt(L.q(req, 'since'), 10);
+      const reply = () => { R.listenAt = Date.now(); const x = R.last; return L.send(res, 200, { seq: R.seq, cmd: !isNaN(since) && since >= 0 && x && x.seq > since ? x : null }); };
+      if (isNaN(since) || since < 0 || R.seq > since) return reply();
+      let done = false;
+      const fin = () => { if (done) return; done = true; clearTimeout(tm); R.waiters.delete(fin); reply(); };
+      const tm = setTimeout(fin, 25000);
+      R.waiters.add(fin); req.on('close', () => { if (!done) { done = true; clearTimeout(tm); R.waiters.delete(fin); } });
+      return;
+    }
+    if (req.method === 'POST' && (action === 'cmd' || action === 'now')) {
+      if (req.headers['x-csrf'] == null) return L.send(res, 403, { error: 'Ungültige Anfrage.' });
+      const b = await L.readJson(req);
+      const team = TEAM.test(String(b.team || '')) ? String(b.team) : null;
+      if (action === 'now') { R.listenAt = Date.now(); R.now = { team, name: String(b.name || '').slice(0, 120), playing: !!b.playing, at: Date.now() }; return L.send(res, 200, { ok: true }); }
+      if (b.cmd !== 'play' && b.cmd !== 'stop') return L.send(res, 400, { error: 'Unbekannter Befehl.' });
+      R.seq += 1; R.last = { seq: R.seq, cmd: b.cmd, team, at: Date.now() };
+      wake();
+      return L.send(res, 200, { ok: true, listening: R.waiters.size > 0 || Date.now() - R.listenAt < 35000 });
+    }
     if (req.method === 'GET' && action === 'list') {
       const out = {};
       if (fs.existsSync(DIR)) fs.readdirSync(DIR).filter((f) => f.endsWith('.json')).forEach((f) => { const k = f.slice(0, -5).replace('_', ':'); const m = meta(k); if (m && fs.existsSync(fileOf(k) + '.bin')) out[k] = { name: m.name, size: m.size }; });

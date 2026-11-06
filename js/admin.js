@@ -177,28 +177,98 @@
     clearTimeout(stopT); clearInterval(fadeT);
     const btn = document.getElementById('hymne-stop'); if (btn) btn.remove();
     const p = current; current = null; if (!p) return;
+    reportNow(false);
     const a = p.audio, vol = anthemCfg().vol;
     if (!fade) { a.pause(); a.currentTime = 0; a.volume = vol; return; }
     fadeT = setInterval(() => { a.volume = Math.max(0, a.volume - 0.08); if (a.volume <= 0.01) { clearInterval(fadeT); a.pause(); a.currentTime = 0; a.volume = vol; } }, 120);
   }
   // Startet sofort (ohne Warten), damit Browser das Abspielen beim Tippen erlauben
-  function playAnthem(teamId) {
-    const c = anthemCfg(); if (!c.on) return;
+  function playAnthem(teamId, force) {
+    const c = anthemCfg(); if (!c.on && !force) return;
     const p = (teamId && players['team:' + teamId]) || players.default; if (!p) return;
     stopAnthem(false); clearInterval(fadeT);
     p.audio.volume = Math.max(0, Math.min(1, +c.vol || 0.9)); p.audio.currentTime = 0;
     current = p;
     const pr = p.audio.play();
-    if (pr && pr.catch) pr.catch(() => { if (current === p) { toast('Die Torhymne konnte nicht abgespielt werden. Einmal auf die Seite tippen und erneut versuchen.', true); stopAnthem(false); } });
+    if (pr && pr.catch) pr.catch(() => { if (current === p) { toast('Die Torhymne konnte nicht abgespielt werden. Einmal auf die Seite tippen und erneut versuchen.', true); stopAnthem(false); unlockHint(); } });
     const b = document.createElement('button'); b.id = 'hymne-stop'; b.type = 'button'; b.className = 'btn danger big hymne-stop'; b.textContent = '■ Torhymne stoppen' + (p.name ? ' · ' + p.name : '');
     b.addEventListener('click', () => stopAnthem(true)); document.body.appendChild(b);
     if (+c.max > 0) stopT = setTimeout(() => stopAnthem(true), +c.max * 1000);
+    reportNow(true);
   }
   // Tor (oder Eigentor) → Hymne der Mannschaft, die das Tor bekommt
   function anthemFor(m, type, teamSide) {
     if (type !== 'goal' && type !== 'og') return;
     const side = type === 'og' ? (teamSide === 'h' ? 'a' : 'h') : teamSide;
-    const t = H.teamOf(m, side); playAnthem(t ? t.id : null);
+    const t = H.teamOf(m, side); anthemPlay(t ? t.id : null, true);
+  }
+  /* Welches Gerät spielt die Hymnen? Am Laptop (node server.js) die Turnierleitung auf dem Laptop selbst.
+     Andere Geräte im Hotspot/WLAN (z. B. das iPad-Bedienpult) schicken nur einen Befehl an den Laptop. */
+  const isLaptopHost = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
+  function hymnHere() {
+    if (!ui.local) return true; // online: wie bisher auf diesem Gerät
+    const c = anthemCfg(); return typeof c.here === 'boolean' ? c.here : (!PULT && isLaptopHost);
+  }
+  async function hymnCmd(cmd, team, auto) {
+    try {
+      const r = await fetch('/api/audio?action=cmd', { method: 'POST', credentials: 'same-origin', headers: { 'x-csrf': '1', 'content-type': 'application/json' }, body: JSON.stringify({ cmd, team: team || null }) });
+      const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || 'Status ' + r.status);
+      if (!j.listening) toast('Die Hymne kann nicht abgespielt werden: Am Laptop ist keine Turnierleitung offen, die Hymnen abspielt.', true);
+      else if (cmd === 'play' && !auto) toast('♪ Hymne läuft am Laptop');
+      setTimeout(pollHymn, 400);
+    } catch (e) { toast('Hymne: keine Verbindung zum Laptop (' + e.message + ')', true); }
+  }
+  // auto = nach einem Tor (beachtet „Nach jedem Tor abspielen“ am Laptop)
+  function anthemPlay(teamId, auto) { if (hymnHere()) { if (!auto || anthemCfg().on) playAnthem(teamId, true); } else if (ui.local) hymnCmd('play', teamId, auto); }
+  function anthemStop() { if (hymnHere()) stopAnthem(true); else if (ui.local) hymnCmd('stop'); }
+  let reportT = null;
+  function reportNow() {
+    if (!ui.local || !hymnHere() || !S) return;
+    clearTimeout(reportT); reportT = setTimeout(sendNow, 150);
+  }
+  function sendNow() {
+    const p = current, playing = !!p, team = p ? Object.keys(players).find((k) => players[k] === p) : null;
+    fetch('/api/audio?action=now', { method: 'POST', credentials: 'same-origin', headers: { 'x-csrf': '1', 'content-type': 'application/json' }, body: JSON.stringify({ playing: !!playing, team: team && team.startsWith('team:') ? team.slice(5) : null, name: p ? p.name : '' }) }).catch(() => {});
+  }
+  function unlockHint() {
+    if (!ui.local || !hymnHere() || document.getElementById('hy-unlock')) return;
+    if (navigator.userActivation && navigator.userActivation.hasBeenActive) return;
+    const b = document.createElement('button'); b.id = 'hy-unlock'; b.type = 'button'; b.className = 'btn cyan big';
+    b.textContent = '🔊 Einmal hier klicken – damit der Laptop die Hymnen abspielen darf';
+    document.body.appendChild(b);
+    const off = () => { b.remove(); removeEventListener('pointerdown', off, true); removeEventListener('keydown', off, true); };
+    addEventListener('pointerdown', off, true); addEventListener('keydown', off, true);
+  }
+  // Hymnen-Gerät hört auf Befehle (lange Anfrage – läuft auch in einem Hintergrund-Tab zuverlässig)
+  let listening = false;
+  async function hymnListen() {
+    if (listening) return; listening = true; let since = -1;
+    while (ui.local && hymnHere()) {
+      try {
+        const r = await fetch('/api/audio?action=wait&since=' + since, { cache: 'no-store', credentials: 'same-origin' });
+        if (r.status === 401) break;
+        const j = await r.json(); since = j.seq;
+        if (j.cmd && Date.now() - j.cmd.at < 15000) { if (j.cmd.cmd === 'play') playAnthem(j.cmd.team, true); else stopAnthem(true); }
+      } catch (e) { await new Promise((res) => setTimeout(res, 2000)); }
+    }
+    listening = false;
+  }
+  // Bedienpult: anzeigen, ob der Laptop mithört und was läuft
+  ui.hy = null;
+  async function pollHymn() {
+    if (!PULT || !ui.local || hymnHere() || document.hidden) return;
+    try { const r = await fetch('/api/audio?action=info', { cache: 'no-store', credentials: 'same-origin' }); if (r.ok) ui.hy = await r.json(); } catch (e) { ui.hy = null; }
+    const el = document.getElementById('hy-st'); if (el) el.outerHTML = hymnStatus();
+  }
+  setInterval(pollHymn, 2500);
+  function hymnStatus() {
+    let txt, cls = '';
+    if (hymnHere()) { txt = current ? '♪ ' + current.name : 'Hymnen laufen auf diesem Gerät'; cls = current ? ' on' : ''; }
+    else if (!ui.hy) txt = 'Hymnen: Verbindung wird geprüft …';
+    else if (!ui.hy.listening) { txt = '⚠ Laptop spielt keine Hymnen – Turnierleitung am Laptop öffnen'; cls = ' warn'; }
+    else if (ui.hy.now) { const t = ui.hy.now.team && H && H.T(ui.hy.now.team); txt = '♪ Laptop spielt: ' + (t ? t.name + ' · ' : '') + ui.hy.now.name; cls = ' on'; }
+    else txt = '♪ Laptop bereit für Hymnen';
+    return `<div class="pu-hy-st${cls}" id="hy-st">${esc(txt)}</div>`;
   }
   async function anthemInfo(key) { if (players[key]) return players[key].name; return ''; }
 
@@ -324,7 +394,7 @@
       const t = H.teamOf(m, side);
       const own = m.events.filter((e) => e.side === side).sort((x, y) => (y.at || 0) - (x.at || 0)).slice(0, 3);
       return `<section class="pu-team ${side}" style="--c:${t ? esc(t.color) : '#2A3560'}">
-        <div class="pu-head">${monoHTML(t, 'l')}<div class="pu-nm"><small>${side === 'h' ? 'Heim' : 'Gast'}</small><b>${esc(t ? t.name : H.phOf(m, side))}</b></div><span class="pu-sc">${r[side]}</span></div>
+        <div class="pu-head">${monoHTML(t, 'l')}<div class="pu-nm"><small>${side === 'h' ? 'Heim' : 'Gast'}</small><b>${esc(t ? t.name : H.phOf(m, side))}</b></div>${t ? `<button class="pu-hy" data-act="hy-team" data-side="${side}" aria-label="Hymne ${esc(t.name)} abspielen">♪ Hymne</button>` : ''}<span class="pu-sc">${r[side]}</span></div>
         ${t ? `<div class="pu-btns">
           <button class="pu-btn goal" data-act="pad" data-side="${side}" data-t="goal"${canEv ? '' : ' disabled'}><i class="ic goal"></i>Tor</button>
           <button class="pu-btn og" data-act="pad" data-side="${side}" data-t="og"${canEv ? '' : ' disabled'}><i class="ic og"></i>Eigentor</button>
@@ -358,6 +428,7 @@
           <div class="pu-clock clk" data-clock="${m.id}">${H.clockText(m)}</div><div class="cstate" data-cstate="${m.id}">${H.clockState(m)}</div>
           <div class="bar"><i data-bar="${m.id}" style="width:${H.pct(m)}%"></i></div>
           <div class="pens" data-pens="${m.id}">${H.penText(m)}</div>
+          <div class="pu-hyrow">${hymnStatus()}<button class="pu-c sm" data-act="hy-off">■ Hymne stopp</button></div>
           <div class="pu-ctrl">${ctrl}</div></section>
         ${team('a')}</main>${sheet}</div>`;
   }
@@ -466,8 +537,9 @@
         <div class="field"><label for="hy-vol">Lautstärke</label><input id="hy-vol" type="range" min="0" max="1" step="0.05" value="${anthemCfg().vol}"></div>
         <div class="field"><label for="hy-max">Automatisch ausblenden nach (Sekunden) – 0 = ganz abspielen</label><input id="hy-max" type="number" min="0" max="300" value="${anthemCfg().max}"></div>
       </div>
+      ${ui.local ? `<div class="row" style="margin-top:12px"><label class="check"><input id="hy-here" type="checkbox" ${hymnHere() ? 'checked' : ''}> Hymnen auf <b>diesem Gerät</b> abspielen (am Laptop an lassen – Tore vom iPad-Bedienpult spielen dann hier)</label></div>` : ''}
       <div class="row" style="margin-top:12px"><label class="check"><input id="hy-on" type="checkbox" ${anthemCfg().on ? 'checked' : ''}> Nach jedem Tor abspielen</label><span style="flex:1"></span><button type="button" class="btn" data-act="hy-test">▶ Probe</button><button type="button" class="btn" data-act="hy-stop">■ Stopp</button><button type="button" class="btn danger" data-act="hy-del">Entfernen</button></div>
-      <div class="hint" style="margin-top:8px">${ui.local ? 'Die Dateien liegen auf diesem Laptop (Ordner .data) und werden nicht ins Internet hochgeladen.' : 'Die Dateien bleiben in diesem Browser gespeichert und werden nicht ins Internet hochgeladen.'} Die Hymne jedes Teams legst du im Reiter „Teams“ → Team bearbeiten fest. Neues Tor = laufende Hymne bricht ab, die neue startet sofort.</div></div>
+      <div class="hint" style="margin-top:8px">${ui.local ? 'Die Dateien liegen auf diesem Laptop (Ordner .data) und werden nicht ins Internet hochgeladen. Tore vom iPad-Bedienpult starten die Hymne hier am Laptop – diese Seite dafür offen lassen (darf im Hintergrund sein).' : 'Die Dateien bleiben in diesem Browser gespeichert und werden nicht ins Internet hochgeladen.'} Die Hymne jedes Teams legst du im Reiter „Teams“ → Team bearbeiten fest. Neues Tor = laufende Hymne bricht ab, die neue startet sofort.</div></div>
     <div class="box" id="vote-box"><h3>Voting „Spieler des Turniers“ <small>Zuschauer stimmen am Handy ab – eine Stimme pro Gerät</small></h3>
       <div class="hint" style="margin-bottom:10px">Status: <b style="color:#fff">${{ off: 'aus', open: 'offen – Zuschauer können abstimmen', closed: 'geschlossen – Ergebnis noch verborgen', show: 'Ergebnis wird auf der Website gezeigt' }[s.vote || 'off']}</b></div>
       <div class="row"><button type="button" class="btn primary" data-act="vote" data-v="open"${s.vote === 'open' ? ' disabled' : ''}>Voting öffnen</button><button type="button" class="btn" data-act="vote" data-v="closed"${s.vote !== 'open' ? ' disabled' : ''}>Voting schließen</button><button type="button" class="btn cyan" data-act="vote" data-v="show"${s.vote === 'show' ? ' disabled' : ''}>Ergebnis zeigen</button><button type="button" class="btn" data-act="vote" data-v="off"${!s.vote || s.vote === 'off' ? ' disabled' : ''}>Ausblenden</button><span style="flex:1"></span><button type="button" class="btn danger" data-act="vote-reset" data-confirm="Alle Stimmen verwerfen und neu starten?">Neu starten</button></div>
@@ -752,7 +824,9 @@
       const l = document.createElement('a'); l.href = URL.createObjectURL(blob); l.download = 'turnier-sicherung-' + new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-') + '.json'; document.body.appendChild(l); l.click(); l.remove();
       return;
     }
-    if (a === 'hy-test') { playAnthem(null); return; }
+    if (a === 'hy-team') { const m = cur(), t = m && H.teamOf(m, b.dataset.side); anthemPlay(t ? t.id : null, false); return; }
+    if (a === 'hy-off') { anthemStop(); return; }
+    if (a === 'hy-test') { playAnthem(null, true); return; }
     if (a === 'hy-stop') { stopAnthem(true); return; }
     if (a === 'hy-del') { AUD.del('default').then(() => render()); return; }
     if (a === 'vote') { const v = b.dataset.v; act((S) => { S.settings.vote = v; if (!S.settings.voteRound) S.settings.voteRound = 'r1'; }); toast({ open: 'Voting ist offen.', closed: 'Voting geschlossen.', show: 'Ergebnis wird auf der Website gezeigt.', off: 'Voting ausgeblendet.' }[v]); return; }
@@ -820,6 +894,7 @@
       act(A.setTeam(m.id, k, v)); return;
     }
     if (id === 'hy-file') { const f = e.target.files[0]; if (!f) return; AUD.set('default', f).then(() => { toast('Torhymne gespeichert: ' + f.name); render(); }).catch((x) => toast('Konnte nicht gespeichert werden: ' + x.message, true)); return; }
+    if (id === 'hy-here') { const c = anthemCfg(); c.here = e.target.checked; saveCfg(c); if (c.here) { if (!anthemsLoaded) preloadAnthems(); hymnListen(); } else stopAnthem(false); toast(c.here ? 'Dieses Gerät spielt jetzt die Hymnen.' : 'Dieses Gerät spielt keine Hymnen mehr.'); return; }
     if (id === 'hy-on' || id === 'hy-max' || id === 'hy-vol') { const c = anthemCfg(); c.on = document.getElementById('hy-on').checked; c.max = Math.max(0, parseInt(document.getElementById('hy-max').value, 10) || 0); c.vol = +document.getElementById('hy-vol').value; saveCfg(c); if (current && id === 'hy-vol') current.audio.volume = c.vol; return; }
     if (id === 'restore') {
       const f = e.target.files[0]; if (!f) return;
@@ -906,7 +981,9 @@
       S = await PT.fetchState(true); H = PT.make(S); render();
       if (S._migrated) { delete S._migrated; act(() => {}); }
       setTimeout(fixTeamLogos, 800);
-      preloadAnthems();
+      if (!PULT || hymnHere()) preloadAnthems();
+      if (ui.local && hymnHere()) { hymnListen(); unlockHint(); }
+      if (PULT) pollHymn();
       if (queue.length) flush();
     } catch (e) { showDiag('<b>Der Turnierstand konnte nicht geladen werden.</b> ' + esc(e.message)); }
   }

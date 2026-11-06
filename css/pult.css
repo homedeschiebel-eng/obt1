@@ -29,7 +29,7 @@ body.pult #app{height:100%}
 .pu-feed b{font-family:var(--f-d);font-style:italic;color:var(--cyan);min-width:26px}
 .pu-none{color:var(--dim)}
 .pu-hint{display:grid;place-items:center;text-align:center;color:var(--muted);padding:12px}
-.pu-center{display:grid;grid-template-rows:auto auto auto auto auto auto minmax(0,1fr);gap:6px;align-content:start;text-align:center;padding:10px;background:var(--noise),radial-gradient(80% 60% at 50% 0%,rgba(46,107,255,.35),transparent 70%),#0A1430;border:1px solid var(--row-line);min-height:0}
+.pu-center{display:grid;grid-template-rows:auto auto auto auto auto auto auto minmax(0,1fr);gap:6px;align-content:start;text-align:center;padding:10px;background:var(--noise),radial-gradient(80% 60% at 50% 0%,rgba(46,107,255,.35),transparent 70%),#0A1430;border:1px solid var(--row-line);min-height:0}
 .pu-lbl{font-family:var(--f-d);font-style:italic;font-weight:700;text-transform:uppercase;color:var(--muted);font-size:15px;display:flex;justify-content:center;gap:8px;align-items:center;flex-wrap:wrap}
 .pu-score{font-family:var(--f-d);font-style:italic;font-weight:900;font-size:clamp(60px,9vw,120px);line-height:.9;display:flex;justify-content:center;gap:6px;font-variant-numeric:tabular-nums}
 .pu-score i{color:var(--cyan);font-size:.55em;align-self:center}
@@ -67,3 +67,8 @@ body.pult #app{height:100%}
   .pu-team.a{grid-column:2;grid-row:1}
 }
 @media (max-height:640px){.pu-feed{display:none}.pu-team{grid-template-rows:auto minmax(0,1fr)}}
+.pu-hy{flex:none;border:1px solid var(--row-line);background:#0A1A44;color:#fff;border-radius:8px;padding:10px 12px;font-weight:800;font-size:15px;min-height:46px;cursor:pointer}
+.pu-hy:active{transform:scale(.96);border-color:var(--cyan)}
+.pu-hyrow{display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;margin-top:4px}
+.pu-hy-st{font-size:13px;font-weight:700;color:var(--muted);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pu-hy-st.on{color:var(--cyan)}.pu-hy-st.warn{color:#FFB15C;white-space:normal}
