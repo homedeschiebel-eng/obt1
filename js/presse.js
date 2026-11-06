@@ -109,6 +109,7 @@
     const gap = mins ? size * 0.32 : 0; let s = size, wN, wM;
     const meas = () => { x.font = `italic 800 ${s}px ${FD}`; wN = x.measureText(name).width; wM = mins ? x.measureText(mins).width : 0; return wN + gap + wM; };
     while (s > 14 && meas() > maxW) s -= 1;
+    x.save(); x.shadowColor = 'rgba(0,0,0,.9)'; x.shadowBlur = 12; x.shadowOffsetY = 2;
     x.font = `italic 800 ${s}px ${FD}`; x.textBaseline = 'alphabetic'; x.textAlign = 'left';
     if (dir < 0) { // rechtsbündig: … NAME 4', 5'
       if (mins) { x.fillStyle = '#7CC8FF'; x.fillText(mins, px - wM, base); }
@@ -117,6 +118,7 @@
       if (mins) { x.fillStyle = '#7CC8FF'; x.fillText(mins, px, base); }
       x.fillStyle = '#fff'; x.fillText(name, px + wM + gap, base);
     }
+    x.restore();
   }
   async function draw(m) {
     const c = document.createElement('canvas'); c.width = W; c.height = HH; const x = c.getContext('2d');
@@ -132,8 +134,8 @@
     }
     // Abdunkeln: oben leicht, nach unten immer stärker
     let g = x.createLinearGradient(0, 0, 0, HH);
-    g.addColorStop(0, 'rgba(4,8,20,.50)'); g.addColorStop(0.16, 'rgba(4,8,20,.16)'); g.addColorStop(0.40, 'rgba(4,8,20,.22)');
-    g.addColorStop(0.56, 'rgba(4,8,20,.62)'); g.addColorStop(0.72, 'rgba(4,8,20,.86)'); g.addColorStop(1, 'rgba(4,8,20,.95)');
+    g.addColorStop(0, 'rgba(4,8,20,.42)'); g.addColorStop(0.16, 'rgba(4,8,20,.12)'); g.addColorStop(0.42, 'rgba(4,8,20,.14)');
+    g.addColorStop(0.58, 'rgba(4,8,20,.34)'); g.addColorStop(0.75, 'rgba(4,8,20,.48)'); g.addColorStop(1, 'rgba(4,8,20,.62)');
     x.fillStyle = g; x.fillRect(0, 0, W, HH);
     // Kopf: Logos + Turnier
     const [sch, smv] = await Promise.all([loadImg('/img/schule.png'), loadImg('/img/smv.png')]);
@@ -155,9 +157,12 @@
     x.save(); x.shadowColor = 'rgba(46,107,255,.9)'; x.shadowBlur = 40;
     txt(x, r.h + ':' + r.a, 540, 958, { size: 250, w: 900, al: 'center', max: 400, c: '#fff' }); x.restore();
     const sub = m.pen && (m.pen.h || m.pen.a) ? 'N. E. ' + m.pen.h + ':' + m.pen.a : m.status === 'done' ? 'ENDSTAND' : m.status === 'live' ? 'ZWISCHENSTAND' : '';
+    x.save(); x.shadowColor = 'rgba(0,0,0,.9)'; x.shadowBlur = 12; x.shadowOffsetY = 2;
     if (sub) txt(x, sub, 540, 1004, { size: 26, w: 800, ls: 5, c: '#7CC8FF', al: 'center' });
     txt(x, (h ? h.name : H.phOf(m, 'h')).toUpperCase(), 250, 1004, { size: 30, w: 800, al: 'center', max: 260 });
     txt(x, (a ? a.name : H.phOf(m, 'a')).toUpperCase(), W - 250, 1004, { size: 30, w: 800, al: 'center', max: 260 });
+    if (!(Math.max(rows(m, 'h').length, rows(m, 'a').length)) && !(r.h + r.a)) txt(x, 'KEINE TORE', 540, 1070, { size: 30, w: 800, ls: 3, c: '#C9D3EE', al: 'center' });
+    x.restore();
     // Ereignisse unter den Teams (zur Mitte hin), Symbole an der Mitte
     const L = rows(m, 'h'), R = rows(m, 'a'), n = Math.max(L.length, R.length);
     const top = 1030, bottom = 1262;
@@ -169,12 +174,12 @@
     };
     const minTxt = (row) => row.mins.filter((v) => v).map((v) => v + "'").join(', ');
     const EL = 516, ER = 564;
-    if (!n && !(r.h + r.a)) txt(x, 'KEINE TORE', 540, top + 40, { size: 30, w: 800, ls: 3, c: '#9AA8CC', al: 'center' });
     L.forEach((row, i) => { const cy = top + i * rh + rh / 2; icons(row, EL, -1, cy); pair(x, row.name, minTxt(row), EL - ZONE - 14, cy + fs * 0.36, -1, fs, EL - ZONE - 14 - FL - 20); });
     R.forEach((row, i) => { const cy = top + i * rh + rh / 2; icons(row, ER, 1, cy); pair(x, row.name, minTxt(row), ER + ZONE + 14, cy + fs * 0.36, 1, fs, FR - 20 - (ER + ZONE + 14)); });
     // Fußzeile
     const day = (m && m.day) || s.day, dt = day ? new Date(day + 'T12:00').toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' }).toUpperCase() : '';
-    txt(x, ['SMV PARLER-GYMNASIUM', dt, s.location ? String(s.location).toUpperCase() : ''].filter(Boolean).join('  ·  '), 540, HH - 30, { size: 22, w: 700, ls: 3, c: '#8B9BC4', al: 'center', max: 960 });
+    x.save(); x.shadowColor = 'rgba(0,0,0,.9)'; x.shadowBlur = 10;
+    txt(x, ['SMV PARLER-GYMNASIUM', dt, s.location ? String(s.location).toUpperCase() : ''].filter(Boolean).join('  ·  '), 540, HH - 30, { size: 22, w: 700, ls: 3, c: '#C9D3EE', al: 'center', max: 960 }); x.restore();
     return c;
   }
 
