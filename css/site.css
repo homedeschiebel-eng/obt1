@@ -32,7 +32,22 @@ h1,h2,h3{font-family:var(--f-d);font-style:italic;font-weight:800;text-transform
 
 /* Teamleiste */
 .tstrip{background:var(--black);border-bottom:1px solid #121a33}
-.tstrip .wrap{display:flex;gap:14px;justify-content:center;overflow-x:auto;scrollbar-width:none;padding-block:6px}
+.tstrip .wrap{overflow-x:auto;scrollbar-width:none;padding-block:6px}
+.ts-track{display:flex;justify-content:center;width:100%}
+.ts-set{display:flex;gap:14px;flex:none}
+.ts-copy{display:none}
+@media (max-width:860px){
+  .tstrip .wrap{overflow:hidden;padding-left:0;padding-right:0}
+  .ts-track{justify-content:flex-start;width:max-content;animation:ts-run calc(var(--n,12) * 2.2s) linear infinite}
+  .ts-set{padding-right:14px;padding-left:0}
+  .ts-copy{display:flex;padding-left:0}
+  .tstrip:active .ts-track{animation-play-state:paused}
+}
+@keyframes ts-run{to{transform:translateX(-50%)}}
+@media (max-width:860px) and (prefers-reduced-motion:reduce){
+  .tstrip .wrap{overflow-x:auto;padding-left:max(16px,env(safe-area-inset-left,0px))}
+  .ts-track{animation:none}.ts-copy{display:none}
+}
 @media (max-width:640px){.tstrip .wrap{justify-content:flex-start}}
 .tstrip a{display:block;flex:none;opacity:.85;text-decoration:none}.tstrip a:hover{opacity:1}
 .mono{display:inline-grid;place-items:center;border-radius:50%;background:var(--c,#334);color:#fff;font-family:var(--f-d);font-style:italic;font-weight:800;flex:none;width:34px;height:34px;font-size:13px;line-height:1;box-shadow:inset 0 0 0 2px rgba(255,255,255,.28);overflow:hidden}

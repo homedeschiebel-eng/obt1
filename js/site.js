@@ -241,8 +241,16 @@
     const set = `<div class="tk-set">${items.join('')}</div>`;
     return `<div class="ticker" aria-label="Laufband"><div class="tk-track">${set}${set.replace('class="tk-set"', 'class="tk-set" aria-hidden="true"')}</div></div>`;
   }
+  // Teamleiste: am Handy als Endlos-Band nach links (zweite Kopie für den nahtlosen Übergang)
+  let lastStrip = '';
+  function stripHTML() {
+    if (!S.teams.length) return '';
+    const logos = (hidden) => S.teams.map((t) => `<a href="#team-${t.id}" title="${esc(t.name)}"${hidden ? ' tabindex="-1"' : ''}>${monoHTML(t, 's')}</a>`).join('');
+    return `<div class="tstrip"><div class="wrap"><div class="ts-track" style="--n:${S.teams.length}"><div class="ts-set">${logos(false)}</div><div class="ts-set ts-copy" aria-hidden="true">${logos(true)}</div></div></div></div>`;
+  }
   function render() {
     if (!S) return;
+    const strip = stripHTML(), oldStrip = strip === lastStrip ? app.querySelector('.tstrip') : null;
     const r = route(), s = S.settings, eb = esc(s.title) + (s.season ? ' ' + esc(s.season) : '');
     const cur = r.startsWith('team-') ? 'teams' : r.startsWith('spiel-') ? 'spielplan' : r === 'baum' ? 'tabelle' : (r === 'fairplay' || r === 'voting') ? 'statistiken' : r;
     let hero = '', main = '';
@@ -260,7 +268,7 @@
     const live = !!H.live();
     const ae = document.activeElement, keepId = ae && ae.id && app.contains(ae) ? ae.id : null, selS = keepId && ae.selectionStart != null ? ae.selectionStart : null;
     app.innerHTML = `
-    ${S.teams.length ? `<div class="tstrip"><div class="wrap">${S.teams.map((t) => `<a href="#team-${t.id}" title="${esc(t.name)}">${monoHTML(t, 's')}</a>`).join('')}</div></div>` : ''}
+    ${strip}
     <header class="hdr"><div class="wrap">
       <a class="brand" href="#live"><span class="lockup"><span class="logo logo-school" role="img" aria-label="Logo ${esc(s.school)}"></span><i class="lk-sep m-only"></i><span class="logo logo-smv m-only" role="img" aria-label="Logo der SMV"></span></span><span class="bt"><small>${esc(s.school)}</small><b>${esc(s.title).replace(/-?(Turnier)$/i, ' <span>$1</span>')}</b></span></a>
       <nav class="nav" aria-label="Bereiche"><a class="pill${live ? ' on' : ''}" href="#live"${cur === 'live' ? ' aria-current="page"' : ''}>Live</a>${NAV.map(([k, l]) => `<a href="#${k}"${cur === k ? ' aria-current="page"' : ''}>${l}</a>`).join('')}</nav>
@@ -272,6 +280,8 @@
     <footer><div class="wrap"><div class="org"><span class="logo logo-school" role="img" aria-label="Logo ${esc(s.school)}"></span><span class="logo logo-smv" role="img" aria-label="Logo der SMV"></span><div>Ein Turnier der SMV<small>${esc([s.school, H.dateText(), s.location].filter(Boolean).join(' · '))}</small></div></div>
     <div class="small"><a href="/impressum">Impressum &amp; Datenschutz</a></div></div></footer>
     ${online ? '' : '<div class="offline-note" role="status">Keine Verbindung – wird automatisch erneut versucht …</div>'}`;
+    if (oldStrip) { const ns = app.querySelector('.tstrip'); if (ns) ns.replaceWith(oldStrip); }
+    lastStrip = strip;
     if (keepId) { const el = document.getElementById(keepId); if (el) { el.focus(); try { if (selS != null) el.setSelectionRange(selS, selS); } catch (x) { /* egal */ } } }
     document.title = (live ? '● ' + H.tName(H.live(), 'h') + ' ' + H.sc(H.live()).h + ':' + H.sc(H.live()).a + ' ' + H.tName(H.live(), 'a') + ' · ' : '') + 'Parler Oberstufen-Turnier';
   }
