@@ -419,3 +419,7 @@ body.menu-open{overflow:hidden}
 .vcard b{font-family:var(--f-d);font-style:italic;font-weight:900;text-transform:uppercase;font-size:24px}
 .vcard span{font-weight:700;color:var(--cyan)}
 .vcard.win{border-color:var(--yellow)}.vcard.win span{color:var(--yellow)}
+
+/* Zurück-Knopf im Kopf (Impressum, 404) */
+.hdr-back{display:inline-flex;align-items:center;white-space:nowrap;padding:8px 12px;border:1px solid #2A3560;border-radius:6px;color:#fff;text-decoration:none;font-weight:700;font-size:14px}
+.hdr-back:hover{border-color:var(--cyan);color:var(--cyan)}
