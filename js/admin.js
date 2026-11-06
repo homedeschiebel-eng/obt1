@@ -563,7 +563,7 @@
     app.innerHTML = `<header class="tl-head"><div class="wrap">
       <a class="brand" href="/" target="_blank" rel="noopener"><span class="logo logo-school" role="img" aria-label="Logo"></span><span class="bt"><small>Turnierleitung</small><b>${esc(S.settings.title).replace(/-?(Turnier)$/i, ' <span>$1</span>')}</b></span></a>
       <nav class="tl-nav">${TABS.map(([k, l]) => `<button data-act="tab" data-t="${k}" aria-pressed="${ui.tab === k}">${l}</button>`).join('')}</nav>
-      <div class="tl-side">${syncBadge()}<span id="save" class="save"></span><a class="btn sm" href="/" target="_blank" rel="noopener">Website</a><a class="btn sm" href="/anzeige" target="_blank" rel="noopener">Hallenanzeige</a><a class="btn sm cyan" href="/pult">Bedienpult (iPad)</a><button class="btn sm" data-act="logout">Abmelden</button></div>
+      <div class="tl-side">${syncBadge()}<span id="save" class="save"></span><a class="btn sm" href="/" target="_blank" rel="noopener">Website</a><a class="btn sm" href="/anzeige" target="_blank" rel="noopener">Hallenanzeige</a><a class="btn sm cyan" href="/pult">Bedienpult (iPad)</a><a class="btn sm" href="/presse" target="_blank" rel="noopener">Insta-Posts</a><button class="btn sm" data-act="logout">Abmelden</button></div>
     </div></header>${ui.local && ui.sync && ui.sync.state === 'konflikt' ? '<div class="demo" style="background:#3A1A05;color:#FFD7BF;border-bottom:1px solid #FF8A3D"><div class="wrap"><b>Übertragung zur Website angehalten:</b> Online wurde in der Zwischenzeit etwas geändert. Unter <b>Einstellungen → Automatisch online stellen</b> entscheiden, welcher Stand gilt. Auf dem Laptop kannst du normal weiterarbeiten.</div></div>' : ''}${!ui.local && S.controlledBy === 'laptop' && Date.now() - (S.controlledAt || 0) < 5 * 60e3 ? '<div class="demo" style="background:#3A2A05;color:#FFE7A3;border-bottom:1px solid #6B5210"><div class="wrap"><b>Der Laptop steuert gerade das Turnier</b> und überträgt automatisch hierher. Änderungen auf dieser Seite werden beim nächsten Abgleich überschrieben – bitte auf dem Laptop eintragen.</div></div>' : ''}<main class="tl-body"><div class="wrap">${v()}</div></main>`;
     paintSave();
     const hyName = document.getElementById('hy-name'); if (hyName) hyName.textContent = players.default ? 'Gespeichert: ' + players.default.name : 'Noch keine allgemeine Torhymne gespeichert.';
@@ -930,7 +930,7 @@
     app.innerHTML = shell(`<form id="login-form" class="lg-form">${msg ? `<div class="notice">${esc(msg)}</div>` : ''}
       <div class="field"><label for="pass">Passwort</label><input id="pass" type="password" autocomplete="current-password" required></div>
       <div class="err-msg"></div><button class="btn primary big">Anmelden</button>
-      <a class="btn cyan big" href="/anzeige" style="text-align:center">Hallenanzeige öffnen</a>
+      <a class="btn cyan big" href="/anzeige" style="text-align:center">Hallenanzeige öffnen</a><a class="btn big" href="/presse" style="text-align:center">Presse: Insta-Posts</a>
       <div class="row" style="justify-content:space-between"><a class="hint" href="/">← Zur Website</a><button type="button" class="btn sm" data-diag>Diagnose</button></div></form>`);
     bindForm('login-form', async () => { await api('/api/auth?action=login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pass: document.getElementById('pass').value }) }); start(); });
   }

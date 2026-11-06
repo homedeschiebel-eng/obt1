@@ -1,4 +1,5 @@
 // Anmeldung der Turnierleitung: ?action=me | check | setup | login | logout | password
+// Presse (Insta-Posts): ?action=press-me | press-login | press-logout
 let L = null, initErr = null;
 try { L = require('./_lib'); } catch (e) { initErr = e; }
 
@@ -14,6 +15,7 @@ module.exports = async (req, res) => {
       const a = await L.authInfo();
       return L.send(res, 200, { version: L.VERSION, storage: L.mode(), passwordSet: !!a.source, passwordSource: a.source, loggedIn: await L.isAdmin(req), env: L.envNames(), local: !!process.env.PT_LOCAL && L.mode() === 'file', vercelEnv: process.env.VERCEL_ENV || '', deployment: (process.env.VERCEL_GIT_COMMIT_SHA || '').slice(0, 7) });
     }
+    if (action === 'press-me') return L.send(res, 200, { ok: L.isPress(req) || await L.isAdmin(req) });
     if (action === 'check') return L.send(res, 200, Object.assign({ version: L.VERSION }, await L.check()));
     if (req.method !== 'POST') return L.send(res, 405, { error: 'Nicht erlaubt.' });
     if (req.headers['x-csrf'] == null) return L.send(res, 403, { error: 'Ungültige Anfrage.' });
@@ -21,6 +23,12 @@ module.exports = async (req, res) => {
 
     const b = await L.readJson(req);
     const pass = String(b.pass || '');
+    if (action === 'press-logout') { L.setPressSession(res, false); return L.send(res, 200, { ok: true }); }
+    if (action === 'press-login') {
+      if (L.isLocked(req)) return L.send(res, 429, { error: 'Zu viele Fehlversuche. Bitte 15 Minuten warten.' });
+      if (!L.checkPress(pass)) { await new Promise((r) => setTimeout(r, 700)); const locked = L.noteFail(req); return L.send(res, locked ? 429 : 401, { error: locked ? 'Zu viele Fehlversuche. Bitte 15 Minuten warten.' : 'Das Passwort stimmt nicht.' }); }
+      L.clearFails(req); L.setPressSession(res, true); return L.send(res, 200, { ok: true });
+    }
     if (action === 'setup') {
       // Nur möglich, solange noch kein Passwort existiert
       if (!L.mode()) return L.send(res, 503, { error: 'Zuerst muss ein Speicher mit dem Vercel-Projekt verbunden sein.' });

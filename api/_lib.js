@@ -290,6 +290,22 @@ async function setPassword(p) {
   const v = { salt, hash: scrypt(p, salt), at: Date.now() };
   await rawSet(AUTH_KEY, JSON.stringify(v)); authCache = { t: Date.now(), v };
 }
+// Presse-Zugang (Insta-Posts herunterladen): eigenes Passwort, Umgebungsvariable PRESS_PASSWORD, sonst Standard.
+// Die Presse sieht nur öffentliche Ergebnisse – das Passwort hält die Seite nur aus Suchmaschinen und vor Neugierigen fern.
+const pressPw = () => process.env.PRESS_PASSWORD || 'SMV_Insta';
+const pressKey = () => crypto.createHash('sha256').update('ptp|' + pressPw() + '|' + (process.env.SESSION_SECRET || process.env.ADMIN_PASSWORD || '')).digest();
+function checkPress(p) { const A = crypto.createHash('sha256').update(String(p || '')).digest(), B = crypto.createHash('sha256').update(pressPw()).digest(); return crypto.timingSafeEqual(A, B); }
+function isPress(req) {
+  const v = cookies(req).pt_p || ''; const exp = parseInt(v.split('.')[0], 10);
+  if (!exp || exp < Date.now()) return false;
+  const a = Buffer.from(v), b = Buffer.from(hmac(pressKey(), exp));
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+function setPressSession(res, on) {
+  const secure = process.env.VERCEL ? '; Secure' : '', hours = 24 * 30;
+  const val = on ? hmac(pressKey(), Date.now() + hours * 3600e3) : '';
+  res.setHeader('Set-Cookie', 'pt_p=' + encodeURIComponent(val) + '; Path=/; HttpOnly; SameSite=Lax' + secure + '; Max-Age=' + (on ? hours * 3600 : 0));
+}
 // Sperre nach Fehlversuchen (pro Server-Instanz, als Bremse gedacht)
 const fails = new Map();
 const ipOf = (req) => String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
@@ -297,4 +313,4 @@ function isLocked(req) { const f = fails.get(ipOf(req)); return !!(f && f.until 
 function noteFail(req) { const k = ipOf(req), f = fails.get(k) || { n: 0, until: 0 }; f.n++; if (f.n >= 8) { f.until = Date.now() + 15 * 60e3; f.n = 0; } fails.set(k, f); return f.until > Date.now(); }
 function clearFails(req) { fails.delete(ipOf(req)); }
 
-module.exports = { rawGet, rawSet, redis, VERSION, send, q, readBody, readJson, mode, envNames, check, readState, writeState, cleanState, sniff, putImage, getImage, authInfo, isAdmin, setSession, checkPassword, setPassword, isLocked, noteFail, clearFails };
+module.exports = { rawGet, rawSet, redis, VERSION, send, q, readBody, readJson, mode, envNames, check, readState, writeState, cleanState, sniff, putImage, getImage, authInfo, isAdmin, setSession, checkPassword, setPassword, isLocked, noteFail, clearFails, checkPress, isPress, setPressSession };

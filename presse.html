@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Insta-Posts · Parler Oberstufen-Turnier</title>
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#04060D">
+<link rel="icon" href="/img/favicon.png">
+<link rel="apple-touch-icon" href="/img/icon-180.png">
+<link rel="stylesheet" href="/css/fonts.css">
+<link rel="stylesheet" href="/css/site.css">
+<style>
+body{background:#0A1430;color:#fff;margin:0}
+.ps{max-width:1200px;margin:0 auto;padding:20px 16px 60px}
+.pr-top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+.pr-top h1{margin:0;font-family:var(--f-d);font-style:italic;font-weight:900;text-transform:uppercase;font-size:34px;line-height:1}
+.pr-top h1 span{color:var(--cyan)}
+.pr-sp{flex:1}
+.pr-b{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--row-line);background:var(--row-b);color:#fff;border-radius:7px;padding:10px 14px;font:700 15px var(--f-b);cursor:pointer;text-decoration:none}
+.pr-b.pri{background:var(--blue);border-color:var(--blue)}
+.pr-b:disabled{opacity:.4}
+.pr-opt{display:flex;gap:14px;align-items:center;flex-wrap:wrap;padding:12px 14px;background:#0D1A3D;border:1px solid var(--row-line);margin-bottom:18px;font-weight:600}
+.pr-opt label{display:flex;gap:8px;align-items:center;cursor:pointer}
+.pr-opt input{width:20px;height:20px}
+.pr-hint{color:var(--muted);font-size:14px}
+.pr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px}
+.pr-card{background:#0D1A3D;border:1px solid var(--row-line);display:grid}
+.pr-card.neu{border-color:var(--cyan);box-shadow:0 0 0 2px rgba(30,155,224,.35)}
+.pr-card img{display:block;width:100%;aspect-ratio:4/5;background:#04060D}
+.pr-card .meta{padding:10px 12px 4px;font-weight:700;font-size:15px}
+.pr-card .meta small{display:block;color:var(--muted);font-weight:600;font-size:13px}
+.pr-card .act{display:flex;gap:8px;padding:8px 12px 12px;flex-wrap:wrap}
+.pr-tag{display:inline-block;background:var(--cyan);color:#04121F;font-family:var(--f-d);font-style:italic;font-weight:800;text-transform:uppercase;font-size:13px;padding:1px 7px;margin-left:6px;vertical-align:2px}
+.pr-login{max-width:420px;margin:80px auto;padding:24px;background:#0D1A3D;border:1px solid var(--row-line);border-top:6px solid var(--blue)}
+.pr-login h1{margin:0 0 6px;font-family:var(--f-d);font-style:italic;font-weight:900;text-transform:uppercase;font-size:32px}
+.pr-login input{width:100%;box-sizing:border-box;padding:12px;font-size:17px;border:1px solid var(--row-line);background:#081129;color:#fff;border-radius:6px;margin:12px 0}
+.pr-err{color:#FF8DA1;font-weight:600;min-height:1.2em}
+.pr-empty{padding:40px 16px;text-align:center;color:var(--muted);border:1px dashed var(--row-line)}
+#toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:#0E2257;border:1px solid var(--blue);padding:10px 16px;font-weight:700;z-index:50;max-width:calc(100vw - 32px)}
+</style>
+</head>
+<body>
+<div id="app"><div class="ps" style="color:#A3B3DA">Wird geladen …</div></div>
+<script src="/js/core.js"></script>
+<script src="/js/presse.js"></script>
+</body>
+</html>

@@ -86,6 +86,13 @@ IPAD ALS BEDIENPULT (empfohlen für die Live-Bedienung)
   Die Hallenanzeige zeigt gespiegelt: Gast links, Heim rechts (so wie die Zuschauer auf
   das Feld schauen). Unten steht das nächste Spiel mit der Seite der Bank für jedes Team.
 
+INSTA-POSTS (PRESSE)
+  https://pg-oberstufenfussballturnier.vercel.app/presse  ->  Passwort: SMV_Insta
+  Nach jedem Abpfiff erscheint dort automatisch ein Ergebnisbild (4:5) mit Toren, Eigentoren,
+  Gelben Karten und 2-Minuten-Strafen. Haken "Neue Ergebnisse automatisch herunterladen"
+  setzen und die Seite offen lassen. Am Handy: "Teilen" -> Instagram.
+  Läuft über die Website – der Laptop überträgt die Ergebnisse ja automatisch dorthin.
+
 TESTSPIELE (z. B. für eine Vorführung)
   Turnierleitung -> Spielplan -> "+ Testspiel": eigenes Datum, eigene Uhrzeit, zwei Teams.
   Testspiele laufen wie echte Spiele (Uhr, Tore, Anzeige, Website), zählen aber nicht für
