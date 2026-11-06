@@ -49,11 +49,21 @@
   PT.normalize = (S) => {
     S = S || {};
     const old = !!(S.settings && S.settings.title !== undefined && !S.settings.day);
-    S.settings = Object.assign({ title: 'Oberstufen-Turnier', school: 'Parler-Gymnasium', season: '2026', date: '', day: '2026-12-22', location: 'Großsporthalle Schwäbisch Gmünd', sport: 'Fußball', ticker: '', start: '11:30', gap: 1, koFormat: 'qf', third: true, win: 3, draw: 1, durGroup: 7, durKo: 10, durFinal: 12, vote: 'off', voteRound: 'r1' }, S.settings || {});
+    S.settings = Object.assign({ title: 'Oberstufen-Turnier', school: 'Parler-Gymnasium', season: '2026', date: '', day: '2026-12-22', location: 'Großsporthalle Schwäbisch Gmünd', sport: 'Fußball', ticker: '', start: '11:30', gap: 1, koBreak: 10, koFormat: 'qf', third: true, win: 3, draw: 1, durGroup: 7, durKo: 10, durFinal: 12, vote: 'off', voteRound: 'r1' }, S.settings || {});
     S.teams = S.teams || []; S.matches = S.matches || []; S.sponsors = S.sponsors || [];
     S.teams.forEach((t) => { t.players = t.players || []; });
     S.matches.forEach((m) => { m.events = m.events || []; m.clock = m.clock || { run: false, since: null, acc: 0 }; });
     S.rev = S.rev || 0;
+    // Neuer, gleichmäßiger Spielplan (Version 2): automatisch übernehmen, solange noch kein Turnierspiel begonnen hat
+    if ((+S.settings.planV || 0) < 2 && S.teams.length && PT.genSchedule) {
+      const real = S.matches.filter((m) => m.stage !== 'test');
+      const untouched = real.every((m) => m.status === 'scheduled' && !(m.events || []).length && !m.startedAt);
+      if (untouched) {
+        const tests = S.matches.filter((m) => m.stage === 'test');
+        if (real.length) { S.matches = PT.genSchedule(S).concat(tests); if (S.current && !S.matches.some((m) => m.id === S.current)) S.current = null; }
+        S.settings.planV = 2; S._migrated = true;
+      } else S.settings.planV = 1;
+    }
     // Ort ist immer die Großsporthalle Schwäbisch Gmünd (ältere Stände hatten „Sporthalle“)
     if (!S.settings.location || /^\s*sporthalle\s*$/i.test(S.settings.location)) { S.settings.location = PT.LOCATION; S._migrated = true; }
     // Einmalige Umstellung älterer Stände: Turniertag 22.12.2026, Start 11:30, 1 Minute Wechselzeit
@@ -261,14 +271,15 @@
     let tl = null, tlAt = 0;
     H.timeline = () => {
       const now = PT.now(); if (tl && now - tlAt < 900) return tl;
-      const gap = (+S.settings.gap || 0) * 60000, out = {}; let cursor = null;
+      const gap = (+S.settings.gap || 0) * 60000, koBreak = (+S.settings.koBreak || 0) * 60000, out = {}; let cursor = null, koSeen = false;
       H.sorted().forEach((m) => {
+        const extra = PT.isKo(m) && !koSeen ? koBreak : 0; if (PT.isKo(m)) koSeen = true;
         const dur = H.durOf(m) * 60000, p = H.plannedMs(m); let start, end;
         if (m.status === 'done') { start = m.startedAt || p; end = m.endedAt || (start != null ? start + dur : null); }
         else if (m.status === 'live') { start = m.startedAt || p || now; end = now + H.remaining(m) * 1000; }
         else {
           start = p;
-          if (cursor != null && start != null) start = Math.max(start, cursor + gap);
+          if (cursor != null && start != null) start = Math.max(start, cursor + gap + extra);
           if (start != null && p != null && now > start) start = now; // überfällig: beginnt frühestens jetzt
           end = start != null ? start + dur : null;
         }
@@ -314,7 +325,12 @@
     return H;
   };
 
-  /* ---------- Spielplan erstellen: 2 Gruppen, ein Feld, Spiele nacheinander ---------- */
+  /* ---------- Spielplan erstellen: 2 Gruppen, ein Feld, Spiele nacheinander ----------
+     Aufbau: abwechselnd ein Block mit einer ganzen Runde Gruppe A (3 Spiele, jedes Team einmal), dann ein Block Gruppe B.
+     Für 6er-Gruppen ist Reihenfolge und Position im Block so berechnet (alle Möglichkeiten durchprobiert), dass jedes Team
+     zwischen zwei eigenen Spielen immer 4 bis 6 Spiele Pause hat – mehr Mindestpause geht mathematisch nicht (5 Spiele
+     Pause für alle ist unmöglich). Wer spielt, ist also regelmäßig dran, und niemand wartet ewig. */
+  const SIX = [[[0, 1], [2, 3], [4, 5]], [[0, 2], [1, 4], [3, 5]], [[2, 4], [0, 3], [1, 5]], [[0, 4], [2, 5], [1, 3]], [[0, 5], [3, 4], [1, 2]]];
   function roundRobin(ids) {
     const list = ids.slice(); if (list.length % 2) list.push(null);
     const n = list.length, rounds = [];
@@ -322,22 +338,47 @@
       const ms = [];
       for (let i = 0; i < n / 2; i++) {
         const a = list[i], b = list[n - 1 - i];
-        if (a && b) ms.push(r % 2 ? [b, a] : [a, b]);
+        if (a && b) ms.push([a, b]);
       }
       rounds.push(ms);
       list.splice(1, 0, list.pop());
     }
     return rounds;
   }
+  // Heim/Gast so verteilen, dass jedes Team etwa gleich oft Heim ist und möglichst abwechselnd
+  const homeMemo = {};
+  function balanceHome(rounds) {
+    const ms = [].concat(...rounds), n = ms.length;
+    if (n > 18) return rounds;
+    const mk = JSON.stringify(rounds); if (homeMemo[mk]) return homeMemo[mk];
+    let best = null, bestCost = Infinity;
+    for (let mask = 0; mask < (1 << n); mask++) {
+      const home = {}, last = {}; let cost = 0;
+      for (let i = 0; i < n; i++) {
+        const [a, b] = (mask >> i) & 1 ? [ms[i][1], ms[i][0]] : ms[i];
+        home[a] = (home[a] || 0) + 1; home[b] = home[b] || 0;
+        if (last[a] === 'h') cost += 1; if (last[b] === 'a') cost += 1;
+        last[a] = 'h'; last[b] = 'a';
+      }
+      const cnt = {}; ms.forEach(([a, b]) => { cnt[a] = (cnt[a] || 0) + 1; cnt[b] = (cnt[b] || 0) + 1; });
+      Object.keys(cnt).forEach((k) => { cost += 10 * Math.max(0, Math.abs(home[k] - cnt[k] / 2) - 0.5); });
+      if (cost < bestCost) { bestCost = cost; best = mask; if (!cost) break; }
+    }
+    let i = 0;
+    return (homeMemo[mk] = rounds.map((r) => r.map((m) => ((best >> i++) & 1 ? [m[1], m[0]] : m))));
+  }
+  function groupRounds(ids) {
+    if (ids.length === 6) return balanceHome(SIX.map((r) => r.map(([a, b]) => [ids[a], ids[b]])));
+    return balanceHome(roundRobin(ids));
+  }
+  PT.isKo = (m) => m && m.stage !== 'group' && m.stage !== 'test';
   PT.genSchedule = (S) => {
     const st = S.settings, groups = [...new Set(S.teams.map((t) => t.group || ''))].sort();
-    const rr = groups.map((g) => roundRobin(S.teams.filter((t) => (t.group || '') === g).map((t) => t.id)));
+    const byName = (a, b) => a.name.localeCompare(b.name, 'de', { numeric: true });
+    const rr = groups.map((g) => groupRounds(S.teams.filter((t) => (t.group || '') === g).sort(byName).map((t) => t.id)));
     const out = [];
     const maxRounds = Math.max(0, ...rr.map((r) => r.length));
-    for (let r = 0; r < maxRounds; r++) {
-      const maxM = Math.max(0, ...rr.map((x) => (x[r] || []).length));
-      for (let i = 0; i < maxM; i++) rr.forEach((x, gi) => { const p = (x[r] || [])[i]; if (p) out.push({ stage: 'group', label: groups[gi] ? 'Gruppe ' + groups[gi] : 'Vorrunde', home: p[0], away: p[1], homePh: '', awayPh: '' }); });
-    }
+    for (let r = 0; r < maxRounds; r++) rr.forEach((x, gi) => (x[r] || []).forEach((p) => out.push({ stage: 'group', label: groups[gi] ? 'Gruppe ' + groups[gi] : 'Vorrunde', home: p[0], away: p[1], homePh: '', awayPh: '' })));
     const ko = (stage, label, h, a) => out.push({ stage, label, home: null, away: null, homePh: h, awayPh: a });
     if (groups.length >= 2) {
       const [A, B] = groups;
@@ -355,8 +396,9 @@
       if (st.third) ko('third', 'Spiel um Platz 3', 'Verlierer HF 1', 'Verlierer HF 2');
       ko('final', 'Finale', 'Sieger HF 1', 'Sieger HF 2');
     }
-    let t = PT.timeToMin(st.start) ?? 690;
+    let t = PT.timeToMin(st.start) ?? 690, koSeen = false;
     return out.map((m, i) => {
+      if (PT.isKo(m) && !koSeen) { koSeen = true; if (i) t += +st.koBreak || 0; }
       const dur = +st[PT.STAGES[m.stage].d] || 10;
       const r = Object.assign({ id: 'm' + (i + 1), no: i + 1, time: PT.minToTime(t), status: 'scheduled', clock: { run: false, since: null, acc: 0 }, events: [], pen: null, dur: null }, m);
       t += dur + (+st.gap || 0);
@@ -365,8 +407,11 @@
   };
   // Uhrzeiten neu berechnen (z. B. nach geänderten Spielzeiten)
   PT.retime = (S) => {
-    const H = PT.make(S); let t = PT.timeToMin(S.settings.start) ?? 690;
-    H.sorted().forEach((m) => { m.time = PT.minToTime(t); t += H.durOf(m) + (+S.settings.gap || 0); });
+    const H = PT.make(S); let t = PT.timeToMin(S.settings.start) ?? 690, koSeen = false;
+    H.sorted().forEach((m, i) => {
+      if (PT.isKo(m) && !koSeen) { koSeen = true; if (i) t += +S.settings.koBreak || 0; }
+      m.time = PT.minToTime(t); t += H.durOf(m) + (+S.settings.gap || 0);
+    });
   };
 
   /* ---------- Daten laden ---------- */

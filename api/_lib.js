@@ -186,7 +186,7 @@ function cleanState(inp) {
   const settings = {};
   ['title', 'school', 'season', 'date', 'location', 'sport', 'ticker', 'start', 'koFormat', 'vote', 'voteRound', 'impName', 'impAddr', 'impMail', 'impPhone', 'impExtra', 'impDsb', 'impDelete'].forEach((k) => { settings[k] = cut(s[k], /^(ticker|impAddr|impExtra|impDelete)$/.test(k) ? 600 : 120); });
   settings.day = /^\d{4}-\d{2}-\d{2}$/.test(String(s.day || '')) ? s.day : '';
-  ['win', 'draw', 'durGroup', 'durKo', 'durFinal', 'gap'].forEach((k) => { settings[k] = Math.max(0, Math.min(90, num(s[k], 0))); });
+  ['win', 'draw', 'durGroup', 'durKo', 'durFinal', 'gap', 'koBreak', 'planV'].forEach((k) => { settings[k] = Math.max(0, Math.min(90, num(s[k], 0))); });
   settings.third = !!s.third;
   const teams = arr(inp.teams).slice(0, 40).map((t) => {
     t = obj(t);
