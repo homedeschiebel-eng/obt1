@@ -88,9 +88,10 @@ IPAD ALS BEDIENPULT (empfohlen für die Live-Bedienung)
 
 INSTA-POSTS (PRESSE)
   https://pg-oberstufenfussballturnier.vercel.app/presse  ->  Passwort: SMV_Insta
-  Nach jedem Abpfiff erscheint dort automatisch ein Ergebnisbild (4:5) mit Toren, Eigentoren,
-  Gelben Karten und 2-Minuten-Strafen. Haken "Neue Ergebnisse automatisch herunterladen"
-  setzen und die Seite offen lassen. Am Handy: "Teilen" -> Instagram.
+  Nach jedem Abpfiff erscheint dort das Spiel mit einem kurzen Bericht. "Spielbild einfügen"
+  (4:5) -> das Bild wird abgedunkelt, Ergebnis, Tore, Eigentore, Gelbe Karten und 2-Minuten-
+  Strafen kommen unten drauf, der Post wird heruntergeladen. "Text kopieren" -> bei Instagram
+  einfügen. Für echte KI-Berichte: in Vercel ANTHROPIC_API_KEY eintragen (sonst automatischer Text).
   Läuft über die Website – der Laptop überträgt die Ergebnisse ja automatisch dorthin.
 
 TESTSPIELE (z. B. für eine Vorführung)

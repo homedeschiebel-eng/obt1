@@ -3,6 +3,15 @@
   "trailingSlash": false,
   "headers": [
     {
+      "source": "/presse",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex"
+        }
+      ]
+    },
+    {
       "source": "/aushang",
       "headers": [
         {
@@ -29,5 +38,10 @@
         }
       ]
     }
-  ]
+  ],
+  "functions": {
+    "api/bericht.js": {
+      "maxDuration": 60
+    }
+  }
 }
