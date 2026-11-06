@@ -245,7 +245,8 @@
   let lastStrip = '';
   function stripHTML() {
     if (!S.teams.length) return '';
-    const logos = (hidden) => S.teams.map((t) => `<a href="#team-${t.id}" title="${esc(t.name)}"${hidden ? ' tabindex="-1"' : ''}>${monoHTML(t, 's')}</a>`).join('');
+    const teams = S.teams.slice().sort((a, b) => a.name.localeCompare(b.name, 'de', { numeric: true, sensitivity: 'base' }));
+    const logos = (hidden) => teams.map((t) => `<a href="#team-${t.id}" title="${esc(t.name)}"${hidden ? ' tabindex="-1"' : ''}>${monoHTML(t, 's')}</a>`).join('');
     return `<div class="tstrip"><div class="wrap"><div class="ts-track" style="--n:${S.teams.length}"><div class="ts-set">${logos(false)}</div><div class="ts-set ts-copy" aria-hidden="true">${logos(true)}</div></div></div></div>`;
   }
   function render() {
