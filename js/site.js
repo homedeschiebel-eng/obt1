@@ -163,7 +163,7 @@
         body = `<p class="vlead">Wer war für dich der beste Spieler oder die beste Spielerin des Turniers? Du hast <b>eine Stimme</b>.</p>
           <div class="field vsearch"><label for="v-q">Suchen</label><input id="v-q" type="search" placeholder="Name oder Team" value="${esc(vt.q)}" autocomplete="off"></div>
           ${vt.msg ? `<div class="notice">${esc(vt.msg)}</div>` : ''}
-          <div class="vteams">${teams.map((x) => `<div class="vteam"><h3>${monoHTML(x.t, 's')} ${esc(x.t.name)}</h3><div class="vlist">${x.ps.map((pl) => `<button type="button" class="vbtn${vt.pick === pl.id ? ' sel' : ''}" data-act="vpick" data-p="${pl.id}"><span class="no">${esc(pl.no == null ? '' : pl.no)}</span>${esc(pl.name)}</button>`).join('')}</div></div>`).join('') || '<div class="empty">Niemand gefunden.</div>'}</div>
+          <div class="vteams">${teams.map((x) => `<div class="vteam"><h3>${monoHTML(x.t, 's')} ${esc(x.t.name)}</h3><div class="vlist">${x.ps.map((pl) => `<button type="button" class="vbtn${vt.pick === pl.id ? ' sel' : ''}" data-act="vpick" data-p="${pl.id}"><span class="no">${esc(PT.noText(pl))}</span>${esc(pl.name)}</button>`).join('')}</div></div>`).join('') || '<div class="empty">Niemand gefunden.</div>'}</div>
           ${vt.pick && H.P(vt.pick) ? `<div class="vconfirm"><span>Stimme für <b>${esc(H.P(vt.pick).p.name)}</b> abgeben?</span><button type="button" class="vgo" data-act="vsend">Jetzt abstimmen</button><button type="button" class="vno" data-act="vcancel">Abbrechen</button></div>` : ''}`;
       }
     } else if (st === 'show') body = voteResults(10);
@@ -193,7 +193,7 @@
     l = l.filter((x) => f !== 'all' || x.g || x.y || x.r).sort((a, b) => b.g - a.g || (a.y + a.r) - (b.y + b.r) || a.p.name.localeCompare(b.p.name));
     let rank = 0, prev = -1;
     return `${statTabs('statistiken')}<div class="layout-side"><div class="side-f"><h3>Filtern nach Team</h3><button data-act="st-team" data-t="all" aria-pressed="${f === 'all'}">Alle Teams</button>${S.teams.map((t) => `<button data-act="st-team" data-t="${t.id}" aria-pressed="${f === t.id}">${esc(t.name)}</button>`).join('')}</div>
-    <div class="plist">${l.length ? `<div class="ph"><span>#</span><span style="text-align:left">Spieler/in</span><span class="x">Spiele</span><span>Tore</span><span class="x">Gelb</span><span>2 Min.</span></div>${l.map((x, i) => { if (x.g !== prev) { rank = i + 1; prev = x.g; } return `<a class="ps" href="#team-${x.t.id}"><span class="rk">${rank}</span><span class="who"><span class="avatar" style="--c:${esc(x.t.color)}">${esc(x.p.no || initials(x.p.name))}</span><span><b>${esc(x.p.name)}</b><small>${esc(x.t.name)}</small></span></span><span class="x">${x.sp}</span><span class="big">${x.g}</span><span class="x">${x.y}</span><span>${x.r}</span></a>`; }).join('')}` : '<div class="empty">Noch keine Tore oder Karten.</div>'}</div></div>`;
+    <div class="plist">${l.length ? `<div class="ph"><span>#</span><span style="text-align:left">Spieler/in</span><span class="x">Spiele</span><span>Tore</span><span class="x">Gelb</span><span>2 Min.</span></div>${l.map((x, i) => { if (x.g !== prev) { rank = i + 1; prev = x.g; } return `<a class="ps" href="#team-${x.t.id}"><span class="rk">${rank}</span><span class="who"><span class="avatar" style="--c:${esc(x.t.color)}">${esc(PT.noText(x.p))}</span><span><b>${esc(x.p.name)}</b><small>${esc(x.t.name)}</small></span></span><span class="x">${x.sp}</span><span class="big">${x.g}</span><span class="x">${x.y}</span><span>${x.r}</span></a>`; }).join('')}` : '<div class="empty">Noch keine Tore oder Karten.</div>'}</div></div>`;
   }
   function vTeams() {
     return S.teams.length ? `<div class="tgrid">${S.teams.slice().sort((a, b) => (a.group || '').localeCompare(b.group || '') || a.name.localeCompare(b.name, 'de', { numeric: true })).map((t) => `<a class="tcard" href="#team-${t.id}" style="--c:${esc(t.color)}">${t.photo ? `<span class="ph" style="background-image:url('${esc(t.photo)}')"></span>` : `<span class="ghost">${esc(PT.short(t))}</span>`}<span class="tinfo">${monoHTML(t, 'l')}<h3>${esc(t.name)}</h3><small>${[t.cls, t.group ? 'Gruppe ' + t.group : '', t.players.length + ' Spieler/innen'].filter(Boolean).map(esc).join(' · ')}</small></span></a>`).join('')}</div>` : '<div class="empty">Noch keine Teams angelegt.</div>';
@@ -203,7 +203,7 @@
     const ms = H.sorted().filter((m) => H.teamOf(m, 'h') === t || H.teamOf(m, 'a') === t);
     const st = H.playerStats().filter((x) => x.t === t);
     return `<a class="back" href="#teams">← Alle Teams</a>
-    <section><h2 class="sh">Kader <small>${t.players.length} Spieler/innen</small></h2>${t.players.length ? `<div class="roster">${t.players.slice().sort((a, b) => (a.no || 99) - (b.no || 99)).map((p) => { const x = st.find((s) => s.p === p) || { g: 0, y: 0, r: 0 }; return `<div class="pl"><span class="no">${esc(p.no || '–')}</span><b>${esc(p.name)}</b><span class="gl"><strong>${x.g}</strong>Tore${x.y || x.r ? `<br>${[x.y ? x.y + '× Gelb' : '', x.r ? x.r + '× Rot' : ''].filter(Boolean).join(', ')}` : ''}</span></div>`; }).join('')}</div>` : '<div class="empty">Noch keine Spieler eingetragen.</div>'}</section>
+    <section><h2 class="sh">Kader <small>${t.players.length} Spieler/innen</small></h2>${t.players.length ? `<div class="roster">${t.players.slice().sort(PT.byNo).map((p) => { const x = st.find((s) => s.p === p) || { g: 0, y: 0, r: 0 }; return `<div class="pl"><span class="no">${esc(PT.noText(p))}</span><b>${esc(p.name)}</b><span class="gl"><strong>${x.g}</strong>Tore${x.y || x.r ? `<br>${[x.y ? x.y + '× Gelb' : '', x.r ? x.r + '× Rot' : ''].filter(Boolean).join(', ')}` : ''}</span></div>`; }).join('')}</div>` : '<div class="empty">Noch keine Spieler eingetragen.</div>'}</section>
     <section><h2 class="sh">Spiele</h2>${ms.length ? `<div class="plan">${ms.map(planRow).join('')}</div>` : '<div class="empty">Noch keine Spiele angesetzt.</div>'}</section>`;
   }
   function vMatch(id) {
@@ -212,7 +212,7 @@
     const lu = (side) => {
       const t = H.teamOf(m, side);
       if (!t) return `<div class="lu"><h3>${esc(H.phOf(m, side))}</h3><div class="hint">Das Team steht noch nicht fest.</div></div>`;
-      return `<div class="lu"><h3>${monoHTML(t, 's')} ${esc(t.name)}</h3><ul>${t.players.slice().sort((x, y) => (x.no || 99) - (y.no || 99)).map((p) => `<li><span class="no">${esc(p.no || '')}</span>${esc(p.name)}<span class="tag">${m.events.filter((e) => e.player === p.id).map((e) => `<i class="ic ${e.type}" title="${esc(EV[e.type])}"></i>`).join('')}</span></li>`).join('')}</ul></div>`;
+      return `<div class="lu"><h3>${monoHTML(t, 's')} ${esc(t.name)}</h3><ul>${t.players.slice().sort(PT.byNo).map((p) => `<li><span class="no">${esc(PT.noText(p))}</span>${esc(p.name)}<span class="tag">${m.events.filter((e) => e.player === p.id).map((e) => `<i class="ic ${e.type}" title="${esc(EV[e.type])}"></i>`).join('')}</span></li>`).join('')}</ul></div>`;
     };
     return {
       hero: stageHero(m, { next: false }),

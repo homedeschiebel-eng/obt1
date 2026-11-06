@@ -15,6 +15,10 @@
     return (w[0][0] + (w[1] ? w[1][0] : (w[0][1] || ''))).toUpperCase();
   };
   PT.safeUrl = (u) => { u = String(u || '').trim(); if (!u) return ''; if (!/^https?:\/\//i.test(u)) u = 'https://' + u; try { const x = new URL(u); return /^https?:$/.test(x.protocol) ? x.href : ''; } catch (e) { return ''; } };
+  // Rückennummer: ohne Nummer steht ein Strich
+  PT.hasNo = (p) => !!p && p.no != null && p.no !== '';
+  PT.noText = (p) => (PT.hasNo(p) ? String(p.no) : '–');
+  PT.byNo = (a, b) => (PT.hasNo(a) ? +a.no : 9999) - (PT.hasNo(b) ? +b.no : 9999) || String(a.name).localeCompare(String(b.name), 'de');
   PT.short = (t) => (t && t.short ? t.short : PT.initials(t && t.name));
   PT.monoHTML = (t, cls) => t
     ? `<span class="mono ${cls || ''}${t.logo ? ' has-logo' : ''}" style="--c:${PT.esc(t.color)}">${t.logo ? `<img src="${PT.esc(t.logo)}" alt="">` : PT.esc(PT.short(t))}</span>`

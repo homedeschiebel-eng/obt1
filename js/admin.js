@@ -324,7 +324,7 @@
       const evs = (pid) => m.events.filter((e) => e.player === pid).map((e) => `<i class="ic ${e.type}"></i>`).join('');
       return `<div class="box ck-col" style="--c:${esc(t.color)}"><div class="head">${monoHTML(t, 's')}<b>${esc(t.name)}</b><span class="sc">${r[side]}</span></div>
         <div class="seg">${[['goal', 'Tor'], ['og', 'Eigentor'], ['yellow', 'Gelb'], ['red', '2 Min.']].map(([k, l]) => `<button data-act="pick" data-side="${side}" data-t="${k}" aria-pressed="${pick === k}"><i class="ic ${k}"></i>${l}</button>`).join('')}</div>
-        <div class="pgrid">${t.players.slice().sort((x, y) => (x.no || 99) - (y.no || 99)).map((p) => `<button class="pbtn" data-act="ev" data-side="${side}" data-player="${p.id}"${canEv ? '' : ' disabled'}><span class="no">${esc(p.no == null ? '·' : p.no)}</span><span>${esc(p.name)}</span><span class="cnt">${evs(p.id)}</span></button>`).join('')}
+        <div class="pgrid">${t.players.slice().sort(PT.byNo).map((p) => `<button class="pbtn" data-act="ev" data-side="${side}" data-player="${p.id}"${canEv ? '' : ' disabled'}><span class="no">${esc(PT.noText(p))}</span><span>${esc(p.name)}</span><span class="cnt">${evs(p.id)}</span></button>`).join('')}
         <button class="pbtn anon" data-act="ev" data-side="${side}" data-player=""${canEv ? '' : ' disabled'}>${esc(EV[pick])} ohne Namen</button></div>
         ${t.players.length ? '' : '<div class="hint" style="margin-top:8px">Für dieses Team sind noch keine Spieler eingetragen (Reiter „Teams“).</div>'}</div>`;
     };
@@ -373,7 +373,7 @@
   }
   function vTeams() {
     return `<div class="box"><h3>Teams <small>${S.teams.length} Teams</small> <button class="btn sm primary" data-act="new-team">+ Team</button></h3>
-    <div class="tlist">${S.teams.slice().sort((a, b) => (a.group || '').localeCompare(b.group || '') || a.name.localeCompare(b.name, 'de', { numeric: true })).map((t) => `<div class="ti" style="--c:${esc(t.color)}"><div class="t">${monoHTML(t, 'l')}<div><b>${esc(t.name)}</b><br><small>${esc([t.cls, t.group ? 'Gruppe ' + t.group : 'ohne Gruppe', t.players.length + ' Spieler/innen'].filter(Boolean).join(' · '))}</small></div></div><small>${esc(t.players.slice(0, 8).map((p) => (p.no ? p.no + ' ' : '') + p.name).join(' · '))}${t.players.length > 8 ? ' …' : ''}</small><small>${players['team:' + t.id] ? '♪ Torhymne: ' + esc(players['team:' + t.id].name) : (anthemsLoaded ? '♪ keine eigene Torhymne' : '')}</small><div class="row"><button class="btn sm primary" data-act="edit-team" data-id="${t.id}">Team & Kader bearbeiten</button></div></div>`).join('')}</div></div>
+    <div class="tlist">${S.teams.slice().sort((a, b) => (a.group || '').localeCompare(b.group || '') || a.name.localeCompare(b.name, 'de', { numeric: true })).map((t) => `<div class="ti" style="--c:${esc(t.color)}"><div class="t">${monoHTML(t, 'l')}<div><b>${esc(t.name)}</b><br><small>${esc([t.cls, t.group ? 'Gruppe ' + t.group : 'ohne Gruppe', t.players.length + ' Spieler/innen'].filter(Boolean).join(' · '))}</small></div></div><small>${esc(t.players.slice(0, 8).map((p) => (PT.hasNo(p) ? p.no : '–') + ' ' + p.name).join(' · '))}${t.players.length > 8 ? ' …' : ''}</small><small>${players['team:' + t.id] ? '♪ Torhymne: ' + esc(players['team:' + t.id].name) : (anthemsLoaded ? '♪ keine eigene Torhymne' : '')}</small><div class="row"><button class="btn sm primary" data-act="edit-team" data-id="${t.id}">Team & Kader bearbeiten</button></div></div>`).join('')}</div></div>
     <div class="hint">Ändert sich die Gruppeneinteilung, im Reiter „Spielplan“ den Spielplan neu erstellen.</div>`;
   }
   function vPartner() {
@@ -480,7 +480,7 @@
   }
   addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
   const F = (name, label, val, type, extra) => `<div class="field"><label for="f-${name}">${esc(label)}</label><input id="f-${name}" name="${name}" type="${type || 'text'}" value="${esc(val == null ? '' : val)}" ${extra || ''}></div>`;
-  const rosterPreview = (id) => { const t = H.T(id); if (!t) return 'Wähle ein Team, dann siehst du hier die Spielerliste.'; return t.players.length ? '<b>Kader:</b> ' + t.players.slice().sort((a, b) => (a.no || 99) - (b.no || 99)).map((p) => esc((p.no ? p.no + ' ' : '') + p.name)).join(' · ') : 'Für dieses Team sind noch keine Spieler eingetragen.'; };
+  const rosterPreview = (id) => { const t = H.T(id); if (!t) return 'Wähle ein Team, dann siehst du hier die Spielerliste.'; return t.players.length ? '<b>Kader:</b> ' + t.players.slice().sort(PT.byNo).map((p) => esc((PT.hasNo(p) ? p.no : '–') + ' ' + p.name)).join(' · ') : 'Für dieses Team sind noch keine Spieler eingetragen.'; };
 
   function matchForm(m) {
     const isNew = !m, last = H.sorted().pop();
@@ -612,17 +612,17 @@
     const isNew = !t, newId = uid('t');
     t = t || { name: 'Team ' + (S.teams.length + 1), cls: '', group: H.groups()[0] || 'A', color: COLORS[S.teams.length % COLORS.length], players: [], logo: '', photo: '' };
     let logo = t.logo, photo = t.photo;
-    const roster = t.players.slice().sort((a, b) => (a.no || 99) - (b.no || 99)).map((p) => (p.no != null ? p.no + ' ' : '') + p.name).join('\n');
+    const roster = t.players.slice().sort(PT.byNo).map((p) => (PT.hasNo(p) ? p.no : '-') + ' ' + p.name).join('\n');
     openModal(isNew ? 'Team anlegen' : 'Team bearbeiten', `
       <div class="frow">${F('name', 'Teamname', t.name, 'text', 'required')}${F('short', 'Kürzel (max. 4 Zeichen, z. B. SG)', t.short || '', 'text', 'maxlength="4" placeholder="' + esc(PT.initials(t.name)) + '" style="text-transform:uppercase"')}</div>
       <div class="frow">${F('cls', 'Klasse / Kurs (optional)', t.cls, 'text', 'placeholder="z. B. J1, J2"')}${F('group', 'Gruppe', t.group, 'text', 'placeholder="A oder B"')}${F('color', 'Teamfarbe', t.color, 'color')}</div>
-      <div class="field"><label for="f-players">Spielerliste</label><textarea id="f-players" name="players" placeholder="1 Spieler 1&#10;7 Jonas M.&#10;10 Lea K.">${esc(roster)}</textarea><div class="hint">Eine Person pro Zeile, Rückennummer optional vorne. Du kannst eine Liste aus Excel oder WhatsApp einfügen. Tore bleiben erhalten, solange der Name gleich bleibt.</div></div>
+      <div class="field"><label for="f-players">Spielerliste</label><textarea id="f-players" name="players" placeholder="1 Spieler 1&#10;7 Jonas M.&#10;10 Lea K.">${esc(roster)}</textarea><div class="hint">Eine Person pro Zeile, Rückennummer optional vorne. Ohne Nummer einfach nur den Namen (oder „- Name“) schreiben – angezeigt wird dann „–“. Du kannst eine Liste aus Excel oder WhatsApp einfügen. Tore bleiben erhalten, solange der Name gleich bleibt.</div></div>
       <div class="frow">${imgField('f-logo', 'Teamlogo (optional, wird automatisch quadratisch und mittig)', !!t.logo, 'Ohne Logo zeigen wir das Kürzel.')}${imgField('f-photo', 'Teamfoto (optional)', !!t.photo, 'Erscheint auf der Teamkarte.')}</div>
       <div class="field"><label for="f-anthem">Torhymne des Teams (MP3) – läuft bei jedem Tor dieses Teams</label><input id="f-anthem" type="file" accept="audio/*,.mp3"><div class="hint" data-anthem-hint>…</div></div>`,
     (fd) => {
       const name = fd.get('name').trim(); if (!name) return 'Bitte einen Teamnamen eingeben.';
       const old = t.players || [];
-      const players = fd.get('players').split('\n').map((l) => l.replace(/\t/g, ' ').trim()).filter(Boolean).map((l) => { const mm = l.match(/^(\d{1,3})\s*[.)\-–:]?\s+(.+)$/); const no = mm ? +mm[1] : null, nm = (mm ? mm[2] : l).trim(); const ex = old.find((p) => p.name.toLowerCase() === nm.toLowerCase()); return { id: ex ? ex.id : uid('p'), no, name: nm }; });
+      const players = fd.get('players').split('\n').map((l) => l.replace(/\t/g, ' ').trim()).filter(Boolean).map((l) => { const mm = l.match(/^(\d{1,3})\s*[.)\-–:]?\s+(.+)$/), dash = !mm && l.match(/^[-–—]\s*(.+)$/); const no = mm ? +mm[1] : null, nm = (mm ? mm[2] : dash ? dash[1] : l).trim(); const ex = old.find((p) => p.name.toLowerCase() === nm.toLowerCase()); return { id: ex ? ex.id : uid('p'), no, name: nm }; });
       const o = { name, short: String(fd.get('short') || '').trim().toUpperCase().slice(0, 4), cls: fd.get('cls').trim(), group: fd.get('group').trim().toUpperCase(), color: fd.get('color') || '#2E6BFF', players, logo, photo };
       if (isNew) { const id = newId; act((S) => { S.teams.push(Object.assign({ id }, o)); }); }
       else { const id = t.id; act((S) => { Object.assign(S.teams.find((x) => x.id === id), o); }); }
