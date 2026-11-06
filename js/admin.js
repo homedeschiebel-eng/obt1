@@ -203,6 +203,7 @@
     const ago = s.lastOk ? Math.round((Date.now() - s.lastOk) / 1000) : null;
     if (s.state === 'ok') return 'Online aktuell ✓ – die Website zeigt den Stand vom Laptop (geprüft vor ' + (ago < 60 ? ago + ' s' : Math.round(ago / 60) + ' Min.') + ')' + (s.onlineStorage ? ' · Speicher der Website: ' + s.onlineStorage + (s.onlineStorage === 'blob' ? ' (für Live-Betrieb ist Redis besser)' : '') : '') + '.';
     if (s.state === 'offline') return 'Keine Verbindung zur Website – es geht hier normal weiter, die Übertragung wird automatisch nachgeholt.' + (ago != null ? ' Letzte Übertragung vor ' + (ago < 60 ? ago + ' s' : Math.round(ago / 60) + ' Min.') + '.' : '');
+    if (s.state === 'konflikt') return '⚠ Übertragung angehalten: Auf der Website wurde seit der letzten Übertragung etwas geändert (z. B. nach einem Laptop-Ausfall). Entscheide unten: Website-Stand übernehmen oder Laptop-Stand übertragen.';
     if (s.state === 'fehler') return 'Übertragung klappt nicht: ' + (s.lastErr || 'unbekannter Fehler');
     return 'Übertragung startet …';
   }
@@ -214,12 +215,14 @@
   function syncBadge() {
     if (!ui.local) return '';
     const s = ui.sync || {}, on = s.enabled;
-    const st = !on ? ['Offline · Laptop', '#3DDC97', '#04121F'] : s.state === 'ok' ? ['Laptop → online ✓', '#3DDC97', '#04121F'] : s.state === 'offline' ? ['Kein Internet · läuft weiter', '#FFD23F', '#1A1405'] : s.state === 'fehler' ? ['Übertragung: Fehler', '#FF3B5C', '#fff'] : ['Verbinde …', '#5CC2FF', '#04121F'];
+    const st = !on ? ['Offline · Laptop', '#3DDC97', '#04121F'] : s.state === 'ok' ? ['Laptop → online ✓', '#3DDC97', '#04121F'] : s.state === 'offline' ? ['Kein Internet · läuft weiter', '#FFD23F', '#1A1405'] : s.state === 'konflikt' ? ['⚠ Entscheidung nötig', '#FF8A3D', '#1A0A00'] : s.state === 'fehler' ? ['Übertragung: Fehler', '#FF3B5C', '#fff'] : ['Verbinde …', '#5CC2FF', '#04121F'];
     return `<span class="btn sm" id="sync-badge" style="background:${st[1]};border-color:${st[1]};color:${st[2]}" title="${esc(syncText())}">${st[0]}</span>`;
   }
   async function pollSync() {
     if (!ui.local || !S) return;
     try { ui.sync = await api('/api/sync?action=status'); } catch (e) { return; }
+    const prevState = ui._lastSyncState; ui._lastSyncState = ui.sync.state;
+    if (prevState !== undefined && prevState !== ui.sync.state && (prevState === 'konflikt' || ui.sync.state === 'konflikt')) { render(); return; }
     const b = document.getElementById('sync-badge'); if (b) b.outerHTML = syncBadge();
     const m = document.getElementById('sync-msg'); if (m && !m.classList.contains('no')) { m.className = 'cmd-msg' + (ui.sync.state === 'ok' ? ' ok' : ''); m.textContent = syncText(); }
     const um = document.getElementById('upd-msg'); if (um) um.textContent = updText();
@@ -397,6 +400,7 @@
       </div>
       <div class="row" style="margin-top:12px"><label class="check"><input id="sync-on" type="checkbox" ${ui.sync && ui.sync.enabled ? 'checked' : ''}> Automatisch übertragen</label><span style="flex:1"></span><button type="button" class="btn primary" data-act="sync-save">Speichern</button><button type="button" class="btn" data-act="sync-push">Jetzt übertragen</button></div>
       <div class="cmd-msg" id="sync-msg">${esc(syncText())}</div>
+      ${ui.sync && ui.sync.state === 'konflikt' ? '<div class="row" style="margin-top:10px"><button type="button" class="btn primary" data-act="sync-pull" data-confirm="Laptop-Stand durch den Website-Stand ersetzen?">Website-Stand übernehmen</button><button type="button" class="btn danger" data-act="sync-force" data-confirm="Website-Stand durch den Laptop-Stand ersetzen?">Laptop-Stand übertragen</button></div>' : ''}
       <div class="hint" style="margin-top:14px;border-top:1px solid var(--line);padding-top:12px"><b style="color:#fff">Automatische Updates:</b> <span id="upd-msg">${esc(updText())}</span> <button type="button" class="btn sm" data-act="upd-check">Jetzt nach Updates suchen</button></div>
       <div class="hint" style="margin-top:10px">Einmalig, falls online schon Daten eingetragen sind: <button type="button" class="btn sm" data-act="sync-pull" data-confirm="Stand auf dem Laptop durch den der Website ersetzen?">Stand von der Website holen</button></div></div>` : `<div class="box"><h3>Offline-Betrieb auf dem Laptop</h3><div class="hint">Falls in der Halle das Internet ausfällt: Projekt auf GitHub herunterladen (Code → Download ZIP), auf dem Laptop Node.js installieren und im Ordner <kbd>node server.js</kbd> starten. Die Anleitung steht in OFFLINE-START.txt.</div></div>`}
     <div class="box" id="hymne-box"><h3>Torhymne <small>läuft nach jedem Tor nur auf diesem Gerät</small></h3>
@@ -430,7 +434,7 @@
       <a class="brand" href="/" target="_blank" rel="noopener"><span class="logo logo-school" role="img" aria-label="Logo"></span><span class="bt"><small>Turnierleitung</small><b>${esc(S.settings.title).replace(/-?(Turnier)$/i, ' <span>$1</span>')}</b></span></a>
       <nav class="tl-nav">${TABS.map(([k, l]) => `<button data-act="tab" data-t="${k}" aria-pressed="${ui.tab === k}">${l}</button>`).join('')}</nav>
       <div class="tl-side">${syncBadge()}<span id="save" class="save"></span><a class="btn sm" href="/" target="_blank" rel="noopener">Website</a><a class="btn sm" href="/anzeige" target="_blank" rel="noopener">Hallenanzeige</a><button class="btn sm" data-act="logout">Abmelden</button></div>
-    </div></header>${!ui.local && S.controlledBy === 'laptop' && Date.now() - (S.controlledAt || 0) < 5 * 60e3 ? '<div class="demo" style="background:#3A2A05;color:#FFE7A3;border-bottom:1px solid #6B5210"><div class="wrap"><b>Der Laptop steuert gerade das Turnier</b> und überträgt automatisch hierher. Änderungen auf dieser Seite werden beim nächsten Abgleich überschrieben – bitte auf dem Laptop eintragen.</div></div>' : ''}<main class="tl-body"><div class="wrap">${v()}</div></main>`;
+    </div></header>${ui.local && ui.sync && ui.sync.state === 'konflikt' ? '<div class="demo" style="background:#3A1A05;color:#FFD7BF;border-bottom:1px solid #FF8A3D"><div class="wrap"><b>Übertragung zur Website angehalten:</b> Online wurde in der Zwischenzeit etwas geändert. Unter <b>Einstellungen → Automatisch online stellen</b> entscheiden, welcher Stand gilt. Auf dem Laptop kannst du normal weiterarbeiten.</div></div>' : ''}${!ui.local && S.controlledBy === 'laptop' && Date.now() - (S.controlledAt || 0) < 5 * 60e3 ? '<div class="demo" style="background:#3A2A05;color:#FFE7A3;border-bottom:1px solid #6B5210"><div class="wrap"><b>Der Laptop steuert gerade das Turnier</b> und überträgt automatisch hierher. Änderungen auf dieser Seite werden beim nächsten Abgleich überschrieben – bitte auf dem Laptop eintragen.</div></div>' : ''}<main class="tl-body"><div class="wrap">${v()}</div></main>`;
     paintSave();
     const hyName = document.getElementById('hy-name'); if (hyName) hyName.textContent = players.default ? 'Gespeichert: ' + players.default.name : 'Noch keine allgemeine Torhymne gespeichert.';
     // Falls ein Werbeblocker trotzdem Teile ausblendet: Hinweis zeigen
@@ -692,6 +696,7 @@
     if (a === 'vote') { const v = b.dataset.v; act((S) => { S.settings.vote = v; if (!S.settings.voteRound) S.settings.voteRound = 'r1'; }); toast({ open: 'Voting ist offen.', closed: 'Voting geschlossen.', show: 'Ergebnis wird auf der Website gezeigt.', off: 'Voting ausgeblendet.' }[v]); return; }
     if (a === 'vote-reset') { act((S) => { S.settings.voteRound = 'r' + Date.now().toString(36); S.settings.vote = 'off'; }); votes = null; toast('Voting neu gestartet – alle bisherigen Stimmen zählen nicht mehr.'); return; }
     if (a === 'upd-check') { const um = document.getElementById('upd-msg'); um.textContent = 'Suche nach Updates …'; api('/api/sync?action=update', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }).then(() => pollSync()).catch((x) => { um.textContent = x.message; }); return; }
+    if (a === 'sync-force') { const msg = document.getElementById('sync-msg'); msg.className = 'cmd-msg'; msg.textContent = 'Übertrage den Laptop-Stand …'; api('/api/sync?action=push', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: document.getElementById('sync-url').value, force: true }) }).then(async () => { toast('Laptop-Stand übertragen.'); await pollSync(); render(); }).catch((x) => { msg.className = 'cmd-msg no'; msg.textContent = x.message; }); return; }
     if (a === 'sync-save' || a === 'sync-push' || a === 'sync-pull') {
       const msg = document.getElementById('sync-msg'), url = document.getElementById('sync-url').value, pass = document.getElementById('sync-pass').value, enabled = document.getElementById('sync-on').checked;
       const action = a === 'sync-save' ? 'config' : a === 'sync-push' ? 'push' : 'pull';

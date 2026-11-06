@@ -46,6 +46,9 @@ LAPTOP STEUERT, WEBSITE ZEIGT AN (empfohlen)
     - Die Online-Turnierleitung zeigt dann einen Hinweis, dass der Laptop steuert –
       dort bitte nichts eintragen, es würde überschrieben.
   Sind online schon Daten eingetragen, vorher einmal "Stand von der Website holen".
+  Schutz nach einem Ausfall: Wurde online in der Zwischenzeit etwas eingetragen (z. B. weil
+  der Laptop aus war), hält der Laptop die Übertragung an und zeigt "⚠ Entscheidung nötig".
+  Unter Einstellungen dann wählen: "Website-Stand übernehmen" oder "Laptop-Stand übertragen".
   Das Online-Passwort wird nur auf dem Laptop im Ordner .data gespeichert.
 
 AUTOMATISCHE UPDATES

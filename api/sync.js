@@ -57,7 +57,7 @@ async function login(base, pass) {
 
 /* ---------- Übertragen: Laptop → Website ---------- */
 let pushing = null;
-async function pushOnce(cfg) {
+async function pushOnce(cfg, force) {
   if (pushing) return pushing;
   pushing = (async () => {
     const base = clean(cfg.url);
@@ -80,13 +80,18 @@ async function pushOnce(cfg) {
     state.controlledBy = 'laptop'; state.controlledAt = tj.now;
     const send = async (b) => req(base + '/api/state', { method: 'POST', headers: { 'x-csrf': '1', 'Content-Type': 'application/json', Cookie: cookie }, body: JSON.stringify({ base: b, state }) }, 20000);
     const { j: on } = await req(base + '/api/state?fresh=1&t=' + Date.now());
+    const onRev = (on.state && on.state.rev) || 0;
+    // Schutz: Wurde online seit unserer letzten Übertragung etwas geändert (z. B. nach einem Laptop-Ausfall)?
+    const conflict = (rev) => { cfg.conflict = { at: Date.now(), onlineRev: rev, lastOnlineRev: cfg.lastOnlineRev }; saveCfg(cfg); return Object.assign(new Error('Auf der Website wurde seit der letzten Übertragung etwas geändert. Bitte entscheiden: Website-Stand übernehmen oder Laptop-Stand übertragen.'), { conflict: true }); };
+    if (!force && cfg.lastOnlineRev != null && onRev !== cfg.lastOnlineRev) throw conflict(onRev);
     let out;
-    try { out = (await send((on.state && on.state.rev) || 0)).j; }
+    try { out = (await send(onRev)).j; }
     catch (e) {
-      if (e.status === 409 && e.data && e.data.state) out = (await send(e.data.state.rev || 0)).j;            // Laptop hat Vorrang
-      else if (e.status === 401) { session.until = 0; cookie = await login(base, cfg.pass); out = (await send((on.state && on.state.rev) || 0)).j; }
+      if (e.status === 409 && e.data && e.data.state) { if (!force) throw conflict(e.data.state.rev || 0); out = (await send(e.data.state.rev || 0)).j; }
+      else if (e.status === 401) { session.until = 0; cookie = await login(base, cfg.pass); out = (await send(onRev)).j; }
       else throw e;
     }
+    cfg.lastOnlineRev = out.rev; cfg.conflict = null; saveCfg(cfg);
     // Gegenprobe: liefert die Website (wie für Zuschauer) den neuen Stand aus?
     let seen = null;
     for (let i = 0; i < 4; i++) {
@@ -111,6 +116,7 @@ function startAuto() {
   const tick = async () => {
     const cfg = loadCfg();
     if (!cfg.enabled) { status.state = 'aus'; timer = setTimeout(tick, 3000); return; }
+    if (cfg.conflict) { status.state = 'konflikt'; status.lastErr = 'Auf der Website wurde seit der letzten Übertragung etwas geändert. Bitte entscheiden: Website-Stand übernehmen oder Laptop-Stand übertragen.'; timer = setTimeout(tick, 3000); return; }
     try {
       const rev = (await L.readState()).rev || 0;
       if (rev !== status.pushedRev || Date.now() - (status.lastOk || 0) > 60000 || status.state !== 'ok') {
@@ -118,7 +124,7 @@ function startAuto() {
       }
       wait = 2000;
     } catch (e) {
-      status.state = e.net ? 'offline' : 'fehler'; status.lastErr = e.message || String(e); status.lastTry = Date.now();
+      status.state = e.conflict ? 'konflikt' : e.net ? 'offline' : 'fehler'; status.lastErr = e.message || String(e); status.lastTry = Date.now();
       wait = Math.min(20000, wait * 1.6);
     }
     timer = setTimeout(tick, wait);
@@ -145,6 +151,7 @@ async function pull(base) {
   next.rev = (cur.rev || 0) + 1; next.updated = Date.now();
   await L.writeState(next);
   status.pushedRev = next.rev; // frisch geholt = gleicher Stand wie online
+  const c2 = loadCfg(); c2.lastOnlineRev = j.state.rev || 0; c2.conflict = null; saveCfg(c2); status.state = c2.enabled ? 'ok' : 'aus'; status.lastErr = '';
   return { matches: next.matches.length, teams: next.teams.length, images };
 }
 
@@ -156,7 +163,8 @@ const handler = async (req0, res) => {
     let upd = null; try { upd = require('../updater.js'); } catch (e) { upd = null; }
     if (req0.method === 'GET' && action === 'status') {
       const c = loadCfg();
-      return L.send(res, 200, Object.assign({ enabled: c.enabled, url: c.url, hasPass: !!c.pass, update: upd ? Object.assign({}, upd.status, { version: upd.status.version || upd.localVersion() }) : null }, status));
+      if (c.conflict && c.enabled) { status.state = 'konflikt'; }
+      return L.send(res, 200, Object.assign({ enabled: c.enabled, url: c.url, hasPass: !!c.pass, conflict: c.conflict || null, update: upd ? Object.assign({}, upd.status, { version: upd.status.version || upd.localVersion() }) : null }, status));
     }
     if (req0.method !== 'POST') return L.send(res, 405, { error: 'Nicht erlaubt.' });
     if (req0.headers['x-csrf'] == null) return L.send(res, 403, { error: 'Ungültige Anfrage.' });
@@ -166,7 +174,7 @@ const handler = async (req0, res) => {
 
     if (action === 'config') {
       const c = loadCfg();
-      if (c.url !== base) { c.uploaded = {}; session = { url: '', cookie: '', until: 0 }; }
+      if (c.url !== base) { c.uploaded = {}; c.lastOnlineRev = null; c.conflict = null; session = { url: '', cookie: '', until: 0 }; }
       c.url = base; c.enabled = !!b.enabled; if (typeof b.pass === 'string' && b.pass) { c.pass = b.pass; session.until = 0; }
       if (c.enabled && !c.pass) return L.send(res, 400, { error: 'Für die automatische Übertragung bitte das Passwort der Online-Turnierleitung eintragen.' });
       saveCfg(c); status.pushedRev = null; status.state = c.enabled ? 'startet' : 'aus';
@@ -181,7 +189,7 @@ const handler = async (req0, res) => {
     }
     if (action === 'push') {
       const c = loadCfg(); c.url = base; if (b.pass) { c.pass = b.pass; session.until = 0; } saveCfg(c);
-      const out = await pushOnce(c);
+      const out = await pushOnce(c, !!b.force);
       return L.send(res, 200, { ok: true, rev: out.rev });
     }
     return L.send(res, 400, { error: 'Unbekannte Aktion.' });
