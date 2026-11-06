@@ -390,6 +390,7 @@
       <h3 style="margin-top:8px">Impressum <small>erscheint unter „Impressum &amp; Datenschutz“ unten auf der Website</small></h3>
       <div class="frow">${F('impName', 'Verantwortlich (Name / SMV)', s.impName || '')}${F('impMail', 'E-Mail', s.impMail || '')}${F('impPhone', 'Telefon (optional)', s.impPhone || '')}</div>
       <div class="field"><label for="f-impAddr">Anschrift</label><textarea id="f-impAddr" name="impAddr" style="min-height:80px" placeholder="Parler-Gymnasium&#10;Straße Nr.&#10;PLZ Ort">${esc(s.impAddr || '')}</textarea></div>
+      <div class="frow">${F('impDsb', 'Datenschutzbeauftragte/r der Schule (optional, Name und Kontakt)', s.impDsb || '')}${F('impDelete', 'Speicherdauer (optional, ersetzt den Standardsatz)', s.impDelete || '', 'text', 'placeholder="z. B. Die Turnierdaten werden spätestens drei Monate nach dem Turnier gelöscht."')}</div>
       <div class="field"><label for="f-impExtra">Zusätzlicher Hinweis (optional)</label><textarea id="f-impExtra" name="impExtra" style="min-height:70px">${esc(s.impExtra || '')}</textarea></div>
       <div class="row"><button class="btn primary">Speichern</button></div></div></form>
     ${ui.local ? `<div class="box" id="sync-box"><h3>Automatisch online stellen <small>Laptop → Website</small></h3>
@@ -739,7 +740,7 @@
     }
     if (e.target.id === 'set-form') {
       e.preventDefault(); const fd = new FormData(e.target), vals = {};
-      ['title', 'season', 'school', 'day', 'location', 'sport', 'ticker', 'impName', 'impMail', 'impPhone', 'impAddr', 'impExtra'].forEach((k) => { vals[k] = String(fd.get(k) || '').trim(); });
+      ['title', 'season', 'school', 'day', 'location', 'sport', 'ticker', 'impName', 'impMail', 'impPhone', 'impAddr', 'impExtra', 'impDsb', 'impDelete'].forEach((k) => { vals[k] = String(fd.get(k) || '').trim(); });
       vals.date = vals.day ? new Date(vals.day + 'T12:00').toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : '';
       ['win', 'draw'].forEach((k) => { const v = parseInt(fd.get(k), 10); if (!isNaN(v)) vals[k] = v; });
       document.activeElement && document.activeElement.blur();

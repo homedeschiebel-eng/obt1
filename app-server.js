@@ -30,7 +30,9 @@ function handler(req, res) {
   file = path.normalize(file).replace(/\\/g, '/');
   const full = path.join(ROOT, file);
   if (file.startsWith('..') || BLOCKED.test(file) || !full.startsWith(ROOT) || !fs.existsSync(full) || fs.statSync(full).isDirectory()) {
-    res.statusCode = 404; res.setHeader('Content-Type', 'text/plain; charset=utf-8'); res.end('Nicht gefunden'); return;
+    res.statusCode = 404; const nf = path.join(ROOT, '404.html');
+    if (fs.existsSync(nf)) { res.setHeader('Content-Type', 'text/html; charset=utf-8'); fs.createReadStream(nf).pipe(res); } else { res.setHeader('Content-Type', 'text/plain; charset=utf-8'); res.end('Nicht gefunden'); }
+    return;
   }
   res.setHeader('Content-Type', TYPES[path.extname(full).toLowerCase()] || 'application/octet-stream');
   res.setHeader('Cache-Control', /\.(woff2|png|jpg|webp)$/.test(full) ? 'public, max-age=86400' : 'no-cache');

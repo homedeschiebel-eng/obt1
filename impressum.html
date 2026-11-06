@@ -28,18 +28,23 @@
     <p id="imp-extra" hidden></p>
   </section>
   <section><h2>Datenschutz</h2>
-    <h3>Was auf dieser Seite steht</h3>
-    <p>Gezeigt werden Spielplan, Ergebnisse, Tabellen und Statistiken des Turniers sowie die Namen der Teams und ihrer Spielerinnen und Spieler, gegebenenfalls mit Teamlogo oder Teamfoto. Wer seinen Namen oder ein Foto hier nicht sehen möchte, wendet sich an die oben genannte Stelle – der Eintrag wird dann entfernt oder abgekürzt.</p>
+    <h3>Verantwortlich</h3>
+    <p>Verantwortlich für die Datenverarbeitung auf dieser Website ist die oben im Impressum genannte Stelle.<span id="dsb"></span></p>
+    <h3>Welche Daten, wofür und auf welcher Grundlage</h3>
+    <ul>
+      <li><b>Turnierdaten:</b> Spielplan, Ergebnisse, Tabellen, Statistiken, Team- und Spielernamen sowie gegebenenfalls Teamlogos und Teamfotos – damit Zuschauer und Teams das Turnier live verfolgen können. Namen und Fotos werden nur mit Einverständnis der Beteiligten veröffentlicht (Art. 6 Abs. 1 lit. a DSGVO). Wer seinen Namen oder ein Foto hier nicht sehen möchte, wendet sich an die oben genannte Stelle; der Eintrag wird dann entfernt oder abgekürzt.</li>
+      <li><b>Verbindungsdaten beim Aufruf:</b> Beim Aufruf der Seite verarbeitet der Hosting-Anbieter technisch notwendige Daten wie IP-Adresse, Zeitpunkt und aufgerufene Seite, um die Seite auszuliefern und vor Missbrauch zu schützen (Art. 6 Abs. 1 lit. f DSGVO).</li>
+      <li><b>Voting „Spieler des Turniers“:</b> Damit jedes Gerät nur einmal abstimmen kann, speichert dein Browser eine zufällige Kennung. Auf dem Server liegt davon nur eine verschlüsselte Prüfsumme – keine Namen oder Kontaktdaten. Die Teilnahme ist freiwillig.</li>
+      <li><b>Turnierleitung:</b> Für die Anmeldung der Turnierleitung wird ein technisch notwendiges Cookie gesetzt. Zuschauer sind davon nicht betroffen.</li>
+    </ul>
     <h3>Keine Werbung, kein Tracking</h3>
-    <p>Diese Website setzt für Zuschauer keine Cookies, nutzt keine Analyse- oder Werbedienste und lädt keine Inhalte von Drittanbietern (auch die Schriften liegen auf dieser Website).</p>
-    <h3>Hosting</h3>
-    <p>Die Website wird bei Vercel Inc. betrieben. Beim Aufruf verarbeitet der Anbieter technisch notwendige Verbindungsdaten (zum Beispiel IP-Adresse, Zeitpunkt, aufgerufene Seite), um die Seite auszuliefern und vor Missbrauch zu schützen.</p>
-    <h3>Voting „Spieler des Turniers“</h3>
-    <p>Damit jedes Gerät nur einmal abstimmen kann, speichert dein Browser eine zufällige Kennung. Auf dem Server liegt davon nur eine verschlüsselte Prüfsumme, keine Namen oder Kontaktdaten.</p>
-    <h3>Turnierleitung</h3>
-    <p>Für die Anmeldung der Turnierleitung wird ein technisch notwendiges Cookie gesetzt. Zuschauer sind davon nicht betroffen.</p>
+    <p>Für Zuschauer werden keine Cookies gesetzt, es gibt keine Analyse- oder Werbedienste und keine eingebundenen Inhalte von Drittanbietern. Auch die Schriften liegen direkt auf dieser Website.</p>
+    <h3>Dienstleister</h3>
+    <p>Die Website wird bei <b>Vercel Inc.</b> (USA) betrieben; die Turnierdaten liegen in einem Datenspeicher, der über Vercel bereitgestellt wird (z. B. Upstash Redis oder Vercel Blob). Für Übermittlungen in die USA stützen sich die Anbieter auf den EU-US Data Privacy Framework bzw. Standardvertragsklauseln der EU-Kommission.</p>
+    <h3>Speicherdauer</h3>
+    <p id="del">Die Turnierdaten werden gelöscht, sobald sie nach dem Turnier nicht mehr benötigt werden. Verbindungsdaten löscht der Hosting-Anbieter nach kurzer Zeit automatisch.</p>
     <h3>Deine Rechte</h3>
-    <p>Du kannst Auskunft über deine Daten verlangen und ihre Berichtigung oder Löschung beantragen. Wende dich dafür an die oben genannte Stelle.</p>
+    <p>Du hast das Recht auf Auskunft, Berichtigung, Löschung und Einschränkung der Verarbeitung deiner Daten sowie das Recht, eine Einwilligung jederzeit mit Wirkung für die Zukunft zu widerrufen. Wende dich dafür an die oben genannte Stelle. Außerdem kannst du dich bei einer Datenschutz-Aufsichtsbehörde beschweren – in Baden-Württemberg beim Landesbeauftragten für den Datenschutz und die Informationsfreiheit.</p>
   </section>
 </div></div></main>
 <footer><div class="wrap"><div class="org"><span class="logo logo-school" role="img" aria-label="Logo Parler-Gymnasium"></span><span class="logo logo-smv" role="img" aria-label="Logo der SMV"></span><div>Ein Turnier der SMV<small id="ft">Parler-Gymnasium</small></div></div><div class="small"><a href="/">Zur Website</a></div></div></footer>
@@ -51,6 +56,8 @@
     var parts = [s.impName, s.impAddr, s.impMail ? 'E-Mail: ' + s.impMail : '', s.impPhone ? 'Telefon: ' + s.impPhone : ''].filter(Boolean);
     document.getElementById('imp').innerHTML = parts.length ? esc(parts.join('\n')) : '<span class="miss">Die Angaben werden noch ergänzt (Turnierleitung → Einstellungen → Impressum).</span>';
     if (s.impExtra) { var x = document.getElementById('imp-extra'); x.textContent = s.impExtra; x.hidden = false; }
+    if (s.impDsb) document.getElementById('dsb').textContent = ' Datenschutzbeauftragte/r der Schule: ' + s.impDsb + '.';
+    if (s.impDelete) document.getElementById('del').textContent = s.impDelete;
     document.getElementById('eb').textContent = (s.title || 'Oberstufen-Turnier') + (s.season ? ' ' + s.season : '');
     document.getElementById('ft').textContent = [s.school, s.date].filter(Boolean).join(' · ');
   }).catch(function () { document.getElementById('imp').textContent = 'Die Angaben konnten gerade nicht geladen werden.'; });
