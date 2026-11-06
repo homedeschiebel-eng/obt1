@@ -74,7 +74,7 @@
     start: (id) => (S) => {
       const m = find(S, id); if (!m) return;
       const other = S.matches.find((x) => x.status === 'live' && x.id !== id);
-      if (other) throw new Error('Spiel ' + other.no + ' läuft noch. Bitte zuerst abpfeifen.');
+      if (other) throw new Error('Spiel ' + other.no + ' läuft noch. Bitte zuerst abpfeifen oder dort „Spiel zurücksetzen“ drücken.');
       if (m.status === 'scheduled') { pinTeams(S, m); m.status = 'live'; m.clock = { run: true, since: PT.now(), acc: 0 }; }
       else if (m.status === 'live' && !m.clock.run) { m.clock.run = true; m.clock.since = PT.now(); }
       if (!m.startedAt) m.startedAt = PT.now();
@@ -84,6 +84,12 @@
     adjust: (id, sec) => (S) => { const m = find(S, id); if (!m) return; m.clock.acc = Math.max(0, (m.clock.acc || 0) + sec); if (elapsedNow(S, m) < 0) m.clock.acc = 0; },
     reset: (id) => (S) => { const m = find(S, id); if (!m) return; m.clock = { run: false, since: null, acc: 0 }; m.startedAt = null; },
     final: (id) => (S) => { const m = find(S, id); if (!m) return; m.clock.acc = elapsedNow(S, m); m.clock.run = false; m.clock.since = null; m.status = 'done'; m.endedAt = PT.now(); },
+    // Spiel komplett zurücksetzen: nicht angepfiffen, keine Tore/Karten, Uhr auf Anfang; Platzhalter-Teams wieder offen
+    resetMatch: (id) => (S) => {
+      const m = find(S, id); if (!m) return;
+      m.status = 'scheduled'; m.events = []; m.clock = { run: false, since: null, acc: 0 }; m.pen = null; m.startedAt = null; m.endedAt = null;
+      if (m.stage !== 'group' && m.stage !== 'test') { if (m.homePh) m.home = null; if (m.awayPh) m.away = null; }
+    },
     reopen: (id) => (S) => {
       const m = find(S, id); if (!m) return;
       const other = S.matches.find((x) => x.status === 'live' && x.id !== id);
@@ -315,8 +321,8 @@
     else if (m.status === 'live') ctrl = (c.run ? `<button class="btn primary big" data-act="stop">❚❚ Uhr anhalten</button>` : `<button class="btn cyan big" data-act="start">▶ Uhr weiter</button>`)
       + `<button class="btn big" data-act="adj" data-s="-10" title="Uhr 10 s zurück (mehr Restzeit)">−10 s</button><button class="btn big" data-act="adj" data-s="10" title="Uhr 10 s vor (weniger Restzeit)">+10 s</button>`
       + (c.run ? '' : `<button class="btn big" data-act="reset" data-confirm="Uhr wirklich auf ${H.durOf(m)}:00?">Uhr zurücksetzen</button>`)
-      + `<button class="btn danger big" data-act="final" data-confirm="Wirklich abpfeifen?">Abpfiff</button>`;
-    else { const n = H.nextScheduled(m); ctrl = (n ? `<button class="btn cyan big" data-act="select" data-id="${n.id}">Nächstes Spiel laden: ${esc(H.tName(n, 'h'))} – ${esc(H.tName(n, 'a'))}</button>` : '') + `<button class="btn big" data-act="reopen">Spiel wieder öffnen</button>`; }
+      + `<button class="btn danger big" data-act="final" data-confirm="Wirklich abpfeifen?">Abpfiff</button><button class="btn big" data-act="reset-match" data-confirm="Ganzes Spiel zurücksetzen?" title="Spiel auf „nicht angepfiffen“ setzen, alle Tore und Karten löschen">Spiel zurücksetzen</button>`;
+    else { const n = H.nextScheduled(m); ctrl = (n ? `<button class="btn cyan big" data-act="select" data-id="${n.id}">Nächstes Spiel laden: ${esc(H.tName(n, 'h'))} – ${esc(H.tName(n, 'a'))}</button>` : '') + `<button class="btn big" data-act="reopen">Spiel wieder öffnen</button>` + `<button class="btn big" data-act="reset-match" data-confirm="Ganzes Spiel zurücksetzen?">Spiel zurücksetzen</button>`; }
 
     const col = (side) => {
       const t = H.teamOf(m, side), pick = ui.pick[side];
@@ -721,6 +727,7 @@
       else if (a === 'reset') act(A.reset(m.id));
       else if (a === 'final') act(A.final(m.id));
       else if (a === 'reopen') act(A.reopen(m.id));
+      else if (a === 'reset-match') { act(A.resetMatch(m.id)); stopAnthem(false); toast('Spiel zurückgesetzt – es kann neu angepfiffen werden.'); }
       else if (a === 'undo') act(A.undo(m.id));
       else if (a === 'del-ev') act(A.delEvent(m.id, b.dataset.ev));
       else if (a === 'pen') { const h = parseInt(document.getElementById('pen-h').value, 10), w = parseInt(document.getElementById('pen-a').value, 10); act(A.pen(m.id, isNaN(h) || isNaN(w) ? null : { h, a: w })); toast(isNaN(h) || isNaN(w) ? 'Neunmeter-Ergebnis entfernt.' : 'Neunmeter-Ergebnis gespeichert.'); }
