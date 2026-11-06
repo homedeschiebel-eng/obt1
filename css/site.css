@@ -38,7 +38,7 @@ h1,h2,h3{font-family:var(--f-d);font-style:italic;font-weight:800;text-transform
 .ts-copy{display:none}
 @media (max-width:860px){
   .tstrip .wrap{overflow:hidden;padding-left:0;padding-right:0}
-  .ts-track{justify-content:flex-start;width:max-content;animation:ts-run calc(var(--n,12) * 2.2s) linear infinite}
+  .ts-track{justify-content:flex-start;width:max-content;animation:ts-run calc(var(--n,12) * 0.73s) linear infinite}
   .ts-set{padding-right:14px;padding-left:0}
   .ts-copy{display:flex;padding-left:0}
   .tstrip:active .ts-track{animation-play-state:paused}
