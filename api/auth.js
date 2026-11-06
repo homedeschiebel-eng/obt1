@@ -40,7 +40,10 @@ module.exports = async (req, res) => {
     if (action === 'login') {
       if (!(await L.authInfo()).source) return L.send(res, 409, { error: 'Es ist noch kein Passwort festgelegt.', needSetup: true });
       if (L.isLocked(req)) return L.send(res, 429, { error: 'Zu viele Fehlversuche. Die Anmeldung ist für 15 Minuten gesperrt.' });
-      if (!(await L.checkPassword(pass))) {
+      // Presse-Passwort im selben Anmeldefeld → weiter zu den Insta-Posts
+      const okAdmin = await L.checkPassword(pass);
+      if (!okAdmin && L.checkPress(pass)) { L.clearFails(req); L.setPressSession(res, true); return L.send(res, 200, { ok: true, role: 'press' }); }
+      if (!okAdmin) {
         await new Promise((r) => setTimeout(r, 700));
         const locked = L.noteFail(req);
         return L.send(res, locked ? 429 : 401, { error: locked ? 'Zu viele Fehlversuche. Die Anmeldung ist für 15 Minuten gesperrt.' : 'Das Passwort stimmt nicht.' });

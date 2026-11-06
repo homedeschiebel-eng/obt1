@@ -930,9 +930,14 @@
     app.innerHTML = shell(`<form id="login-form" class="lg-form">${msg ? `<div class="notice">${esc(msg)}</div>` : ''}
       <div class="field"><label for="pass">Passwort</label><input id="pass" type="password" autocomplete="current-password" required></div>
       <div class="err-msg"></div><button class="btn primary big">Anmelden</button>
-      <a class="btn cyan big" href="/anzeige" style="text-align:center">Hallenanzeige öffnen</a><a class="btn big" href="/presse" style="text-align:center">Presse: Insta-Posts</a>
       <div class="row" style="justify-content:space-between"><a class="hint" href="/">← Zur Website</a><button type="button" class="btn sm" data-diag>Diagnose</button></div></form>`);
-    bindForm('login-form', async () => { await api('/api/auth?action=login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pass: document.getElementById('pass').value }) }); start(); });
+    // Ein Anmeldefeld für alle: Passwort der Turnierleitung → Turnierleitung, Presse-Passwort → Insta-Posts
+    bindForm('login-form', async () => {
+      const j = await api('/api/auth?action=login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pass: document.getElementById('pass').value }) });
+      if (j && j.role === 'press') { location.href = '/presse'; return; }
+      if (/^\/login\/?$/.test(location.pathname)) { location.href = '/turnierleitung'; return; }
+      start();
+    });
   }
   function showSetup() {
     app.innerHTML = shell(`<form id="setup-form" class="lg-form"><div class="notice"><b>Willkommen!</b> Lege jetzt das Passwort für die Turnierleitung fest. Damit meldest du dich und alle Helfer an der Anzeigetafel an.</div>

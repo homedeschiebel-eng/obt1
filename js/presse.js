@@ -306,7 +306,7 @@
     if (a === 'nophoto' && m) { URL.revokeObjectURL(photos[m.id].src); delete photos[m.id]; await refreshCard(m); }
     if (a === 'copy' && m) { const ok = await copyText(capOf(m)); toast(ok ? 'Text kopiert ✓' : 'Kopieren nicht möglich – Text bitte markieren und kopieren.'); }
     if (a === 'rewrite' && m) { const ed = LS.get('edit', {}); delete ed[m.id]; LS.set('edit', ed); await loadReport(m, true); }
-    if (a === 'logout') { await api('/api/auth?action=press-logout', {}).catch(() => {}); clearInterval(timer); timer = null; showLogin(); }
+    if (a === 'logout') { await api('/api/auth?action=press-logout', {}).catch(() => {}); clearInterval(timer); timer = null; location.href = '/login'; }
   });
   app.addEventListener('input', (e) => {
     const id = e.target.dataset && e.target.dataset.cap; if (!id || !reports[id]) return;
@@ -326,7 +326,8 @@
   });
 
   (async () => {
-    try { const me = await api('/api/auth?action=press-me'); if (me.ok) begin(); else showLogin(); }
+    // Nicht angemeldet → gemeinsame Anmeldung (/login leitet je nach Passwort hierher zurück)
+    try { const me = await api('/api/auth?action=press-me'); if (me.ok) begin(); else location.replace('/login'); }
     catch (e) { showLogin('Keine Verbindung zum Server.'); }
   })();
   window.PT_POST = { draw: (id) => draw(S.matches.find((m) => m.id === id)), photo: (id, img) => { photos[id] = img; } };

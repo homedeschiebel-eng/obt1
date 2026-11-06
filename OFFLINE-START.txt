@@ -87,7 +87,8 @@ IPAD ALS BEDIENPULT (empfohlen für die Live-Bedienung)
   das Feld schauen). Unten steht das nächste Spiel mit der Seite der Bank für jedes Team.
 
 INSTA-POSTS (PRESSE)
-  https://pg-oberstufenfussballturnier.vercel.app/presse  ->  Passwort: SMV_Insta
+  https://pg-oberstufenfussballturnier.vercel.app/login  ->  Passwort SMV_Insta führt direkt zu den Insta-Posts
+  (das Turnierleitungs-Passwort führt im selben Feld zur Turnierleitung)
   Nach jedem Abpfiff erscheint dort das Spiel mit einem kurzen Bericht. "Spielbild einfügen"
   (4:5) -> das Bild wird abgedunkelt, Ergebnis, Tore, Eigentore, Gelbe Karten und 2-Minuten-
   Strafen kommen unten drauf, der Post wird heruntergeladen. "Text kopieren" -> bei Instagram
