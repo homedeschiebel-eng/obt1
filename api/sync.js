@@ -8,11 +8,16 @@
 const fs = require('fs');
 const path = require('path');
 const L = require('./_lib');
-const DEFAULT_ONLINE = 'https://obt1-chi.vercel.app';
+const DEFAULT_ONLINE = 'https://pg-oberstufenfussballturnier.vercel.app';
 const CFG_FILE = path.join(__dirname, '..', '.data', 'sync.json');
 
 /* ---------- Einstellungen (nur auf dem Laptop, Ordner .data) ---------- */
-function loadCfg() { try { return Object.assign({ enabled: false, url: DEFAULT_ONLINE, pass: '', uploaded: {} }, JSON.parse(fs.readFileSync(CFG_FILE, 'utf8'))); } catch (e) { return { enabled: false, url: DEFAULT_ONLINE, pass: '', uploaded: {} }; } }
+const OLD_URLS = ['https://obt1-chi.vercel.app'];
+function loadCfg() {
+  let c; try { c = Object.assign({ enabled: false, url: DEFAULT_ONLINE, pass: '', uploaded: {} }, JSON.parse(fs.readFileSync(CFG_FILE, 'utf8'))); } catch (e) { return { enabled: false, url: DEFAULT_ONLINE, pass: '', uploaded: {} }; }
+  if (OLD_URLS.includes(String(c.url || '').replace(/\/+$/, ''))) { c.url = DEFAULT_ONLINE; c.lastOnlineRev = null; c.conflict = null; try { saveCfg(c); } catch (e) { /* egal */ } }
+  return c;
+}
 function saveCfg(c) { fs.mkdirSync(path.dirname(CFG_FILE), { recursive: true }); fs.writeFileSync(CFG_FILE, JSON.stringify(c, null, 1)); }
 const status = { state: 'aus', lastOk: 0, lastTry: 0, lastErr: '', pushedRev: null, online: null };
 
@@ -174,7 +179,7 @@ const handler = async (req0, res) => {
     if (req0.headers['x-csrf'] == null) return L.send(res, 403, { error: 'Ungültige Anfrage.' });
     const b = await L.readJson(req0);
     const base = clean(b.url || loadCfg().url);
-    if (!/^https?:\/\/[^/\s]+$/i.test(base)) return L.send(res, 400, { error: 'Bitte eine gültige Website-Adresse angeben, z. B. https://obt1-chi.vercel.app' });
+    if (!/^https?:\/\/[^/\s]+$/i.test(base)) return L.send(res, 400, { error: 'Bitte eine gültige Website-Adresse angeben, z. B. https://pg-oberstufenfussballturnier.vercel.app' });
 
     if (action === 'config') {
       const c = loadCfg();

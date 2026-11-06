@@ -396,7 +396,7 @@
     ${ui.local ? `<div class="box" id="sync-box"><h3>Automatisch online stellen <small>Laptop → Website</small></h3>
       <div class="hint" style="margin-bottom:12px">Ist das eingeschaltet, überträgt der Laptop jede Änderung nach ein paar Sekunden auf die Website (mit Logos). Ohne Internet läuft hier alles normal weiter – sobald die Verbindung zurück ist, wird automatisch nachgeholt. <b style="color:#fff">Trage dann nur noch hier auf dem Laptop ein.</b></div>
       <div class="frow" style="align-items:end">
-        <div class="field"><label for="sync-url">Adresse der Website</label><input id="sync-url" type="url" value="${esc((ui.sync && ui.sync.url) || 'https://obt1-chi.vercel.app')}"></div>
+        <div class="field"><label for="sync-url">Adresse der Website</label><input id="sync-url" type="url" value="${esc((ui.sync && ui.sync.url) || 'https://pg-oberstufenfussballturnier.vercel.app')}"></div>
         <div class="field"><label for="sync-pass">Passwort der Online-Turnierleitung</label><input id="sync-pass" type="password" autocomplete="off" placeholder="${ui.sync && ui.sync.hasPass ? 'gespeichert – nur zum Ändern eingeben' : ''}"></div>
       </div>
       <div class="row" style="margin-top:12px"><label class="check"><input id="sync-on" type="checkbox" ${ui.sync && ui.sync.enabled ? 'checked' : ''}> Automatisch übertragen</label><span style="flex:1"></span><button type="button" class="btn primary" data-act="sync-save">Speichern</button><button type="button" class="btn" data-act="sync-push">Jetzt übertragen</button></div>

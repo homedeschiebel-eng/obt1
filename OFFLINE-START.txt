@@ -35,7 +35,7 @@ DIE FENSTER
 
 LAPTOP STEUERT, WEBSITE ZEIGT AN (empfohlen)
   Turnierleitung auf dem Laptop -> Einstellungen -> "Automatisch online stellen":
-    Adresse der Website (https://obt1-chi.vercel.app) und Passwort der Online-Turnierleitung
+    Adresse der Website (https://pg-oberstufenfussballturnier.vercel.app) und Passwort der Online-Turnierleitung
     eintragen, Haken bei "Automatisch übertragen", Speichern.
   Ab dann:
     - Alles nur noch auf dem Laptop einstellen und eintragen.

@@ -8,14 +8,14 @@ const crypto = require('crypto');
 
 const ROOT = __dirname;
 const DATA = path.join(ROOT, '.data');
-const DEFAULT_SOURCE = 'https://obt1-chi.vercel.app';
+const DEFAULT_SOURCE = 'https://pg-oberstufenfussballturnier.vercel.app';
 const EVERY = 10 * 60e3;
 const SERVER_FILES = /^(api\/|app-server\.js$|updater\.js$|package\.json$)/;
 const status = { version: '', checkedAt: 0, installedAt: 0, last: '', error: '' };
 
 function localVersion() { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'update', 'version.json'), 'utf8')).version || ''; } catch (e) { return ''; } }
 function source() {
-  try { const c = JSON.parse(fs.readFileSync(path.join(DATA, 'sync.json'), 'utf8')); if (/^https?:\/\//.test(c.url || '')) return c.url.replace(/\/+$/, ''); } catch (e) { /* Standard */ }
+  try { const c = JSON.parse(fs.readFileSync(path.join(DATA, 'sync.json'), 'utf8')); const u = String(c.url || '').replace(/\/+$/, ''); if (/^https?:\/\//.test(u) && u !== 'https://obt1-chi.vercel.app') return u; } catch (e) { /* Standard */ }
   return DEFAULT_SOURCE;
 }
 async function getJson(url, ms) {
