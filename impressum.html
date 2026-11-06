@@ -16,6 +16,7 @@
 .legal ul{padding-left:20px;margin:0}
 .legal .box{background:var(--row-b);border:1px solid var(--line);padding:16px 18px;white-space:pre-line;color:#fff;font-weight:500;line-height:1.6}
 .legal .miss{color:var(--yellow)}
+.legal .box a{color:var(--cyan)}
 </style>
 </head>
 <body>
@@ -24,7 +25,7 @@
 <main><div class="wrap"><div class="legal">
   <section><h2>Impressum</h2>
     <p>Verantwortlich für den Inhalt dieser Website:</p>
-    <div class="box" id="imp">Wird geladen …</div>
+    <div class="box" id="imp"><b>Schülermitverantwortung (SMV) des Parler-Gymnasiums</b></div>
     <p id="imp-extra" hidden></p>
   </section>
   <section><h2>Datenschutz</h2>
@@ -50,17 +51,30 @@
 <footer><div class="wrap"><div class="org"><span class="logo logo-school" role="img" aria-label="Logo Parler-Gymnasium"></span><span class="logo logo-smv" role="img" aria-label="Logo der SMV"></span><div>Ein Turnier der SMV<small id="ft">Parler-Gymnasium</small></div></div><div class="small"><a href="/">Zur Website</a></div></div></footer>
 <script>
 (function () {
+  // Feste Angaben – gelten, solange in der Turnierleitung nichts anderes eingetragen ist
+  var DEF = {
+    impName: 'Schülermitverantwortung (SMV) des Parler-Gymnasiums\nvertreten durch\nDenzel Schiebel (Schülersprecher)\nEduard Losing (Verbindungslehrkraft)',
+    impAddr: 'Parler-Gymnasium\nHaußmannstraße 34\n73525 Schwäbisch Gmünd',
+    impMail: 'schiebelde@parler-gymnasium.de',
+    impPhone: '0177 4216418'
+  };
+  function show(s) {
+    var v = function (k) { return (s && s[k]) || DEF[k] || ''; };
+    var mail = v('impMail'), phone = v('impPhone');
+    document.getElementById('imp').innerHTML = '<b>' + esc(v('impName')) + '</b>\n\n' + esc(v('impAddr')) +
+      (mail ? '\n\nE-Mail: <a href="mailto:' + esc(mail) + '">' + esc(mail) + '</a>' : '') +
+      (phone ? '\nTelefon: <a href="tel:' + esc(phone.replace(/[^+0-9]/g, '')) + '">' + esc(phone) + '</a>' : '');
+  }
   var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
   fetch('/api/state', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (j) {
     var s = (j.state && j.state.settings) || {};
-    var parts = [s.impName, s.impAddr, s.impMail ? 'E-Mail: ' + s.impMail : '', s.impPhone ? 'Telefon: ' + s.impPhone : ''].filter(Boolean);
-    document.getElementById('imp').innerHTML = parts.length ? esc(parts.join('\n')) : '<span class="miss">Die Angaben werden noch ergänzt (Turnierleitung → Einstellungen → Impressum).</span>';
+    show(s);
     if (s.impExtra) { var x = document.getElementById('imp-extra'); x.textContent = s.impExtra; x.hidden = false; }
     if (s.impDsb) document.getElementById('dsb').textContent = ' Datenschutzbeauftragte/r der Schule: ' + s.impDsb + '.';
     if (s.impDelete) document.getElementById('del').textContent = s.impDelete;
     document.getElementById('eb').textContent = (s.title || 'Oberstufen-Turnier') + (s.season ? ' ' + s.season : '');
     document.getElementById('ft').textContent = [s.school, s.date].filter(Boolean).join(' · ');
-  }).catch(function () { document.getElementById('imp').textContent = 'Die Angaben konnten gerade nicht geladen werden.'; });
+  }).catch(function () { show({}); });
 })();
 </script>
 </body>
