@@ -38,12 +38,13 @@
     test: { l: 'Testspiel', d: 'durGroup' }
   };
   PT.LEVELS = ['Hauptsponsor', 'Premium-Partner', 'Partner', 'Förderer'];
-  PT.EV = { goal: 'Tor', og: 'Eigentor', yellow: 'Gelbe Karte', red: 'Rote Karte' };
+  PT.EV = { goal: 'Tor', og: 'Eigentor', yellow: 'Gelbe Karte', red: '2-Minuten-Strafe' };
+  PT.PEN_SEC = 120; // Dauer einer Zeitstrafe (Spielzeit)
 
   PT.normalize = (S) => {
     S = S || {};
     const old = !!(S.settings && S.settings.title !== undefined && !S.settings.day);
-    S.settings = Object.assign({ title: 'Oberstufen-Turnier', school: 'Parler-Gymnasium', season: '2026', date: '', day: '2026-12-22', location: '', sport: 'Fußball', ticker: '', start: '11:30', gap: 1, koFormat: 'qf', third: true, win: 3, draw: 1, durGroup: 7, durKo: 10, durFinal: 12 }, S.settings || {});
+    S.settings = Object.assign({ title: 'Oberstufen-Turnier', school: 'Parler-Gymnasium', season: '2026', date: '', day: '2026-12-22', location: '', sport: 'Fußball', ticker: '', start: '11:30', gap: 1, koFormat: 'qf', third: true, win: 3, draw: 1, durGroup: 7, durKo: 10, durFinal: 12, vote: 'off', voteRound: 'r1' }, S.settings || {});
     S.teams = S.teams || []; S.matches = S.matches || []; S.sponsors = S.sponsors || [];
     S.teams.forEach((t) => { t.players = t.players || []; });
     S.matches.forEach((m) => { m.events = m.events || []; m.clock = m.clock || { run: false, since: null, acc: 0 }; });
@@ -88,7 +89,30 @@
         else if (r.h < r.a) { a.s++; h.n++; a.pts += W; a.form.push('S'); h.form.push('N'); }
         else { h.u++; a.u++; h.pts += D; a.pts += D; h.form.push('U'); a.form.push('U'); }
       });
-      return Object.values(rows).sort((x, y) => y.pts - x.pts || (y.tf - y.ta) - (x.tf - x.ta) || y.tf - x.tf || x.t.name.localeCompare(y.t.name, 'de', { numeric: true }));
+      // Reihenfolge: Punkte → direkter Vergleich (Punkte aus den Spielen der Punktgleichen gegeneinander) → Tordifferenz → Tore
+      const list = Object.values(rows), byName = (x, y) => x.t.name.localeCompare(y.t.name, 'de', { numeric: true });
+      const direct = (ids) => {
+        const d = {}; ids.forEach((id) => { d[id] = { p: 0, f: 0, a: 0 }; });
+        S.matches.forEach((m) => {
+          if (m.stage !== 'group' || m.status === 'scheduled' || !d[m.home] || !d[m.away]) return;
+          const r = H.sc(m); d[m.home].f += r.h; d[m.home].a += r.a; d[m.away].f += r.a; d[m.away].a += r.h;
+          if (r.h > r.a) d[m.home].p += W; else if (r.h < r.a) d[m.away].p += W; else { d[m.home].p += D; d[m.away].p += D; }
+        });
+        return d;
+      };
+      list.sort((x, y) => y.pts - x.pts);
+      const out = [];
+      for (let i = 0; i < list.length;) {
+        let k = i; while (k < list.length && list[k].pts === list[i].pts) k++;
+        const tied = list.slice(i, k);
+        if (tied.length > 1) {
+          const d = direct(tied.map((r) => r.t.id));
+          tied.forEach((r) => { r.dv = d[r.t.id]; });
+          tied.sort((x, y) => (y.dv.p - x.dv.p) || ((y.tf - y.ta) - (x.tf - x.ta)) || (y.tf - x.tf) || byName(x, y));
+        }
+        out.push(...tied); i = k;
+      }
+      return out;
     };
     H.groupDone = (g) => { const ms = S.matches.filter((m) => m.stage === 'group' && H.inGroup(m, g)); return ms.length > 0 && ms.every((m) => m.status === 'done'); };
     H.winnerSide = (m) => {
@@ -256,6 +280,28 @@
     H.tickTimes = (root) => {
       (root || document).querySelectorAll('[data-exp]').forEach((el) => { const m = H.M(el.dataset.exp); if (m) el.textContent = H.expTime(m); });
       (root || document).querySelectorAll('[data-dl]').forEach((el) => { const m = H.M(el.dataset.dl); if (m) { const d = H.delay(m); el.textContent = d > 0 ? '+' + d : ''; } });
+    };
+    // Laufende Zeitstrafen eines Spiels (nach Spielzeit gerechnet: hält die Uhr an, steht auch die Strafe)
+    H.penalties = (m) => {
+      if (!m || m.status !== 'live') return [];
+      const el = H.elapsed(m);
+      return m.events.filter((e) => e.type === 'red' && e.el != null && el < e.el + PT.PEN_SEC)
+        .map((e) => { const x = H.P(e.player); return { e, side: e.side, name: x ? x.p.name : '', no: x ? x.p.no : null, team: x ? x.t : H.teamOf(m, e.side), left: e.el + PT.PEN_SEC - el }; });
+    };
+    H.penText = (m) => H.penalties(m).map((p) => `<span class="pen"><b>2′</b>${PT.esc(p.name || (p.team ? p.team.name : ''))}<em>${PT.fmt(p.left)}</em></span>`).join('');
+    // Fairplay: Gelb 1 Punkt, 2-Minuten-Strafe 2 Punkte – weniger ist besser
+    H.fairplay = () => {
+      const r = {}; S.teams.forEach((t) => { r[t.id] = { t, y: 0, r: 0, sp: 0, pts: 0 }; });
+      S.matches.forEach((m) => {
+        if (m.stage === 'test' || m.status === 'scheduled') return;
+        [m.home, m.away].forEach((id) => { if (r[id]) r[id].sp++; });
+        m.events.forEach((e) => {
+          if (e.type !== 'yellow' && e.type !== 'red') return;
+          const x = H.P(e.player), id = x ? x.t.id : (e.side === 'h' ? m.home : m.away); if (!r[id]) return;
+          if (e.type === 'yellow') r[id].y++; else r[id].r++;
+        });
+      });
+      return Object.values(r).filter((x) => x.sp > 0).map((x) => Object.assign(x, { pts: x.y + 2 * x.r })).sort((a, b) => a.pts - b.pts || b.sp - a.sp || a.t.name.localeCompare(b.t.name, 'de', { numeric: true }));
     };
     H.totalGoals = () => S.matches.reduce((n, m) => { if (m.stage === 'test') return n; const s = H.sc(m); return n + s.h + s.a; }, 0);
     return H;

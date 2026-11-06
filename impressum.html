@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Impressum & Datenschutz · Parler Oberstufen-Turnier</title>
+<meta name="theme-color" content="#04060D">
+<link rel="icon" href="/img/favicon.png">
+<link rel="stylesheet" href="/css/fonts.css">
+<link rel="stylesheet" href="/css/site.css">
+<style>
+.legal{max-width:760px;display:grid;gap:26px}
+.legal h2{font-size:30px;color:var(--cyan);margin-bottom:8px}
+.legal h3{font-size:20px;margin:14px 0 6px}
+.legal p,.legal li{color:#D6DEF5;line-height:1.65;margin:0 0 8px}
+.legal ul{padding-left:20px;margin:0}
+.legal .box{background:var(--row-b);border:1px solid var(--line);padding:16px 18px;white-space:pre-line;color:#fff;font-weight:500;line-height:1.6}
+.legal .miss{color:var(--yellow)}
+</style>
+</head>
+<body>
+<header class="hdr"><div class="wrap"><a class="brand" href="/"><span class="lockup"><span class="logo logo-school" role="img" aria-label="Logo Parler-Gymnasium"></span><i class="lk-sep"></i><span class="logo logo-smv" role="img" aria-label="Logo der SMV"></span></span><span class="bt"><small>Parler-Gymnasium</small><b>Oberstufen <span>Turnier</span></b></span></a><nav class="nav" style="display:flex"><a href="/">← Zur Website</a></nav></div></header>
+<section class="band"><div class="wrap"><div><div class="eyebrow" id="eb">Oberstufen-Turnier</div><h1>Impressum</h1></div></div></section>
+<main><div class="wrap"><div class="legal">
+  <section><h2>Impressum</h2>
+    <p>Verantwortlich für den Inhalt dieser Website:</p>
+    <div class="box" id="imp">Wird geladen …</div>
+    <p id="imp-extra" hidden></p>
+  </section>
+  <section><h2>Datenschutz</h2>
+    <h3>Was auf dieser Seite steht</h3>
+    <p>Gezeigt werden Spielplan, Ergebnisse, Tabellen und Statistiken des Turniers sowie die Namen der Teams und ihrer Spielerinnen und Spieler, gegebenenfalls mit Teamlogo oder Teamfoto. Wer seinen Namen oder ein Foto hier nicht sehen möchte, wendet sich an die oben genannte Stelle – der Eintrag wird dann entfernt oder abgekürzt.</p>
+    <h3>Keine Werbung, kein Tracking</h3>
+    <p>Diese Website setzt für Zuschauer keine Cookies, nutzt keine Analyse- oder Werbedienste und lädt keine Inhalte von Drittanbietern (auch die Schriften liegen auf dieser Website).</p>
+    <h3>Hosting</h3>
+    <p>Die Website wird bei Vercel Inc. betrieben. Beim Aufruf verarbeitet der Anbieter technisch notwendige Verbindungsdaten (zum Beispiel IP-Adresse, Zeitpunkt, aufgerufene Seite), um die Seite auszuliefern und vor Missbrauch zu schützen.</p>
+    <h3>Voting „Spieler des Turniers“</h3>
+    <p>Damit jedes Gerät nur einmal abstimmen kann, speichert dein Browser eine zufällige Kennung. Auf dem Server liegt davon nur eine verschlüsselte Prüfsumme, keine Namen oder Kontaktdaten.</p>
+    <h3>Turnierleitung</h3>
+    <p>Für die Anmeldung der Turnierleitung wird ein technisch notwendiges Cookie gesetzt. Zuschauer sind davon nicht betroffen.</p>
+    <h3>Deine Rechte</h3>
+    <p>Du kannst Auskunft über deine Daten verlangen und ihre Berichtigung oder Löschung beantragen. Wende dich dafür an die oben genannte Stelle.</p>
+  </section>
+</div></div></main>
+<footer><div class="wrap"><div class="org"><span class="logo logo-school" role="img" aria-label="Logo Parler-Gymnasium"></span><span class="logo logo-smv" role="img" aria-label="Logo der SMV"></span><div>Ein Turnier der SMV<small id="ft">Parler-Gymnasium</small></div></div><div class="small"><a href="/">Zur Website</a></div></div></footer>
+<script>
+(function () {
+  var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
+  fetch('/api/state', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (j) {
+    var s = (j.state && j.state.settings) || {};
+    var parts = [s.impName, s.impAddr, s.impMail ? 'E-Mail: ' + s.impMail : '', s.impPhone ? 'Telefon: ' + s.impPhone : ''].filter(Boolean);
+    document.getElementById('imp').innerHTML = parts.length ? esc(parts.join('\n')) : '<span class="miss">Die Angaben werden noch ergänzt (Turnierleitung → Einstellungen → Impressum).</span>';
+    if (s.impExtra) { var x = document.getElementById('imp-extra'); x.textContent = s.impExtra; x.hidden = false; }
+    document.getElementById('eb').textContent = (s.title || 'Oberstufen-Turnier') + (s.season ? ' ' + s.season : '');
+    document.getElementById('ft').textContent = [s.school, s.date].filter(Boolean).join(' · ');
+  }).catch(function () { document.getElementById('imp').textContent = 'Die Angaben konnten gerade nicht geladen werden.'; });
+})();
+</script>
+</body>
+</html>

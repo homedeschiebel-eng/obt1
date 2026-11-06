@@ -184,7 +184,7 @@ const color = (v) => (/^#[0-9a-f]{6}$/i.test(String(v || '')) ? v : '#2E6BFF');
 function cleanState(inp) {
   inp = obj(inp); const s = obj(inp.settings);
   const settings = {};
-  ['title', 'school', 'season', 'date', 'location', 'sport', 'ticker', 'start', 'koFormat'].forEach((k) => { settings[k] = cut(s[k], k === 'ticker' ? 300 : 80); });
+  ['title', 'school', 'season', 'date', 'location', 'sport', 'ticker', 'start', 'koFormat', 'vote', 'voteRound', 'impName', 'impAddr', 'impMail', 'impPhone', 'impExtra'].forEach((k) => { settings[k] = cut(s[k], /^(ticker|impAddr|impExtra)$/.test(k) ? 600 : 80); });
   settings.day = /^\d{4}-\d{2}-\d{2}$/.test(String(s.day || '')) ? s.day : '';
   ['win', 'draw', 'durGroup', 'durKo', 'durFinal', 'gap'].forEach((k) => { settings[k] = Math.max(0, Math.min(90, num(s[k], 0))); });
   settings.third = !!s.third;
@@ -207,7 +207,7 @@ function cleanState(inp) {
       clock: { run: !!c.run, since: num(c.since, null), acc: num(c.acc, 0) },
       startedAt: num(m.startedAt, null), endedAt: num(m.endedAt, null),
       dur: num(m.dur, null), pen: m.pen && typeof m.pen === 'object' ? { h: num(m.pen.h, 0), a: num(m.pen.a, 0) } : null,
-      events: arr(m.events).slice(0, 200).map((e) => ({ id: id(obj(e).id) || 'e' + crypto.randomBytes(4).toString('hex'), type: TYPES.includes(obj(e).type) ? e.type : 'goal', side: obj(e).side === 'a' ? 'a' : 'h', player: id(obj(e).player), min: num(obj(e).min, null), at: num(obj(e).at, 0) }))
+      events: arr(m.events).slice(0, 200).map((e) => ({ id: id(obj(e).id) || 'e' + crypto.randomBytes(4).toString('hex'), type: TYPES.includes(obj(e).type) ? e.type : 'goal', side: obj(e).side === 'a' ? 'a' : 'h', player: id(obj(e).player), min: num(obj(e).min, null), at: num(obj(e).at, 0), el: num(obj(e).el, null) }))
     };
   });
   const sponsors = arr(inp.sponsors).slice(0, 60).map((x) => { x = obj(x); return { id: id(x.id) || 's' + crypto.randomBytes(4).toString('hex'), name: cut(x.name, 60), level: cut(x.level, 30), slogan: cut(x.slogan, 140), url: cut(x.url, 200), logo: img(x.logo) }; });
@@ -297,4 +297,4 @@ function isLocked(req) { const f = fails.get(ipOf(req)); return !!(f && f.until 
 function noteFail(req) { const k = ipOf(req), f = fails.get(k) || { n: 0, until: 0 }; f.n++; if (f.n >= 8) { f.until = Date.now() + 15 * 60e3; f.n = 0; } fails.set(k, f); return f.until > Date.now(); }
 function clearFails(req) { fails.delete(ipOf(req)); }
 
-module.exports = { VERSION, send, q, readBody, readJson, mode, envNames, check, readState, writeState, cleanState, sniff, putImage, getImage, authInfo, isAdmin, setSession, checkPassword, setPassword, isLocked, noteFail, clearFails };
+module.exports = { rawGet, rawSet, redis, VERSION, send, q, readBody, readJson, mode, envNames, check, readState, writeState, cleanState, sniff, putImage, getImage, authInfo, isAdmin, setSession, checkPassword, setPassword, isLocked, noteFail, clearFails };

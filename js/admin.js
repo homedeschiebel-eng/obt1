@@ -90,11 +90,11 @@
       if (other) throw new Error('Spiel ' + other.no + ' läuft gerade. Bitte zuerst abpfeifen.');
       m.status = 'live'; m.endedAt = null; S.current = id;
     },
-    event: (id, type, teamSide, pid, min) => (S) => {
+    event: (id, type, teamSide, pid, min, el) => (S) => {
       const m = find(S, id); if (!m) return;
       if (m.status === 'scheduled') throw new Error('Das Spiel ist noch nicht angepfiffen.');
       const side = type === 'og' ? (teamSide === 'h' ? 'a' : 'h') : teamSide;
-      m.events.push({ id: uid('e'), type, side, player: pid || null, min, at: PT.now() });
+      m.events.push({ id: uid('e'), type, side, player: pid || null, min, at: PT.now(), el: el == null ? null : Math.round(el) });
     },
     delEvent: (id, eid) => (S) => { const m = find(S, id); if (m) m.events = m.events.filter((e) => e.id !== eid); },
     undo: (id) => (S) => {
@@ -109,7 +109,7 @@
   function addEvent(type, teamSide, pid) {
     const m = cur(); if (!m) return;
     const t = H.teamOf(m, teamSide), x = H.P(pid);
-    if (act(A.event(m.id, type, teamSide, pid, H.minuteNow(m)))) {
+    if (act(A.event(m.id, type, teamSide, pid, H.minuteNow(m), H.elapsed(m)))) {
       toast(`${EV[type]}${x ? ': ' + x.p.name : ''}${t ? ' (' + t.name + ')' : ''} eingetragen`);
       ui.pick[teamSide] = 'goal'; render(); anthemFor(m, type, teamSide);
     }
@@ -227,13 +227,33 @@
   }
   setInterval(pollSync, 3000);
 
+  /* ---------- Voting-Ergebnis für die Turnierleitung ---------- */
+  let votes = null, votesAt = 0, votesLoading = false;
+  const voteBase = () => (ui.local && ui.sync && ui.sync.enabled && ui.sync.url ? ui.sync.url.replace(/\/+$/, '') : '');
+  async function loadAdminVotes() {
+    if (!S || ui.tab !== 'settings') return;
+    if (votesLoading) return; votesLoading = true;
+    try { const r = await fetch(voteBase() + '/api/vote?action=results&t=' + Date.now(), { cache: 'no-store' }); votes = await r.json(); } catch (e) { votes = { error: true }; }
+    votesAt = Date.now(); votesLoading = false;
+    const el = document.getElementById('vote-res'); if (el) el.innerHTML = voteAdminHTML();
+  }
+  setInterval(loadAdminVotes, 5000);
+  function voteAdminHTML() {
+    if (Date.now() - votesAt > 3000) setTimeout(loadAdminVotes, 50);
+    if (!votes) return '<div class="hint">Lade Stimmen …</div>';
+    if (votes.error) return '<div class="hint">Stimmen konnten nicht geladen werden' + (voteBase() ? ' (Website nicht erreichbar).' : '.') + '</div>';
+    const c = votes.counts || {}, total = Object.values(c).reduce((a, b) => a + b, 0);
+    const l = Object.entries(c).map(([id, n]) => ({ x: H.P(id), n })).filter((r) => r.x).sort((a, b) => b.n - a.n).slice(0, 10);
+    return `<div class="hint" style="margin-bottom:6px">${total} Stimmen von ${votes.voters || 0} Geräten${voteBase() ? ' (von der Website)' : ''}</div>` + (l.length ? `<div class="log">${l.map((r, i) => `<div class="li" style="grid-template-columns:30px auto minmax(0,1fr) auto"><span class="mi">${i + 1}.</span>${monoHTML(r.x.t, 's')}<span><b>${esc(r.x.p.name)}</b> <small>${esc(r.x.t.name)}</small></span><b>${r.n} · ${total ? Math.round(r.n / total * 100) : 0}%</b></div>`).join('')}</div>` : '<div class="hint">Noch keine Stimmen.</div>');
+  }
+
   /* ---------- Befehlszeile ---------- */
   // Beispiele: „tor spieler 1 team 2“, „tor 7 h“, „gelb 4 gast“, „et 3 team 5“, „start“, „stopp“, „abpfiff“, „zurück“, „nächstes“
   function runCmd(text) {
     const m = cur(); let s = String(text || '').trim().toLowerCase().replace(/\s+/g, ' ');
     if (!s) return null;
     if (!m) return { ok: false, text: 'Kein Spiel ausgewählt.' };
-    const ACT = [[/^(tor|t|goal)(\s|$)/, 'goal'], [/^(eigentor|et|og)(\s|$)/, 'og'], [/^(gelbe karte|gelb|gk|y)(\s|$)/, 'yellow'], [/^(rote karte|rot|rk|r)(\s|$)/, 'red'],
+    const ACT = [[/^(tor|t|goal)(\s|$)/, 'goal'], [/^(eigentor|et|og)(\s|$)/, 'og'], [/^(gelbe karte|gelb|gk|y)(\s|$)/, 'yellow'], [/^(2 ?min(uten)?|zeitstrafe|strafe|zeit|rote karte|rot|rk|r)(\s|$)/, 'red'],
       [/^(anpfiff|start|los|weiter|play)(\s|$)/, 'start'], [/^(stopp|stop|pause|halt)(\s|$)/, 'stop'], [/^(abpfiff|ende|schluss|aus)(\s|$)/, 'final'],
       [/^(zurück|zurueck|rückgängig|undo|z)(\s|$)/, 'undo'], [/^(nächstes|naechstes|next)(\s|spiel|$)/, 'next']];
     let type = null, rest = s;
@@ -270,7 +290,7 @@
     }
     if (!side) return { ok: false, text: 'Für welches Team? Zum Beispiel „tor h“, „tor gast“ oder den Teamnamen dazuschreiben.' };
     try {
-      if (!act(A.event(m.id, type, side, hit ? hit.p.id : null, min || H.minuteNow(m)))) return { ok: false, text: act.err };
+      if (!act(A.event(m.id, type, side, hit ? hit.p.id : null, min || H.minuteNow(m), H.elapsed(m)))) return { ok: false, text: act.err };
       anthemFor(m, type, side);
       return { ok: true, text: `${EV[type]}${hit ? ': ' + hit.p.name : ''} (${teams[side] ? teams[side].name : side}) eingetragen.` };
     } catch (e) { return { ok: false, text: e.message }; }
@@ -300,7 +320,7 @@
       if (!t) return `<div class="box ck-col" style="--c:#2A3560"><div class="head"><b>${esc(H.phOf(m, side))}</b></div><div class="hint">Wähle oben bei „Paarung“ ein Team. Dann erscheinen hier automatisch die Spielerinnen und Spieler.</div></div>`;
       const evs = (pid) => m.events.filter((e) => e.player === pid).map((e) => `<i class="ic ${e.type}"></i>`).join('');
       return `<div class="box ck-col" style="--c:${esc(t.color)}"><div class="head">${monoHTML(t, 's')}<b>${esc(t.name)}</b><span class="sc">${r[side]}</span></div>
-        <div class="seg">${[['goal', 'Tor'], ['og', 'Eigentor'], ['yellow', 'Gelb'], ['red', 'Rot']].map(([k, l]) => `<button data-act="pick" data-side="${side}" data-t="${k}" aria-pressed="${pick === k}"><i class="ic ${k}"></i>${l}</button>`).join('')}</div>
+        <div class="seg">${[['goal', 'Tor'], ['og', 'Eigentor'], ['yellow', 'Gelb'], ['red', '2 Min.']].map(([k, l]) => `<button data-act="pick" data-side="${side}" data-t="${k}" aria-pressed="${pick === k}"><i class="ic ${k}"></i>${l}</button>`).join('')}</div>
         <div class="pgrid">${t.players.slice().sort((x, y) => (x.no || 99) - (y.no || 99)).map((p) => `<button class="pbtn" data-act="ev" data-side="${side}" data-player="${p.id}"${canEv ? '' : ' disabled'}><span class="no">${esc(p.no == null ? '·' : p.no)}</span><span>${esc(p.name)}</span><span class="cnt">${evs(p.id)}</span></button>`).join('')}
         <button class="pbtn anon" data-act="ev" data-side="${side}" data-player=""${canEv ? '' : ' disabled'}>${esc(EV[pick])} ohne Namen</button></div>
         ${t.players.length ? '' : '<div class="hint" style="margin-top:8px">Für dieses Team sind noch keine Spieler eingetragen (Reiter „Teams“).</div>'}</div>`;
@@ -317,12 +337,13 @@
       <div class="stage-top"><span>${H.isTest(m) ? "Testspiel · " + esc(H.dayText(m)) : "Spiel " + esc(m.no) + " · " + esc(m.label || STAGES[m.stage].l)}</span>${m.status === 'live' ? '<span class="livechip">Live</span>' : `<b>${m.status === 'done' ? 'Beendet' : 'Noch nicht angepfiffen'}</b>`}</div>
       <div class="sb"><div class="tb">${monoHTML(h, 'l')}<b>${esc(h ? h.name : H.phOf(m, 'h'))}</b></div><div class="score"><span>${r.h}</span><i>:</i><span>${r.a}</span></div><div class="tb">${monoHTML(a, 'l')}<b>${esc(a ? a.name : H.phOf(m, 'a'))}</b></div></div>
       <div class="sb-clock">${clockHTML(m, true)}${stateHTML(m)}</div><div class="bar"><i data-bar="${m.id}" style="width:${H.pct(m)}%"></i></div>
+      <div class="pens" data-pens="${m.id}">${H.penText(m)}</div>
       <div class="ck-ctrl">${ctrl}</div>
     </div>
     <div class="box"><h3>Befehl eingeben <small>Enter trägt ein</small></h3>
       <form class="cmd" id="cmd-form"><input id="cmd" autocomplete="off" spellcheck="false" placeholder="z. B. tor spieler 1 team 2 · gelb 4 h · start · stopp"><button class="btn primary">Eintragen</button></form>
       <div class="cmd-msg ${ui.cmdMsg ? (ui.cmdMsg.ok ? 'ok' : 'no') : ''}" id="cmd-msg">${ui.cmdMsg ? esc(ui.cmdMsg.text) : ''}</div>
-      <div class="keys"><kbd>tor 7 h</kbd> Tor Nr. 7 Team 1 · <kbd>tor spieler 2 team 4</kbd> nach Name und Team · <kbd>et 3 gast</kbd> Eigentor · <kbd>gelb</kbd> / <kbd>rot</kbd> Karten · <kbd>min 5</kbd> eigene Minute · <kbd>start</kbd> <kbd>stopp</kbd> <kbd>abpfiff</kbd> <kbd>zurück</kbd> <kbd>nächstes</kbd><br>Tasten außerhalb des Eingabefelds: <kbd>Leertaste</kbd> Uhr an/aus · <kbd>Z</kbd> letzten Eintrag zurücknehmen · <kbd>/</kbd> Befehlszeile</div></div>
+      <div class="keys"><kbd>tor 7 h</kbd> Tor Nr. 7 Team 1 · <kbd>tor spieler 2 team 4</kbd> nach Name und Team · <kbd>et 3 gast</kbd> Eigentor · <kbd>gelb 4 h</kbd> Gelbe Karte · <kbd>2min 5 g</kbd> 2-Minuten-Strafe · <kbd>min 5</kbd> eigene Minute · <kbd>start</kbd> <kbd>stopp</kbd> <kbd>abpfiff</kbd> <kbd>zurück</kbd> <kbd>nächstes</kbd><br>Tasten außerhalb des Eingabefelds: <kbd>Leertaste</kbd> Uhr an/aus · <kbd>Z</kbd> letzten Eintrag zurücknehmen · <kbd>/</kbd> Befehlszeile</div></div>
     <div class="ck-teams">${col('h')}${col('a')}</div>
     ${m.stage !== 'group' ? `<div class="box"><h3>Neunmeterschießen <small>nur bei Unentschieden</small></h3><div class="frow"><div class="field"><label for="pen-h">${esc(h ? h.name : 'Team 1')}</label><input id="pen-h" type="number" min="0" inputmode="numeric" value="${m.pen ? m.pen.h : ''}"></div><div class="field"><label for="pen-a">${esc(a ? a.name : 'Team 2')}</label><input id="pen-a" type="number" min="0" inputmode="numeric" value="${m.pen ? m.pen.a : ''}"></div><div style="align-self:end"><button class="btn primary" data-act="pen">Speichern</button></div></div></div>` : ''}
     <div class="box"><h3>Spielverlauf ${m.events.length ? '<button class="btn sm" data-act="undo">Letzten Eintrag zurücknehmen</button>' : ''}</h3>${ev.length ? `<div class="log">${ev.map((e) => { const x = H.P(e.player); const ts = e.type === 'og' ? (e.side === 'h' ? 'a' : 'h') : e.side; const tt = x ? x.t : H.teamOf(m, ts); return `<div class="li"><span class="mi">${esc(e.min || '')}′</span><i class="ic ${e.type}"></i><span><b>${esc(EV[e.type])}</b>${x ? ' · ' + esc(x.p.name) : ''} <small>${esc(tt ? tt.name : '')}</small></span><button class="btn danger sm" data-act="del-ev" data-ev="${e.id}" data-confirm="Löschen?">Entfernen</button></div>`; }).join('')}</div>` : '<div class="hint">Noch keine Einträge.</div>'}</div>`;
@@ -363,6 +384,10 @@
       <div class="frow">${F('day', 'Turniertag', s.day, 'date')}${F('location', 'Ort', s.location)}${F('sport', 'Sportart', s.sport)}</div>
       <div class="frow">${F('win', 'Punkte für Sieg', s.win, 'number', 'min="0" max="5"')}${F('draw', 'Punkte für Unentschieden', s.draw, 'number', 'min="0" max="5"')}</div>
       ${F('ticker', 'Durchsage im Laufband (leer = keine)', s.ticker)}
+      <h3 style="margin-top:8px">Impressum <small>erscheint unter „Impressum &amp; Datenschutz“ unten auf der Website</small></h3>
+      <div class="frow">${F('impName', 'Verantwortlich (Name / SMV)', s.impName || '')}${F('impMail', 'E-Mail', s.impMail || '')}${F('impPhone', 'Telefon (optional)', s.impPhone || '')}</div>
+      <div class="field"><label for="f-impAddr">Anschrift</label><textarea id="f-impAddr" name="impAddr" style="min-height:80px" placeholder="Parler-Gymnasium&#10;Straße Nr.&#10;PLZ Ort">${esc(s.impAddr || '')}</textarea></div>
+      <div class="field"><label for="f-impExtra">Zusätzlicher Hinweis (optional)</label><textarea id="f-impExtra" name="impExtra" style="min-height:70px">${esc(s.impExtra || '')}</textarea></div>
       <div class="row"><button class="btn primary">Speichern</button></div></div></form>
     ${ui.local ? `<div class="box" id="sync-box"><h3>Automatisch online stellen <small>Laptop → Website</small></h3>
       <div class="hint" style="margin-bottom:12px">Ist das eingeschaltet, überträgt der Laptop jede Änderung nach ein paar Sekunden auf die Website (mit Logos). Ohne Internet läuft hier alles normal weiter – sobald die Verbindung zurück ist, wird automatisch nachgeholt. <b style="color:#fff">Trage dann nur noch hier auf dem Laptop ein.</b></div>
@@ -382,6 +407,10 @@
       </div>
       <div class="row" style="margin-top:12px"><label class="check"><input id="hy-on" type="checkbox" ${anthemCfg().on ? 'checked' : ''}> Nach jedem Tor abspielen</label><span style="flex:1"></span><button type="button" class="btn" data-act="hy-test">▶ Probe</button><button type="button" class="btn" data-act="hy-stop">■ Stopp</button><button type="button" class="btn danger" data-act="hy-del">Entfernen</button></div>
       <div class="hint" style="margin-top:8px">${ui.local ? 'Die Dateien liegen auf diesem Laptop (Ordner .data) und werden nicht ins Internet hochgeladen.' : 'Die Dateien bleiben in diesem Browser gespeichert und werden nicht ins Internet hochgeladen.'} Die Hymne jedes Teams legst du im Reiter „Teams“ → Team bearbeiten fest. Neues Tor = laufende Hymne bricht ab, die neue startet sofort.</div></div>
+    <div class="box" id="vote-box"><h3>Voting „Spieler des Turniers“ <small>Zuschauer stimmen am Handy ab – eine Stimme pro Gerät</small></h3>
+      <div class="hint" style="margin-bottom:10px">Status: <b style="color:#fff">${{ off: 'aus', open: 'offen – Zuschauer können abstimmen', closed: 'geschlossen – Ergebnis noch verborgen', show: 'Ergebnis wird auf der Website gezeigt' }[s.vote || 'off']}</b></div>
+      <div class="row"><button type="button" class="btn primary" data-act="vote" data-v="open"${s.vote === 'open' ? ' disabled' : ''}>Voting öffnen</button><button type="button" class="btn" data-act="vote" data-v="closed"${s.vote !== 'open' ? ' disabled' : ''}>Voting schließen</button><button type="button" class="btn cyan" data-act="vote" data-v="show"${s.vote === 'show' ? ' disabled' : ''}>Ergebnis zeigen</button><button type="button" class="btn" data-act="vote" data-v="off"${!s.vote || s.vote === 'off' ? ' disabled' : ''}>Ausblenden</button><span style="flex:1"></span><button type="button" class="btn danger" data-act="vote-reset" data-confirm="Alle Stimmen verwerfen und neu starten?">Neu starten</button></div>
+      <div id="vote-res" style="margin-top:14px">${voteAdminHTML()}</div></div>
     <div class="box"><h3>QR-Code-Aushang</h3><div class="hint" style="margin-bottom:10px">A4-Plakat mit QR-Code zur Website für Zuschauer und Teams – zum Ausdrucken oder als PDF speichern.</div><a class="btn primary" href="/aushang" target="_blank" rel="noopener">Aushang öffnen</a></div>
     <div class="box"><h3>Sicherung</h3><div class="row"><button class="btn" data-act="backup">Sicherung herunterladen</button><label class="btn" for="restore">Sicherung einspielen</label><input id="restore" type="file" accept="application/json,.json" hidden></div><div class="hint" style="margin-top:8px">Die Sicherung ist eine JSON-Datei mit allen Teams, Spielen und Ergebnissen.</div></div>
     <form class="box" id="pw-form"><h3>Passwort ändern</h3>${ui.pwSource === 'env' ? '<div class="hint">Das Passwort ist im Vercel-Projekt als ADMIN_PASSWORD festgelegt und kann nur dort geändert werden.</div>' : `<div class="frow" style="align-items:end"><div class="field"><label for="pw-new">Neues Passwort (mind. 6 Zeichen)</label><input id="pw-new" type="password" autocomplete="new-password"></div><div><button class="btn primary">Passwort ändern</button></div></div>`}</form>
@@ -415,6 +444,7 @@
     document.querySelectorAll('[data-bar]').forEach((el) => { const m = H.M(el.dataset.bar); if (m) el.style.width = H.pct(m) + '%'; });
     document.querySelectorAll('[data-cstate]').forEach((el) => { const m = H.M(el.dataset.cstate); if (m) el.textContent = H.clockState(m); });
     H.tickTimes();
+    document.querySelectorAll('[data-pens]').forEach((el) => { const m = H.M(el.dataset.pens); if (m) { const h = H.penText(m); if (el.innerHTML !== h) el.innerHTML = h; } });
   }, 250);
 
   /* ---------- Dialoge ---------- */
@@ -659,6 +689,8 @@
     if (a === 'hy-test') { playAnthem(null); return; }
     if (a === 'hy-stop') { stopAnthem(true); return; }
     if (a === 'hy-del') { AUD.del('default').then(() => render()); return; }
+    if (a === 'vote') { const v = b.dataset.v; act((S) => { S.settings.vote = v; if (!S.settings.voteRound) S.settings.voteRound = 'r1'; }); toast({ open: 'Voting ist offen.', closed: 'Voting geschlossen.', show: 'Ergebnis wird auf der Website gezeigt.', off: 'Voting ausgeblendet.' }[v]); return; }
+    if (a === 'vote-reset') { act((S) => { S.settings.voteRound = 'r' + Date.now().toString(36); S.settings.vote = 'off'; }); votes = null; toast('Voting neu gestartet – alle bisherigen Stimmen zählen nicht mehr.'); return; }
     if (a === 'upd-check') { const um = document.getElementById('upd-msg'); um.textContent = 'Suche nach Updates …'; api('/api/sync?action=update', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }).then(() => pollSync()).catch((x) => { um.textContent = x.message; }); return; }
     if (a === 'sync-save' || a === 'sync-push' || a === 'sync-pull') {
       const msg = document.getElementById('sync-msg'), url = document.getElementById('sync-url').value, pass = document.getElementById('sync-pass').value, enabled = document.getElementById('sync-on').checked;
@@ -702,7 +734,7 @@
     }
     if (e.target.id === 'set-form') {
       e.preventDefault(); const fd = new FormData(e.target), vals = {};
-      ['title', 'season', 'school', 'day', 'location', 'sport', 'ticker'].forEach((k) => { vals[k] = String(fd.get(k) || '').trim(); });
+      ['title', 'season', 'school', 'day', 'location', 'sport', 'ticker', 'impName', 'impMail', 'impPhone', 'impAddr', 'impExtra'].forEach((k) => { vals[k] = String(fd.get(k) || '').trim(); });
       vals.date = vals.day ? new Date(vals.day + 'T12:00').toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : '';
       ['win', 'draw'].forEach((k) => { const v = parseInt(fd.get(k), 10); if (!isNaN(v)) vals[k] = v; });
       document.activeElement && document.activeElement.blur();
@@ -755,6 +787,7 @@
     app.innerHTML = shell(`<form id="login-form" class="lg-form">${msg ? `<div class="notice">${esc(msg)}</div>` : ''}
       <div class="field"><label for="pass">Passwort</label><input id="pass" type="password" autocomplete="current-password" required></div>
       <div class="err-msg"></div><button class="btn primary big">Anmelden</button>
+      <a class="btn cyan big" href="/anzeige" style="text-align:center">Hallenanzeige öffnen</a>
       <div class="row" style="justify-content:space-between"><a class="hint" href="/">← Zur Website</a><button type="button" class="btn sm" data-diag>Diagnose</button></div></form>`);
     bindForm('login-form', async () => { await api('/api/auth?action=login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pass: document.getElementById('pass').value }) }); start(); });
   }

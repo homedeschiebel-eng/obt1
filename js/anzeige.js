@@ -19,6 +19,7 @@
       <div class="hx-sb">${team(h, 'h')}<div class="hx-score">${m.status === 'scheduled' ? '<span class="vs">VS</span>' : `<span>${r.h}</span><i>:</i><span>${r.a}</span>`}</div>${team(a, 'a')}</div>
       <div class="hx-clock"><span class="clk" data-clock="${m.id}">${H.clockText(m)}</span><span class="cstate" data-cstate="${m.id}">${m.status === 'scheduled' ? 'Anpfiff ca. ' + H.expTime(m) + ' Uhr' : H.clockState(m)}</span></div>
       <div class="bar"><i data-bar="${m.id}" style="width:${H.pct(m)}%"></i></div>
+      <div class="pens hx-pens" data-pens="${m.id}">${H.penText(m)}</div>
       <div class="hx-ev"><div>${evs('h')}</div><div>${evs('a')}</div></div></div>
       <div class="hx-bot"><span>${nxt && nxt !== m ? `Danach: <b>${esc(H.tName(nxt, 'h'))} – ${esc(H.tName(nxt, 'a'))}</b>` : esc(s.ticker || '')}</span><span class="sp">${logos}</span></div>`;
   }
@@ -48,6 +49,7 @@
     if (!H) return;
     document.querySelectorAll('[data-clock]').forEach((el) => { const m = H.M(el.dataset.clock); if (m) { el.textContent = H.clockText(m); el.classList.toggle('over', m.status === 'live' && H.remaining(m) <= 0); } });
     document.querySelectorAll('[data-bar]').forEach((el) => { const m = H.M(el.dataset.bar); if (m) el.style.width = H.pct(m) + '%'; });
+    document.querySelectorAll('[data-pens]').forEach((el) => { const m = H.M(el.dataset.pens); if (m) { const h = H.penText(m); if (el.innerHTML !== h) el.innerHTML = h; } });
     document.querySelectorAll('[data-cstate]').forEach((el) => { const m = H.M(el.dataset.cstate); if (m) el.textContent = m.status === 'scheduled' ? 'Anpfiff ca. ' + H.expTime(m) + ' Uhr' : H.clockState(m); });
   }, 200);
   function fs() { const d = document.documentElement; if (!document.fullscreenElement) (d.requestFullscreen ? d.requestFullscreen() : Promise.reject()).catch(() => {}); else document.exitFullscreen(); }
