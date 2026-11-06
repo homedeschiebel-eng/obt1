@@ -45,14 +45,17 @@
   PT.EV = { goal: 'Tor', og: 'Eigentor', yellow: 'Gelbe Karte', red: '2-Minuten-Strafe' };
   PT.PEN_SEC = 120; // Dauer einer Zeitstrafe (Spielzeit)
 
+  PT.LOCATION = 'Großsporthalle Schwäbisch Gmünd';
   PT.normalize = (S) => {
     S = S || {};
     const old = !!(S.settings && S.settings.title !== undefined && !S.settings.day);
-    S.settings = Object.assign({ title: 'Oberstufen-Turnier', school: 'Parler-Gymnasium', season: '2026', date: '', day: '2026-12-22', location: '', sport: 'Fußball', ticker: '', start: '11:30', gap: 1, koFormat: 'qf', third: true, win: 3, draw: 1, durGroup: 7, durKo: 10, durFinal: 12, vote: 'off', voteRound: 'r1' }, S.settings || {});
+    S.settings = Object.assign({ title: 'Oberstufen-Turnier', school: 'Parler-Gymnasium', season: '2026', date: '', day: '2026-12-22', location: 'Großsporthalle Schwäbisch Gmünd', sport: 'Fußball', ticker: '', start: '11:30', gap: 1, koFormat: 'qf', third: true, win: 3, draw: 1, durGroup: 7, durKo: 10, durFinal: 12, vote: 'off', voteRound: 'r1' }, S.settings || {});
     S.teams = S.teams || []; S.matches = S.matches || []; S.sponsors = S.sponsors || [];
     S.teams.forEach((t) => { t.players = t.players || []; });
     S.matches.forEach((m) => { m.events = m.events || []; m.clock = m.clock || { run: false, since: null, acc: 0 }; });
     S.rev = S.rev || 0;
+    // Ort ist immer die Großsporthalle Schwäbisch Gmünd (ältere Stände hatten „Sporthalle“)
+    if (!S.settings.location || /^\s*sporthalle\s*$/i.test(S.settings.location)) { S.settings.location = PT.LOCATION; S._migrated = true; }
     // Einmalige Umstellung älterer Stände: Turniertag 22.12.2026, Start 11:30, 1 Minute Wechselzeit
     if (old) {
       const wasDefault = !S.settings.start || S.settings.start === '09:00';

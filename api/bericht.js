@@ -54,7 +54,7 @@ async function ai(f) {
     output_config: { effort: 'low' },
     betas: ['server-side-fallback-2026-07-01'],
     fallbacks: 'default',
-    system: 'Du schreibst kurze Spielberichte für den Instagram-Kanal der SMV (Schülermitverantwortung) des Parler-Gymnasiums Schwäbisch Gmünd zum Oberstufen-Fußballturnier in der Sporthalle. ' +
+    system: 'Du schreibst kurze Spielberichte für den Instagram-Kanal der SMV (Schülermitverantwortung) des Parler-Gymnasiums Schwäbisch Gmünd zum Oberstufen-Fußballturnier in der Großsporthalle Schwäbisch Gmünd. ' +
       'Schreibe 2 bis 3 kurze Sätze auf Deutsch, locker und sportlich wie ein Sportkanal, positiv und fair gegenüber beiden Teams. ' +
       'Nutze nur die Fakten aus den Spieldaten – erfinde keine Spielszenen, Zitate, Zuschauerzahlen oder Tabellenplätze. Nenne Torschützen mit Namen, wenn sie in den Daten stehen. ' +
       'Eigentore und Strafen nur sachlich erwähnen, niemanden bloßstellen. Höchstens zwei passende Emojis, keine Hashtags, keine Anführungszeichen um den ganzen Text. Gib nur den Bericht aus.',

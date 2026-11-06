@@ -49,7 +49,7 @@ html,body{margin:0;background:#C9CFDD;color:var(--ink);font-family:var(--f-b)}
 <div class="bar"><button type="button" id="print">Drucken / als PDF speichern</button><label for="url">Adresse im QR-Code:</label><input id="url" type="url"></div>
 <div class="sheet">
   <header class="top"><span class="logo school" role="img" aria-label="Logo Parler-Gymnasium"></span>
-    <div><small id="school">Parler-Gymnasium · SMV präsentiert</small><h1 id="title">Oberstufen-<span>Turnier</span></h1><div class="when" id="when">Dienstag, 22. Dezember 2026 · ab 11:30 Uhr</div></div>
+    <div><small id="school">Parler-Gymnasium · SMV präsentiert</small><h1 id="title">Oberstufen-<span>Turnier</span></h1><div class="when" id="when">Dienstag, 22. Dezember 2026 · ab 11:30 Uhr · Großsporthalle Schwäbisch Gmünd</div></div>
     <span class="logo smv" role="img" aria-label="Logo der SMV"></span></header>
   <main class="mid">
     <h2>Alles <span>live</span> auf dem Handy</h2>
@@ -90,7 +90,8 @@ html,body{margin:0;background:#C9CFDD;color:var(--ink);font-family:var(--f-b)}
     if (s.title) document.getElementById('title').innerHTML = esc(s.title).replace(/-?(Turnier)$/i, '-<span>$1</span>') + (s.season ? ' <span>' + esc(s.season) + '</span>' : '');
     if (s.school) document.getElementById('school').textContent = s.school + ' · SMV präsentiert';
     var date = s.date || (s.day ? new Date(s.day + 'T12:00').toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : '');
-    if (date || s.start) document.getElementById('when').textContent = [date, s.start ? 'ab ' + s.start + ' Uhr' : '', s.location].filter(Boolean).join(' · ');
+    var loc = !s.location || /^\s*sporthalle\s*$/i.test(s.location) ? 'Großsporthalle Schwäbisch Gmünd' : s.location;
+    if (date || s.start) document.getElementById('when').textContent = [date, s.start ? 'ab ' + s.start + ' Uhr' : '', loc].filter(Boolean).join(' · ');
     if (s.durGroup) document.getElementById('ft').textContent = 'Gruppenspiele ' + s.durGroup + ' Min. · K.-o. ' + s.durKo + ' Min. · Halbfinale & Finale ' + s.durFinal + ' Min.';
   }).catch(function () {});
 })();
