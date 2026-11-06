@@ -34,6 +34,10 @@ async function req(url, opts, timeout) {
   catch (e) { throw Object.assign(new Error(NET), { net: true }); }
   finally { clearTimeout(t); }
   const j = await r.json().catch(() => ({}));
+  if (r.status === 404 && !j.error) {
+    let host = url; try { host = new URL(url).host; } catch (e) { /* egal */ }
+    throw Object.assign(new Error('Unter ' + host + ' wurde die Turnier-Website nicht gefunden (Status 404). Bitte die Adresse prüfen: In Vercel unter Projekt → Domains steht die richtige. Wurde das Projekt umbenannt, hier die neue Adresse eintragen und speichern.'), { status: 404, notFound: true });
+  }
   if (!r.ok) throw Object.assign(new Error(j.error || 'Die Website antwortet mit Status ' + r.status + '.'), { status: r.status, data: j, headers: r.headers });
   return { j, headers: r.headers };
 }
