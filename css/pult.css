@@ -15,12 +15,12 @@ body.pult #app{height:100%}
 .pu-nm small{display:block;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--muted)}
 .pu-nm b{display:block;font-family:var(--f-d);font-style:italic;font-weight:900;text-transform:uppercase;font-size:clamp(20px,2.6vw,32px);line-height:1;overflow-wrap:break-word}
 .pu-sc{font-family:var(--f-d);font-style:italic;font-weight:900;font-size:clamp(44px,6vw,72px);line-height:.9;color:var(--cyan)}
-.pu-btns{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1.5fr 1fr 1fr;gap:8px;min-height:0}
+.pu-btns{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1.7fr 1fr;gap:8px;min-height:0}
 .pu-btn{display:flex;align-items:center;justify-content:center;gap:10px;border:0;border-radius:10px;font-family:var(--f-d);font-style:italic;font-weight:900;text-transform:uppercase;font-size:clamp(20px,2.6vw,32px);color:#fff;cursor:pointer;min-height:0;padding:6px}
 .pu-btn:active:not(:disabled){transform:scale(.97);filter:brightness(1.15)}
 .pu-btn:disabled{opacity:.35}
 .pu-btn.goal{grid-column:1/-1;background:linear-gradient(160deg,#2E6BFF,#1D46C8);font-size:clamp(30px,4vw,52px)}
-.pu-btn.og{grid-column:1/-1;background:#1B2C63;border:2px solid #FF6B86}
+.pu-btn.og{background:#1B2C63;border:2px solid #FF6B86}
 .pu-btn.yellow{background:#5A4A0A;border:2px solid var(--yellow)}
 .pu-btn.red{background:#5A2A0E;border:2px solid #FF8A3D}
 .pu-btn .ic{width:16px;height:16px}.pu-btn .ic.yellow,.pu-btn .ic.red{height:20px;width:auto;min-width:16px}

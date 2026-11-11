@@ -330,17 +330,17 @@
   }
 
   /* ---------- Befehlszeile ---------- */
-  // Beispiele: „tor spieler 1 team 2“, „tor 7 h“, „gelb 4 gast“, „et 3 team 5“, „start“, „stopp“, „abpfiff“, „zurück“, „nächstes“
+  // Beispiele: „tor spieler 1 team 2“, „tor 7 h“, „2min 4 gast“, „et 3 team 5“, „start“, „stopp“, „abpfiff“, „zurück“, „nächstes“
   function runCmd(text) {
     const m = cur(); let s = String(text || '').trim().toLowerCase().replace(/\s+/g, ' ');
     if (!s) return null;
     if (!m) return { ok: false, text: 'Kein Spiel ausgewählt.' };
-    const ACT = [[/^(tor|t|goal)(\s|$)/, 'goal'], [/^(eigentor|et|og)(\s|$)/, 'og'], [/^(gelbe karte|gelb|gk|y)(\s|$)/, 'yellow'], [/^(2 ?min(uten)?|zeitstrafe|strafe|zeit|rote karte|rot|rk|r)(\s|$)/, 'red'],
+    const ACT = [[/^(tor|t|goal)(\s|$)/, 'goal'], [/^(eigentor|et|og)(\s|$)/, 'og'], [/^(2 ?min(uten)?|zeitstrafe|strafe|zeit|rote karte|rot|rk|r)(\s|$)/, 'red'],
       [/^(anpfiff|start|los|weiter|play)(\s|$)/, 'start'], [/^(stopp|stop|pause|halt)(\s|$)/, 'stop'], [/^(abpfiff|ende|schluss|aus)(\s|$)/, 'final'],
       [/^(zurück|zurueck|rückgängig|undo|z)(\s|$)/, 'undo'], [/^(nächstes|naechstes|next)(\s|spiel|$)/, 'next']];
     let type = null, rest = s;
     for (const [re, k] of ACT) { const x = s.match(re); if (x) { type = k; rest = s.slice(x[0].length).trim(); break; } }
-    if (!type) return { ok: false, text: 'Befehl nicht erkannt. Beispiele: „tor spieler 1 team 2“, „gelb 4 h“, „start“, „stopp“.' };
+    if (!type) return { ok: false, text: 'Befehl nicht erkannt. Beispiele: „tor spieler 1 team 2“, „2min 4 h“, „start“, „stopp“.' };
     try {
       const run = (fn, msg) => (act(fn) ? { ok: true, text: msg } : { ok: false, text: act.err });
       if (type === 'start') return run(A.start(m.id), 'Uhr läuft.');
@@ -387,7 +387,7 @@
   /* ---------- Bedienpult fürs iPad (/pult): Vollbild, ohne Scrollen, Heim links – Gast rechts ---------- */
   const PULT = !!window.PT_PULT;
   const other = (sd) => (sd === 'h' ? 'a' : 'h');
-  const PAD_T = { goal: 'Tor', og: 'Eigentor', yellow: 'Gelbe Karte', red: '2-Minuten-Strafe' };
+  const PAD_T = { goal: 'Tor', og: 'Eigentor', red: '2-Minuten-Strafe' };
   function vPult() {
     const list = H.sorted(), tests = H.tests(), m = cur();
     if (!m) return `<div class="pu-empty">Noch keine Spiele. Lege den Spielplan in der <a href="/turnierleitung">Turnierleitung</a> an.</div>`;
@@ -401,7 +401,6 @@
         ${t ? `<div class="pu-btns">
           <button class="pu-btn goal" data-act="pad" data-side="${side}" data-t="goal"${canEv ? '' : ' disabled'}><i class="ic goal"></i>Tor</button>
           <button class="pu-btn og" data-act="pad" data-side="${side}" data-t="og"${canEv ? '' : ' disabled'}><i class="ic og"></i>Eigentor</button>
-          <button class="pu-btn yellow" data-act="pad" data-side="${side}" data-t="yellow"${canEv ? '' : ' disabled'}><i class="ic yellow"></i>Gelb</button>
           <button class="pu-btn red" data-act="pad" data-side="${side}" data-t="red"${canEv ? '' : ' disabled'}><i class="ic red"></i>2 Min.</button>
         </div>` : `<div class="pu-hint">Team steht noch nicht fest. Teams in der <a href="/turnierleitung">Turnierleitung</a> wählen.</div>`}
         <div class="pu-feed">${own.map((e) => `<span><b>${esc(e.min || '')}′</b><i class="ic ${e.type}"></i>${esc(H.evWho(e) || EV[e.type])}</span>`).join('') || '<span class="pu-none">–</span>'}</div>
@@ -453,7 +452,7 @@
       if (!t) return `<div class="box ck-col" style="--c:#2A3560"><div class="head"><b>${esc(H.phOf(m, side))}</b></div><div class="hint">Wähle oben bei „Paarung“ ein Team. Dann erscheinen hier automatisch die Spielerinnen und Spieler.</div></div>`;
       const evs = (pid) => m.events.filter((e) => e.player === pid).map((e) => `<i class="ic ${e.type}"></i>`).join('');
       return `<div class="box ck-col" style="--c:${esc(t.color)}"><div class="head">${monoHTML(t, 's')}<b>${esc(t.name)}</b><span class="sc">${r[side]}</span></div>
-        <div class="seg">${[['goal', 'Tor'], ['og', 'Eigentor'], ['yellow', 'Gelb'], ['red', '2 Min.']].map(([k, l]) => `<button data-act="pick" data-side="${side}" data-t="${k}" aria-pressed="${pick === k}"><i class="ic ${k}"></i>${l}</button>`).join('')}</div>
+        <div class="seg">${[['goal', 'Tor'], ['og', 'Eigentor'], ['red', '2 Min.']].map(([k, l]) => `<button data-act="pick" data-side="${side}" data-t="${k}" aria-pressed="${pick === k}"><i class="ic ${k}"></i>${l}</button>`).join('')}</div>
         <div class="pgrid">${t.players.slice().sort(PT.byNo).map((p) => `<button class="pbtn" data-act="ev" data-side="${side}" data-player="${p.id}"${canEv ? '' : ' disabled'}><span class="no">${esc(PT.noText(p))}</span><span>${esc(p.name)}</span><span class="cnt">${evs(p.id)}</span></button>`).join('')}
         <button class="pbtn anon" data-act="ev" data-side="${side}" data-player=""${canEv ? '' : ' disabled'}>${esc(EV[pick])} ohne Namen</button></div>
         ${t.players.length ? '' : '<div class="hint" style="margin-top:8px">Für dieses Team sind noch keine Spieler eingetragen (Reiter „Teams“).</div>'}</div>`;
@@ -474,9 +473,9 @@
       <div class="ck-ctrl">${ctrl}</div>
     </div>
     <div class="box"><h3>Befehl eingeben <small>Enter trägt ein</small></h3>
-      <form class="cmd" id="cmd-form"><input id="cmd" autocomplete="off" spellcheck="false" placeholder="z. B. tor spieler 1 team 2 · gelb 4 h · start · stopp"><button class="btn primary">Eintragen</button></form>
+      <form class="cmd" id="cmd-form"><input id="cmd" autocomplete="off" spellcheck="false" placeholder="z. B. tor spieler 1 team 2 · 2min 4 h · start · stopp"><button class="btn primary">Eintragen</button></form>
       <div class="cmd-msg ${ui.cmdMsg ? (ui.cmdMsg.ok ? 'ok' : 'no') : ''}" id="cmd-msg">${ui.cmdMsg ? esc(ui.cmdMsg.text) : ''}</div>
-      <div class="keys"><kbd>tor 7 h</kbd> Tor Nr. 7 Team 1 · <kbd>tor spieler 2 team 4</kbd> nach Name und Team · <kbd>et 3 gast</kbd> Eigentor · <kbd>gelb 4 h</kbd> Gelbe Karte · <kbd>2min 5 g</kbd> 2-Minuten-Strafe · <kbd>min 5</kbd> eigene Minute · <kbd>start</kbd> <kbd>stopp</kbd> <kbd>abpfiff</kbd> <kbd>zurück</kbd> <kbd>nächstes</kbd><br>Tasten außerhalb des Eingabefelds: <kbd>Leertaste</kbd> Uhr an/aus · <kbd>Z</kbd> letzten Eintrag zurücknehmen · <kbd>/</kbd> Befehlszeile</div></div>
+      <div class="keys"><kbd>tor 7 h</kbd> Tor Nr. 7 Team 1 · <kbd>tor spieler 2 team 4</kbd> nach Name und Team · <kbd>et 3 gast</kbd> Eigentor ·  <kbd>2min 5 g</kbd> 2-Minuten-Strafe · <kbd>min 5</kbd> eigene Minute · <kbd>start</kbd> <kbd>stopp</kbd> <kbd>abpfiff</kbd> <kbd>zurück</kbd> <kbd>nächstes</kbd><br>Tasten außerhalb des Eingabefelds: <kbd>Leertaste</kbd> Uhr an/aus · <kbd>Z</kbd> letzten Eintrag zurücknehmen · <kbd>/</kbd> Befehlszeile</div></div>
     <div class="ck-teams">${col('h')}${col('a')}</div>
     ${m.stage !== 'group' ? `<div class="box"><h3>Neunmeterschießen <small>nur bei Unentschieden</small></h3><div class="frow"><div class="field"><label for="pen-h">${esc(h ? h.name : 'Team 1')}</label><input id="pen-h" type="number" min="0" inputmode="numeric" value="${m.pen ? m.pen.h : ''}"></div><div class="field"><label for="pen-a">${esc(a ? a.name : 'Team 2')}</label><input id="pen-a" type="number" min="0" inputmode="numeric" value="${m.pen ? m.pen.a : ''}"></div><div style="align-self:end"><button class="btn primary" data-act="pen">Speichern</button></div></div></div>` : ''}
     <div class="box"><h3>Spielverlauf ${m.events.length ? '<button class="btn sm" data-act="undo">Letzten Eintrag zurücknehmen</button>' : ''}</h3>${ev.length ? `<div class="log">${ev.map((e) => { const x = H.P(e.player); const ts = e.type === 'og' ? (e.side === 'h' ? 'a' : 'h') : e.side; const tt = x ? x.t : H.teamOf(m, ts); return `<div class="li"><span class="mi">${esc(e.min || '')}′</span><i class="ic ${e.type}"></i><span><b>${esc(EV[e.type])}</b>${x ? ' · ' + esc(x.p.name) : ''} <small>${esc(tt ? tt.name : '')}</small></span><button class="btn danger sm" data-act="del-ev" data-ev="${e.id}" data-confirm="Löschen?">Entfernen</button></div>`; }).join('')}</div>` : '<div class="hint">Noch keine Einträge.</div>'}</div>`;

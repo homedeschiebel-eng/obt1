@@ -76,7 +76,7 @@ IPAD ALS BEDIENPULT (empfohlen für die Live-Bedienung)
      iPad quer halten. Auto-Sperre am iPad auf "Nie" stellen (Einstellungen -> Anzeige).
   Bedienung: "Tor" bei der Mannschaft antippen, dann den Torschützen wählen.
   "Eigentor" bei der Mannschaft antippen, die es verursacht hat – ihre Spieler erscheinen,
-  die ANDERE Mannschaft bekommt +1. Gelb und 2 Minuten genauso.
+  die ANDERE Mannschaft bekommt +1. Die 2-Minuten-Strafe genauso.
   Die Torhymnen laufen am LAPTOP (Laptop an die Hallenboxen anschließen): Tor am iPad ->
   der Laptop spielt sofort die Hymne. Dafür muss am Laptop die Turnierleitung offen sein
   (darf im Hintergrund hinter der Hallenanzeige liegen). Nach dem Öffnen einmal in die
@@ -106,7 +106,7 @@ INSTA-POSTS (PRESSE)
   https://pg-oberstufenfussballturnier.vercel.app/login  ->  Passwort SMV_Insta führt direkt zu den Insta-Posts
   (das Turnierleitungs-Passwort führt im selben Feld zur Turnierleitung)
   Nach jedem Abpfiff erscheint dort das Spiel mit einem kurzen Bericht. "Spielbild einfügen"
-  (4:5) -> das Bild wird abgedunkelt, Ergebnis, Tore, Eigentore, Gelbe Karten und 2-Minuten-
+  (4:5) -> das Bild wird abgedunkelt, Ergebnis, Tore, Eigentore und 2-Minuten-
   Strafen kommen unten drauf, der Post wird heruntergeladen. "Text kopieren" -> bei Instagram
   einfügen. Für echte KI-Berichte: in Vercel ANTHROPIC_API_KEY eintragen (sonst automatischer Text).
   Läuft über die Website – der Laptop überträgt die Ergebnisse ja automatisch dorthin.

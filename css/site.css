@@ -423,3 +423,7 @@ body.menu-open{overflow:hidden}
 /* Zurück-Knopf im Kopf (Impressum, 404) */
 .hdr-back{display:inline-flex;align-items:center;white-space:nowrap;padding:8px 12px;border:1px solid #2A3560;border-radius:6px;color:#fff;text-decoration:none;font-weight:700;font-size:14px}
 .hdr-back:hover{border-color:var(--cyan);color:var(--cyan)}
+
+/* Statistik ohne Gelbe Karten: Spiele · Tore · 2 Min. */
+.plist.st3 .ps,.plist.st3 .ph{grid-template-columns:34px minmax(0,1fr) repeat(3,56px)}
+@media (max-width:640px){.plist.st3 .ps,.plist.st3 .ph{grid-template-columns:26px minmax(0,1fr) 44px 44px}}
