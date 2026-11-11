@@ -32,8 +32,8 @@
   };
   const isSitePath = (p) => p === '/' || /^\/(spielplan|tabelle|k-o-baum|statistiken|fairplay|voting|teams|partner)$/.test(p) || /^\/(teams|spiel)\/[^/]+$/.test(p);
   function go(url) { history.pushState(null, '', url); closeMenu(); render(); scrollTo(0, 0); }
-  // alte Links mit # (z. B. /#spielplan, /#team-t1) auf neue Adressen umstellen
-  function fixOldHash() { const h = location.hash.replace('#', ''); if (h && (h === 'live' || h === 'baum' || PAGES.includes(h) || /^(team|spiel)-/.test(h))) history.replaceState(null, '', P(h)); }
+  // alte Links mit # (z. B. /#team-t2) gibt es nicht mehr: # entfernen, es bleibt die normale Seite (Startseite)
+  function fixOldHash() { if (location.hash) history.replaceState(null, '', location.pathname + location.search); }
 
   /* ---------- Bausteine ---------- */
   const clockHTML = (m, big) => `<span class="clk${big ? ' big' : ''}" data-clock="${m.id}">${H.clockText(m)}</span>`;
@@ -383,6 +383,7 @@
   addEventListener('popstate', () => { closeMenu(); render(); });
   addEventListener('hashchange', () => { fixOldHash(); closeMenu(); render(); scrollTo(0, 0); });
   document.addEventListener('input', (e) => { if (e.target.id === 'v-q') { vt.q = e.target.value; render(); } });
+  fixOldHash();
   PT.syncTime().then(() => load()).then(schedule);
   setInterval(PT.syncTime, 5 * 60e3);
 })();
