@@ -105,6 +105,7 @@
       <section class="te-card"><h2>Torhymne <b class="req">*</b></h2>
         <div class="te-hy">${hymn ? `<div style="font-weight:700">🎵 ${esc(hymn.name)} <span class="te-hint">(${kb(hymn.size)})${pend.hymn ? ' – neu, wird beim Speichern hochgeladen' : ''}</span></div><audio controls preload="none" src="${esc(hymn.url)}"></audio>` : '<div class="te-hint">Noch keine Hymne ausgewählt.</div>'}
           <div><label class="te-b sm">${hymn ? 'Andere Hymne' : 'Hymne auswählen'}<input type="file" accept="audio/*,video/*,.mp3,.m4a,.wav,.ogg,.aac,.mp4,.mov,.m4v,.webm" id="f-hymn" hidden${dis}></label></div>
+          <div class="te-tip">💡 <b>Tipp:</b> Die Hymne sollte höchstens ca. <b>30 Sekunden</b> lang sein – am besten genau der Teil, der nach einem Tor laufen soll.</div>
           <div class="te-hint" id="hy-busy" hidden></div>
           <div class="te-hint">Läuft in der Halle nach jedem Tor eures Teams. <b>Audio oder Video</b> (MP3, M4A, WAV, MP4, MOV …), <b>höchstens 10 MB</b>. Von Videos wird nur der Ton verwendet. Längere Dateien werden auf die ersten 2 Minuten gekürzt – am besten beginnt die Datei schon an der richtigen Stelle. Bitte nur jugendfreie Songs.</div>
           <div class="te-hint" style="font-size:11px">MP3-Umwandlung mit LAME (lame.sourceforge.net, LGPL).</div></div>
