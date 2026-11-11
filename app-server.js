@@ -25,7 +25,9 @@ function handler(req, res) {
   }
   // Wie auf Vercel: saubere Adressen ohne .html, kein Schrägstrich am Ende
   if (p.length > 1 && p.endsWith('/')) { res.statusCode = 308; res.setHeader('Location', p.replace(/\/+$/, '') + url.search); res.end(); return; }
-  let file = p === '/' ? 'index.html' : p.slice(1);
+  // Seiten der Website ohne # (z. B. /teams/gräter-fürth) – alle liefert index.html
+  const SITE = /^\/(spielplan|tabelle|k-o-baum|statistiken|fairplay|voting|teams|partner)$|^\/(teams|spiel)\/[^/]+$/;
+  let file = p === '/' || SITE.test(p) ? 'index.html' : p.slice(1);
   if (!path.extname(file) && fs.existsSync(path.join(ROOT, file + '.html'))) file += '.html';
   file = path.normalize(file).replace(/\\/g, '/');
   const full = path.join(ROOT, file);

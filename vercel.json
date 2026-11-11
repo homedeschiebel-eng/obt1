@@ -70,5 +70,19 @@
     "api/bericht.js": {
       "maxDuration": 60
     }
-  }
+  },
+  "rewrites": [
+    {
+      "source": "/(spielplan|tabelle|k-o-baum|statistiken|fairplay|voting|teams|partner)",
+      "destination": "/"
+    },
+    {
+      "source": "/teams/:slug",
+      "destination": "/"
+    },
+    {
+      "source": "/spiel/:nr",
+      "destination": "/"
+    }
+  ]
 }

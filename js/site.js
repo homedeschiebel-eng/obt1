@@ -5,7 +5,35 @@
   const app = document.getElementById('app');
   let S = null, H = null, online = true;
   const ui = { filter: 'all', stTeam: 'all' };
-  const route = () => location.hash.replace('#', '') || 'live';
+  /* ---------- Adressen ohne # ----------
+     /  ·  /spielplan  ·  /tabelle  ·  /k-o-baum  ·  /statistiken  ·  /fairplay  ·  /voting  ·  /teams  ·  /teams/gräter-fürth  ·  /partner  ·  /spiel/5 */
+  const PAGES = ['spielplan', 'tabelle', 'statistiken', 'fairplay', 'voting', 'teams', 'partner'];
+  const slug = (s) => String(s || '').toLowerCase().trim().replace(/[^a-z0-9äöüß]+/g, '-').replace(/^-+|-+$/g, '') || 'team';
+  function slugs() { const out = {}, used = {}; (S ? S.teams : []).slice().sort((a, b) => String(a.id).localeCompare(String(b.id))).forEach((t) => { let s = slug(t.name); if (used[s]) s += '-' + (++used[s]); else used[s] = 1; out[t.id] = s; }); return out; }
+  // Bereich → Adresse
+  function P(key) {
+    if (!key || key === 'live') return '/';
+    if (key === 'baum') return '/k-o-baum';
+    if (key.startsWith('team-')) { const id = key.slice(5); return '/teams/' + (slugs()[id] || id); }
+    if (key.startsWith('spiel-')) { const m = H && H.M(key.slice(6)); return '/spiel/' + (m && m.no && !H.isTest(m) ? m.no : key.slice(6)); }
+    return '/' + key;
+  }
+  // Adresse → Bereich
+  const route = () => {
+    let p = '/'; try { p = decodeURIComponent(location.pathname); } catch (e) { p = location.pathname; }
+    p = p.replace(/\/+$/, '') || '/';
+    if (p === '/') return 'live';
+    if (p === '/k-o-baum') return 'baum';
+    let m = /^\/teams\/(.+)$/.exec(p);
+    if (m) { const s = m[1].toLowerCase(), map = slugs(), id = Object.keys(map).find((k) => map[k] === s) || (S && S.teams.some((t) => t.id === m[1]) ? m[1] : null); return 'team-' + (id || '?'); }
+    m = /^\/spiel\/(.+)$/.exec(p);
+    if (m) { const x = S && S.matches.find((y) => String(y.no) === m[1] && y.stage !== 'test') || (S && S.matches.find((y) => y.id === m[1])); return 'spiel-' + (x ? x.id : '?'); }
+    const k = p.slice(1); return PAGES.includes(k) ? k : 'live';
+  };
+  const isSitePath = (p) => p === '/' || /^\/(spielplan|tabelle|k-o-baum|statistiken|fairplay|voting|teams|partner)$/.test(p) || /^\/(teams|spiel)\/[^/]+$/.test(p);
+  function go(url) { history.pushState(null, '', url); closeMenu(); render(); scrollTo(0, 0); }
+  // alte Links mit # (z. B. /#spielplan, /#team-t1) auf neue Adressen umstellen
+  function fixOldHash() { const h = location.hash.replace('#', ''); if (h && (h === 'live' || h === 'baum' || PAGES.includes(h) || /^(team|spiel)-/.test(h))) history.replaceState(null, '', P(h)); }
 
   /* ---------- Bausteine ---------- */
   const clockHTML = (m, big) => `<span class="clk${big ? ' big' : ''}" data-clock="${m.id}">${H.clockText(m)}</span>`;
@@ -17,7 +45,7 @@
     opts = opts || {};
     if (!m) return `<section class="stage"><div class="wrap"><div class="stage-top"><span>${esc(S.settings.school)} · SMV präsentiert</span></div><h1 style="font-size:clamp(46px,8vw,90px)">${esc(S.settings.title)}</h1><div class="nextline">${S.settings.planHidden ? 'Gruppen und Spielplan kommen am ' + esc(((m) => m ? new Date(+m[1], +m[2] - 1, +m[3]).toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' }) : 'bald')(/^(\d{4})-(\d{2})-(\d{2})/.exec(S.settings.planPublicAt || ''))) + '.' : 'Der Spielplan ist noch leer.'}</div></div></section>`;
     const r = H.sc(m), h = H.teamOf(m, 'h'), a = H.teamOf(m, 'a');
-    const tb = (t, side) => `<a class="tb" href="${t ? '#team-' + t.id : '#spiel-' + m.id}">${monoHTML(t, 'xl')}<b>${esc(t ? t.name : H.phOf(m, side))}</b><small>${esc(t ? (t.cls || (t.group ? 'Gruppe ' + t.group : '')) : 'steht noch nicht fest')}</small></a>`;
+    const tb = (t, side) => `<a class="tb" href="${t ? P('team-' + t.id) : P('spiel-' + m.id)}">${monoHTML(t, 'xl')}<b>${esc(t ? t.name : H.phOf(m, side))}</b><small>${esc(t ? (t.cls || (t.group ? 'Gruppe ' + t.group : '')) : 'steht noch nicht fest')}</small></a>`;
     const evs = (side) => `<ul>${m.events.filter((e) => e.side === side).sort((x, y) => (x.min || 0) - (y.min || 0)).map((e) => `<li>${side === 'h' ? `<span class="mi">${esc(e.min || '')}′</span><i class="ic ${e.type}"></i>${evText(e)}` : `${evText(e)}<i class="ic ${e.type}"></i><span class="mi">${esc(e.min || '')}′</span>`}</li>`).join('')}</ul>`;
     let top;
     if (m.status === 'live') top = `<span class="livechip">Live</span>`;
@@ -42,7 +70,7 @@
     if (m.status === 'live') res = `<span class="res live">${r.h}:${r.a}<small data-clock="${m.id}">${H.clockText(m)}</small></span>`;
     else if (m.status === 'done') res = `<span class="res">${r.h}:${r.a}${m.pen ? `<small>${m.pen.h}:${m.pen.a} n.N.</small>` : ''}</span>`;
     else res = `<span class="res pending">– : –</span>`;
-    return `<a class="pr ${m.status}" href="#spiel-${m.id}"><span class="meta"><span class="no">${H.isTest(m) ? 'T' : esc(m.no || '')}</span><span class="tm"><span data-exp="${m.id}">${H.expTime(m)}</span>${m.status === 'done' ? '' : H.delayHTML(m)}</span><span class="rd">${H.isTest(m) ? esc(H.dayText(m)) + '<br>' : ''}${esc(m.label || STAGES[m.stage].l)}</span></span>${side('h')}${res}${side('a')}</a>`;
+    return `<a class="pr ${m.status}" href="${P('spiel-' + m.id)}"><span class="meta"><span class="no">${H.isTest(m) ? 'T' : esc(m.no || '')}</span><span class="tm"><span data-exp="${m.id}">${H.expTime(m)}</span>${m.status === 'done' ? '' : H.delayHTML(m)}</span><span class="rd">${H.isTest(m) ? esc(H.dayText(m)) + '<br>' : ''}${esc(m.label || STAGES[m.stage].l)}</span></span>${side('h')}${res}${side('a')}</a>`;
   }
 
   function standTable(g, compact) {
@@ -50,7 +78,7 @@
     if (!rows.length) return `<div class="empty">Noch keine Teams${g ? ' in Gruppe ' + esc(g) : ''}.</div>`;
     const qn = H.qualN(), c = compact ? ' c' : '', cl = H.clinch(g), done = H.groupDone(g);
     const tags = (id) => { const x = cl[id]; if (!x || done) return ''; return (x.q ? `<abbr class="tag q" title="Sicher in der K.-o.-Phase">Q</abbr>` : '') + (x.out ? `<abbr class="tag a" title="Sicher ausgeschieden">A</abbr>` : '') + (x.place ? `<abbr class="tag p" title="Platz ${x.place} ist sicher">P</abbr>` : ''); };
-    const row = (r, i) => `<a class="st-r${c}${i < qn ? ' q' : ''}" href="#team-${r.t.id}"><span>${i + 1}</span><span class="club">${monoHTML(r.t, 's')}<span class="nm">${esc(r.t.name)}</span>${tags(r.t.id)}${r.live ? '<span class="lvd" title="spielt gerade"></span>' : ''}</span><span>${r.sp}</span>${compact ? '' : `<span class="x">${r.s}</span><span class="x">${r.u}</span><span class="x">${r.n}</span>`}<span>${r.tf}:${r.ta}</span><span>${r.tf - r.ta > 0 ? '+' : ''}${r.tf - r.ta}</span><span class="pts">${r.pts}</span></a>`;
+    const row = (r, i) => `<a class="st-r${c}${i < qn ? ' q' : ''}" href="${P('team-' + r.t.id)}"><span>${i + 1}</span><span class="club">${monoHTML(r.t, 's')}<span class="nm">${esc(r.t.name)}</span>${tags(r.t.id)}${r.live ? '<span class="lvd" title="spielt gerade"></span>' : ''}</span><span>${r.sp}</span>${compact ? '' : `<span class="x">${r.s}</span><span class="x">${r.u}</span><span class="x">${r.n}</span>`}<span>${r.tf}:${r.ta}</span><span>${r.tf - r.ta > 0 ? '+' : ''}${r.tf - r.ta}</span><span class="pts">${r.pts}</span></a>`;
     const head = `<div class="st-h${c}"><span>#</span><span>Team</span><span>Sp</span>${compact ? '' : '<span class="x">S</span><span class="x">U</span><span class="x">N</span>'}<span>Tore</span><span>Diff</span><span>Pkt</span></div>`;
     return `<div class="stand">${head}${qn ? `<div class="qgrp"><span class="ql">${H.qualLabel()}</span>${rows.slice(0, qn).map(row).join('')}</div>` : ''}${rows.slice(qn).map((r, i) => row(r, i + qn)).join('')}</div>`;
   }
@@ -82,7 +110,7 @@
   function hiddenNote() {
     const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(S.settings.planPublicAt || '');
     const when = m ? new Date(+m[1], +m[2] - 1, +m[3]).toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' }) + (m[4] + m[5] !== '0000' ? ', ' + m[4] + ':' + m[5] + ' Uhr' : '') : 'bald';
-    return `<div class="empty">📅 Gruppen und Spielplan werden am <b>${esc(when)}</b> veröffentlicht. Bis dahin findet ihr hier schon alle <a href="#teams">Teams</a>.</div>`;
+    return `<div class="empty">📅 Gruppen und Spielplan werden am <b>${esc(when)}</b> veröffentlicht. Bis dahin findet ihr hier schon alle <a href="/teams">Teams</a>.</div>`;
   }
   function vLive() {
     if (planHidden()) return { hero: stageHero(H.featured()), main: `${voteCard()}<section><h2 class="sh">Spielplan &amp; Gruppen</h2>${hiddenNote()}</section>` };
@@ -93,11 +121,11 @@
       hero: stageHero(f),
       main: `${voteCard()}
       <div class="grid2">
-        <section><h2 class="sh">Nächste Spiele <a href="#spielplan">Spielplan</a></h2>${up.length ? `<div class="plan">${up.map(planRow).join('')}</div>` : '<div class="empty">Keine weiteren Spiele geplant.</div>'}</section>
-        <section><h2 class="sh">Letzte Ergebnisse <a href="#spielplan">Alle</a></h2>${done.length ? `<div class="plan">${done.map(planRow).join('')}</div>` : '<div class="empty">Noch keine Ergebnisse.</div>'}</section>
+        <section><h2 class="sh">Nächste Spiele <a href="/spielplan">Spielplan</a></h2>${up.length ? `<div class="plan">${up.map(planRow).join('')}</div>` : '<div class="empty">Keine weiteren Spiele geplant.</div>'}</section>
+        <section><h2 class="sh">Letzte Ergebnisse <a href="/spielplan">Alle</a></h2>${done.length ? `<div class="plan">${done.map(planRow).join('')}</div>` : '<div class="empty">Noch keine Ergebnisse.</div>'}</section>
       </div>
-      <section><h2 class="sh">Tabellen <a href="#tabelle">Ausführlich</a></h2><div class="grid2">${H.groups().map((g) => `<div>${H.groups().length > 1 ? `<h3 class="gname" style="font-size:26px">Gruppe ${esc(g)}</h3>` : ''}${standTable(g, true)}</div>`).join('')}</div></section>
-      <section><h2 class="sh">Top-Performer <a href="#statistiken">Alle Statistiken</a></h2>${performers()}</section>`
+      <section><h2 class="sh">Tabellen <a href="/tabelle">Ausführlich</a></h2><div class="grid2">${H.groups().map((g) => `<div>${H.groups().length > 1 ? `<h3 class="gname" style="font-size:26px">Gruppe ${esc(g)}</h3>` : ''}${standTable(g, true)}</div>`).join('')}</div></section>
+      <section><h2 class="sh">Top-Performer <a href="/statistiken">Alle Statistiken</a></h2>${performers()}</section>`
     };
   }
   function vSchedule() {
@@ -115,7 +143,7 @@
       ${list.length ? '' : '<div class="empty">Keine Spiele in dieser Auswahl.</div>'}
       <p class="legend">Alle Spiele finden nacheinander auf einem Feld statt. Die Uhrzeiten passen sich live an: Bei Verspätung verschiebt sich der Plan automatisch, die Verspätung steht gelb daneben.</p></section>`;
   }
-  const tableTabs = (cur) => `<div class="tabs"><a class="tablink" href="#tabelle"${cur === 'tabelle' ? ' aria-current="page"' : ''}>Gruppen</a><a class="tablink" href="#baum"${cur === 'baum' ? ' aria-current="page"' : ''}>K.-o.-Baum</a></div>`;
+  const tableTabs = (cur) => `<div class="tabs"><a class="tablink" href="/tabelle"${cur === 'tabelle' ? ' aria-current="page"' : ''}>Gruppen</a><a class="tablink" href="/k-o-baum"${cur === 'baum' ? ' aria-current="page"' : ''}>K.-o.-Baum</a></div>`;
   function vTable() {
     if (planHidden()) return `${tableTabs('tabelle')}${hiddenNote()}`;
     const multi = H.groups().length > 1;
@@ -131,7 +159,7 @@
     const box = (m) => {
       const r = H.sc(m), w = H.winnerSide(m), started = m.status !== 'scheduled';
       const row = (side) => { const p = H.predict(m, side), t = p.t; const cls = t ? (p.fixed ? 'fixed' : 'prov') : 'open'; return `<div class="bx-t ${cls}${w ? (w === side ? ' win' : ' lost') : ''}">${monoHTML(t, 's')}<span class="nm">${esc(t ? t.name : (p.ph || H.phOf(m, side)))}</span>${started ? `<b class="sc">${r[side]}</b>` : (t && !p.fixed ? '<small class="pv">vorläufig</small>' : '')}</div>`; };
-      return `<a class="bx${m.status === 'live' ? ' live' : ''}" href="#spiel-${m.id}"><div class="bx-h"><span>${esc(m.label)}</span><span>${m.status === 'live' ? '<span class="livechip">Live</span>' : m.status === 'done' ? 'Endstand' + (m.pen ? ' · ' + m.pen.h + ':' + m.pen.a + ' n.N.' : '') : 'ca. <span data-exp="' + m.id + '">' + H.expTime(m) + '</span> Uhr'}</span></div>${row('h')}${row('a')}</a>`;
+      return `<a class="bx${m.status === 'live' ? ' live' : ''}" href="${P('spiel-' + m.id)}"><div class="bx-h"><span>${esc(m.label)}</span><span>${m.status === 'live' ? '<span class="livechip">Live</span>' : m.status === 'done' ? 'Endstand' + (m.pen ? ' · ' + m.pen.h + ':' + m.pen.a + ' n.N.' : '') : 'ca. <span data-exp="' + m.id + '">' + H.expTime(m) + '</span> Uhr'}</span></div>${row('h')}${row('a')}</a>`;
     };
     const fin = ko.find((m) => m.stage === 'final'), champ = fin && H.winnerSide(fin) ? H.teamOf(fin, H.winnerSide(fin)) : null;
     return `${tableTabs('baum')}
@@ -140,10 +168,10 @@
       ${third.length ? `<h2 class="sh" style="margin-top:26px">Spiel um Platz 3</h2><div class="br-third">${third.map(box).join('')}</div>` : ''}
       <div class="legend"><span class="lg-fixed">Team steht fest</span> · <span class="lg-prov">vorläufig</span> = nach aktuellem Tabellenstand bzw. Zwischenstand des laufenden Spiels · grau = noch offen.<br>Der Baum aktualisiert sich live.</div>`;
   }
-  const statTabs = (cur) => `<div class="tabs"><a class="tablink" href="#statistiken"${cur === 'statistiken' ? ' aria-current="page"' : ''}>Spieler</a><a class="tablink" href="#fairplay"${cur === 'fairplay' ? ' aria-current="page"' : ''}>Fairplay</a>${S.settings.vote && S.settings.vote !== 'off' ? `<a class="tablink" href="#voting"${cur === 'voting' ? ' aria-current="page"' : ''}>Spieler des Turniers</a>` : ''}</div>`;
+  const statTabs = (cur) => `<div class="tabs"><a class="tablink" href="/statistiken"${cur === 'statistiken' ? ' aria-current="page"' : ''}>Spieler</a><a class="tablink" href="/fairplay"${cur === 'fairplay' ? ' aria-current="page"' : ''}>Fairplay</a>${S.settings.vote && S.settings.vote !== 'off' ? `<a class="tablink" href="/voting"${cur === 'voting' ? ' aria-current="page"' : ''}>Spieler des Turniers</a>` : ''}</div>`;
   function vFair() {
     const l = H.fairplay();
-    return `${statTabs('fairplay')}${l.length ? `<div class="plist"><div class="ph fp"><span>#</span><span style="text-align:left">Team</span><span class="x">Spiele</span><span>Gelb</span><span>2 Min.</span><span>Punkte</span></div>${l.map((x, i) => `<a class="ps fp" href="#team-${x.t.id}"><span class="rk">${i + 1}</span><span class="who">${monoHTML(x.t, 's')}<span><b>${esc(x.t.name)}</b><small>${esc(x.t.group ? 'Gruppe ' + x.t.group : '')}</small></span></span><span class="x">${x.sp}</span><span>${x.y}</span><span>${x.r}</span><span class="big">${x.pts}</span></a>`).join('')}</div>` : '<div class="empty">Die Fairplay-Wertung startet mit dem ersten Spiel.</div>'}
+    return `${statTabs('fairplay')}${l.length ? `<div class="plist"><div class="ph fp"><span>#</span><span style="text-align:left">Team</span><span class="x">Spiele</span><span>Gelb</span><span>2 Min.</span><span>Punkte</span></div>${l.map((x, i) => `<a class="ps fp" href="${P('team-' + x.t.id)}"><span class="rk">${i + 1}</span><span class="who">${monoHTML(x.t, 's')}<span><b>${esc(x.t.name)}</b><small>${esc(x.t.group ? 'Gruppe ' + x.t.group : '')}</small></span></span><span class="x">${x.sp}</span><span>${x.y}</span><span>${x.r}</span><span class="big">${x.pts}</span></a>`).join('')}</div>` : '<div class="empty">Die Fairplay-Wertung startet mit dem ersten Spiel.</div>'}
       <p class="legend">Gelbe Karte = 1 Punkt · 2-Minuten-Strafe = 2 Punkte. Wenige Punkte = fair. Testspiele zählen nicht.</p>`;
   }
   /* ---------- Voting „Spieler des Turniers“ ---------- */
@@ -194,8 +222,8 @@
   }
   function voteCard() {
     const st = S.settings.vote || 'off';
-    if (st === 'open' && !votedFor()) return '<a class="vcard" href="#voting"><b>Spieler des Turniers</b><span>Jetzt abstimmen – eine Stimme pro Handy →</span></a>';
-    if (st === 'show') { loadVotes(false); const c = (vt.data && vt.data.counts) || {}; const l = Object.entries(c).sort((a, b) => b[1] - a[1]); const x = l[0] && H.P(l[0][0]); if (x && l[1] && l[1][1] === l[0][1]) return '<a class="vcard win" href="#voting"><b>Spieler des Turniers: Gleichstand</b><span>Ergebnis ansehen →</span></a>'; if (x) return `<a class="vcard win" href="#voting"><b>Spieler des Turniers: ${esc(x.p.name)}</b><span>${esc(x.t.name)} · Ergebnis ansehen →</span></a>`; }
+    if (st === 'open' && !votedFor()) return '<a class="vcard" href="/voting"><b>Spieler des Turniers</b><span>Jetzt abstimmen – eine Stimme pro Handy →</span></a>';
+    if (st === 'show') { loadVotes(false); const c = (vt.data && vt.data.counts) || {}; const l = Object.entries(c).sort((a, b) => b[1] - a[1]); const x = l[0] && H.P(l[0][0]); if (x && l[1] && l[1][1] === l[0][1]) return '<a class="vcard win" href="/voting"><b>Spieler des Turniers: Gleichstand</b><span>Ergebnis ansehen →</span></a>'; if (x) return `<a class="vcard win" href="/voting"><b>Spieler des Turniers: ${esc(x.p.name)}</b><span>${esc(x.t.name)} · Ergebnis ansehen →</span></a>`; }
     return '';
   }
   function vStats() {
@@ -204,21 +232,21 @@
     l = l.filter((x) => f !== 'all' || x.g || x.y || x.r).sort((a, b) => b.g - a.g || (a.y + a.r) - (b.y + b.r) || a.p.name.localeCompare(b.p.name));
     let rank = 0, prev = -1;
     return `${statTabs('statistiken')}<div class="layout-side"><div class="side-f"><h3>Filtern nach Team</h3><button data-act="st-team" data-t="all" aria-pressed="${f === 'all'}">Alle Teams</button>${S.teams.map((t) => `<button data-act="st-team" data-t="${t.id}" aria-pressed="${f === t.id}">${esc(t.name)}</button>`).join('')}</div>
-    <div class="plist">${l.length ? `<div class="ph"><span>#</span><span style="text-align:left">Spieler/in</span><span class="x">Spiele</span><span>Tore</span><span class="x">Gelb</span><span>2 Min.</span></div>${l.map((x, i) => { if (x.g !== prev) { rank = i + 1; prev = x.g; } return `<a class="ps" href="#team-${x.t.id}"><span class="rk">${rank}</span><span class="who"><span class="avatar" style="--c:${esc(x.t.color)}">${esc(PT.noText(x.p))}</span><span><b>${esc(x.p.name)}</b><small>${esc(x.t.name)}</small></span></span><span class="x">${x.sp}</span><span class="big">${x.g}</span><span class="x">${x.y}</span><span>${x.r}</span></a>`; }).join('')}` : '<div class="empty">Noch keine Tore oder Karten.</div>'}</div></div>`;
+    <div class="plist">${l.length ? `<div class="ph"><span>#</span><span style="text-align:left">Spieler/in</span><span class="x">Spiele</span><span>Tore</span><span class="x">Gelb</span><span>2 Min.</span></div>${l.map((x, i) => { if (x.g !== prev) { rank = i + 1; prev = x.g; } return `<a class="ps" href="${P('team-' + x.t.id)}"><span class="rk">${rank}</span><span class="who"><span class="avatar" style="--c:${esc(x.t.color)}">${esc(PT.noText(x.p))}</span><span><b>${esc(x.p.name)}</b><small>${esc(x.t.name)}</small></span></span><span class="x">${x.sp}</span><span class="big">${x.g}</span><span class="x">${x.y}</span><span>${x.r}</span></a>`; }).join('')}` : '<div class="empty">Noch keine Tore oder Karten.</div>'}</div></div>`;
   }
   function vTeams() {
-    return S.teams.length ? `<div class="tgrid">${S.teams.slice().sort((a, b) => (a.group || '').localeCompare(b.group || '') || a.name.localeCompare(b.name, 'de', { numeric: true })).map((t) => `<a class="tcard" href="#team-${t.id}" style="--c:${esc(t.color)}">${t.photo ? `<span class="ph" style="background-image:url('${esc(t.photo)}')"></span>` : `<span class="ghost">${esc(PT.short(t))}</span>`}<span class="tinfo">${monoHTML(t, 'l')}<h3>${esc(t.name)}</h3><small>${[t.cls, t.group ? 'Gruppe ' + t.group : '', t.players.length + ' Spieler/innen'].filter(Boolean).map(esc).join(' · ')}</small></span></a>`).join('')}</div>` : '<div class="empty">Noch keine Teams angelegt.</div>';
+    return S.teams.length ? `<div class="tgrid">${S.teams.slice().sort((a, b) => (a.group || '').localeCompare(b.group || '') || a.name.localeCompare(b.name, 'de', { numeric: true })).map((t) => `<a class="tcard" href="${P('team-' + t.id)}" style="--c:${esc(t.color)}">${t.photo ? `<span class="ph" style="background-image:url('${esc(t.photo)}')"></span>` : `<span class="ghost">${esc(PT.short(t))}</span>`}<span class="tinfo">${monoHTML(t, 'l')}<h3>${esc(t.name)}</h3><small>${[t.cls, t.group ? 'Gruppe ' + t.group : '', t.players.length + ' Spieler/innen'].filter(Boolean).map(esc).join(' · ')}</small></span></a>`).join('')}</div>` : '<div class="empty">Noch keine Teams angelegt.</div>';
   }
   function vTeam(id) {
-    const t = H.T(id); if (!t) return '<div class="empty">Dieses Team gibt es nicht. <a href="#teams">Zu allen Teams</a></div>';
+    const t = H.T(id); if (!t) return '<div class="empty">Dieses Team gibt es nicht. <a href="/teams">Zu allen Teams</a></div>';
     const ms = H.sorted().filter((m) => H.teamOf(m, 'h') === t || H.teamOf(m, 'a') === t);
     const st = H.playerStats().filter((x) => x.t === t);
-    return `<a class="back" href="#teams">← Alle Teams</a>
+    return `<a class="back" href="/teams">← Alle Teams</a>
     <section><h2 class="sh">Kader <small>${t.players.length} Spieler/innen</small></h2>${t.players.length ? `<div class="roster">${t.players.slice().sort(PT.byNo).map((p) => { const x = st.find((s) => s.p === p) || { g: 0, y: 0, r: 0 }; return `<div class="pl"><span class="no">${esc(PT.noText(p))}</span><b>${esc(p.name)}</b><span class="gl"><strong>${x.g}</strong>Tore${x.y || x.r ? `<br>${[x.y ? x.y + '× Gelb' : '', x.r ? x.r + '× Rot' : ''].filter(Boolean).join(', ')}` : ''}</span></div>`; }).join('')}</div>` : '<div class="empty">Noch keine Spieler eingetragen.</div>'}</section>
     <section><h2 class="sh">Spiele</h2>${planHidden() ? hiddenNote() : ms.length ? `<div class="plan">${ms.map(planRow).join('')}</div>` : '<div class="empty">Noch keine Spiele angesetzt.</div>'}</section>`;
   }
   function vMatch(id) {
-    const m = H.M(id); if (!m) return { main: '<div class="empty">Dieses Spiel gibt es nicht. <a href="#spielplan">Zum Spielplan</a></div>' };
+    const m = H.M(id); if (!m) return { main: '<div class="empty">Dieses Spiel gibt es nicht. <a href="/spielplan">Zum Spielplan</a></div>' };
     const ev = m.events.slice().sort((x, y) => (x.min || 0) - (y.min || 0) || (x.at || 0) - (y.at || 0));
     const lu = (side) => {
       const t = H.teamOf(m, side);
@@ -227,7 +255,7 @@
     };
     return {
       hero: stageHero(m, { next: false }),
-      main: `<a class="back" href="#spielplan">← Spielplan</a><div class="grid2">
+      main: `<a class="back" href="/spielplan">← Spielplan</a><div class="grid2">
         <section><h2 class="sh">Spielverlauf</h2>${ev.length ? `<div class="timeline">${ev.map((e) => { const c = `<i class="ic ${e.type}"></i><span><b>${esc(H.evWho(e) || EV[e.type])}</b> <span class="hint">${esc(EV[e.type])}</span></span>`; return `<div class="tl"><div class="h">${e.side === 'h' ? c : ''}</div><div class="m">${esc(e.min || '')}′</div><div class="a">${e.side === 'a' ? c : ''}</div></div>`; }).join('')}</div>` : `<div class="empty">${m.status === 'scheduled' ? 'Das Spiel hat noch nicht begonnen.' : 'Noch keine Tore oder Karten.'}</div>`}</section>
         <section><h2 class="sh">Aufstellungen</h2><div class="lineups">${lu('h')}${lu('a')}</div></section></div>`
     };
@@ -257,7 +285,7 @@
   function stripHTML() {
     if (!S.teams.length) return '';
     const teams = S.teams.slice().sort((a, b) => a.name.localeCompare(b.name, 'de', { numeric: true, sensitivity: 'base' }));
-    const logos = (hidden) => teams.map((t) => `<a href="#team-${t.id}" title="${esc(t.name)}"${hidden ? ' tabindex="-1"' : ''}>${monoHTML(t, 's')}</a>`).join('');
+    const logos = (hidden) => teams.map((t) => `<a href="${P('team-' + t.id)}" title="${esc(t.name)}"${hidden ? ' tabindex="-1"' : ''}>${monoHTML(t, 's')}</a>`).join('');
     return `<div class="tstrip"><div class="wrap"><div class="ts-track" style="--n:${S.teams.length}"><div class="ts-set">${logos(false)}</div><div class="ts-set ts-copy" aria-hidden="true">${logos(true)}</div></div></div></div>`;
   }
   function render() {
@@ -282,8 +310,8 @@
     app.innerHTML = `
     ${strip}
     <header class="hdr"><div class="wrap">
-      <a class="brand" href="#live"><span class="lockup"><span class="logo logo-school" role="img" aria-label="Logo ${esc(s.school)}"></span><i class="lk-sep m-only"></i><span class="logo logo-smv m-only" role="img" aria-label="Logo der SMV"></span></span><span class="bt"><small>${esc(s.school)}</small><b>${esc(s.title).replace(/-?(Turnier)$/i, ' <span>$1</span>')}</b></span></a>
-      <nav class="nav" aria-label="Bereiche"><a class="pill${live ? ' on' : ''}" href="#live"${cur === 'live' ? ' aria-current="page"' : ''}>Live</a>${NAV.map(([k, l]) => `<a href="#${k}"${cur === k ? ' aria-current="page"' : ''}>${l}</a>`).join('')}</nav>
+      <a class="brand" href="/"><span class="lockup"><span class="logo logo-school" role="img" aria-label="Logo ${esc(s.school)}"></span><i class="lk-sep m-only"></i><span class="logo logo-smv m-only" role="img" aria-label="Logo der SMV"></span></span><span class="bt"><small>${esc(s.school)}</small><b>${esc(s.title).replace(/-?(Turnier)$/i, ' <span>$1</span>')}</b></span></a>
+      <nav class="nav" aria-label="Bereiche"><a class="pill${live ? ' on' : ''}" href="/"${cur === 'live' ? ' aria-current="page"' : ''}>Live</a>${NAV.map(([k, l]) => `<a href="${P(k)}"${cur === k ? ' aria-current="page"' : ''}>${l}</a>`).join('')}</nav>
       <div class="hdr-r"><span class="logo logo-smv d-only" role="img" aria-label="Logo der SMV"></span><button class="burger m-only" type="button" data-act="menu" aria-label="Menü öffnen" aria-expanded="false" aria-controls="mnav"><span></span><span></span><span></span></button></div>
     </div></header>
     ${hero}
@@ -314,7 +342,7 @@
       const n = await PT.fetchState(false);
       const changed = !S || n.rev !== S.rev || n.updated !== S.updated;
       if (!online) { online = true; S = null; }
-      if (changed || !S) { S = n; H = PT.make(S); render(); }
+      if (changed || !S) { const first = !S; S = n; H = PT.make(S); if (first) fixOldHash(); render(); }
     } catch (e) {
       if (!S) app.innerHTML = `<div class="wrap" style="padding-block:60px"><div class="notice">${e.setup ? '<b>Die Seite ist noch nicht fertig eingerichtet.</b> ' : '<b>Keine Verbindung.</b> '}${esc(e.message)}<br>Es wird automatisch erneut versucht.${e.setup ? ' <a href="/turnierleitung">Diagnose öffnen</a>' : ''}</div></div>`;
       else if (online) { online = false; render(); }
@@ -340,7 +368,7 @@
     const r = route(), cur = r.startsWith('team-') ? 'teams' : r.startsWith('spiel-') ? 'spielplan' : r;
     menuEl = document.createElement('div'); menuEl.className = 'mnav'; menuEl.id = 'mnav'; menuEl.setAttribute('role', 'dialog'); menuEl.setAttribute('aria-label', 'Menü');
     menuEl.innerHTML = `<div class="mn-top"><span class="lockup"><span class="logo logo-school"></span><i class="lk-sep"></i><span class="logo logo-smv"></span></span><button class="mn-x" type="button" data-mn="close" aria-label="Menü schließen">✕</button></div>
-      <nav class="mn-list">${(S && S.settings.vote && S.settings.vote !== 'off' ? MENU.concat([['voting', 'Voting']]) : MENU).map(([k, l]) => `<a href="#${k}"${cur === k ? ' aria-current="page"' : ''}>${k === 'live' && H && H.live() ? '<span class="lvd"></span>' : ''}${l}</a>`).join('')}</nav>`;
+      <nav class="mn-list">${(S && S.settings.vote && S.settings.vote !== 'off' ? MENU.concat([['voting', 'Voting']]) : MENU).map(([k, l]) => `<a href="${P(k)}"${cur === k ? ' aria-current="page"' : ''}>${k === 'live' && H && H.live() ? '<span class="lvd"></span>' : ''}${l}</a>`).join('')}</nav>`;
     document.body.appendChild(menuEl); document.body.classList.add('menu-open');
     const b = app.querySelector('.burger'); if (b) b.setAttribute('aria-expanded', 'true');
     menuEl.addEventListener('click', (e) => { if (e.target.closest('[data-mn="close"]') || e.target.closest('a')) closeMenu(); });
@@ -349,7 +377,16 @@
   document.addEventListener('click', (e) => { if (e.target.closest('[data-act="menu"]')) openMenu(); });
   addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(); });
   addEventListener('resize', () => { if (innerWidth > 860) closeMenu(); });
-  addEventListener('hashchange', () => { closeMenu(); render(); scrollTo(0, 0); });
+  // interne Links ohne Neuladen öffnen
+  document.addEventListener('click', (e) => {
+    const a = e.target.closest('a[href]'); if (!a || a.target || e.ctrlKey || e.metaKey || e.shiftKey || e.button) return;
+    const u = new URL(a.href, location.href); if (u.origin !== location.origin) return;
+    let p = u.pathname; try { p = decodeURIComponent(p); } catch (x) { /* egal */ }
+    if (!isSitePath(p.replace(/\/+$/, '') || '/')) return;
+    e.preventDefault(); if (u.pathname + u.search !== location.pathname + location.search) go(u.pathname + u.search); else { closeMenu(); scrollTo(0, 0); }
+  });
+  addEventListener('popstate', () => { closeMenu(); render(); });
+  addEventListener('hashchange', () => { fixOldHash(); closeMenu(); render(); scrollTo(0, 0); });
   document.addEventListener('input', (e) => { if (e.target.id === 'v-q') { vt.q = e.target.value; render(); } });
   PT.syncTime().then(() => load()).then(schedule);
   setInterval(PT.syncTime, 5 * 60e3);
