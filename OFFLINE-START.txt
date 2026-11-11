@@ -90,7 +90,7 @@ TEAM-ZUGÄNGE (TEAMS PFLEGEN IHR TEAM SELBST)
   Online-Turnierleitung -> Teams -> Team-Zugänge: "Fehlende Zugänge erzeugen", dann pro Team "PDF"
   (oder "Alle Zugangs-PDFs") drucken bzw. im Druckdialog als PDF speichern und weitergeben.
   Die Teams melden sich unter …/login mit ihrem Passwort an und ändern selbst: Teamname, Kürzel
-  (2–3 Zeichen), Trikotfarbe, Logo, Spieler (nur Vornamen, Nr. freiwillig) und Torhymne (max. 1 MB).
+  (2–3 Zeichen), Trikotfarbe, Logo, Spieler (nur Vornamen, Nr. freiwillig) und Torhymne (Audio oder Video bis 10 MB – verwendet wird nur der Ton, max. 2 Minuten).
   Passwörter: 8 zufällige Buchstaben und Zahlen. „Platzhalter-Teams löschen“ entfernt „Team 1“ … „Team 12“.
   Die Gruppe können sie nicht ändern. Frist: 20.12., 20:00 Uhr (in der Turnierleitung änderbar).
   Nach dem Login kommt zuerst die Team-Übersicht, bearbeitet wird auf einer eigenen Seite.

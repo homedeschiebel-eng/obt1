@@ -104,8 +104,10 @@
 
       <section class="te-card"><h2>Torhymne <b class="req">*</b></h2>
         <div class="te-hy">${hymn ? `<div style="font-weight:700">🎵 ${esc(hymn.name)} <span class="te-hint">(${kb(hymn.size)})${pend.hymn ? ' – neu, wird beim Speichern hochgeladen' : ''}</span></div><audio controls preload="none" src="${esc(hymn.url)}"></audio>` : '<div class="te-hint">Noch keine Hymne ausgewählt.</div>'}
-          <div><label class="te-b sm">${hymn ? 'Andere Hymne' : 'Hymne auswählen'}<input type="file" accept="audio/*,.mp3,.m4a,.wav,.ogg" id="f-hymn" hidden${dis}></label></div>
-          <div class="te-hint">Läuft in der Halle nach jedem Tor eures Teams. MP3 (oder M4A/WAV), <b>höchstens 1 MB</b> – am besten nur der Ausschnitt ab der richtigen Stelle (ca. 20–40 Sekunden). Bitte nur jugendfreie Songs.</div></div>
+          <div><label class="te-b sm">${hymn ? 'Andere Hymne' : 'Hymne auswählen'}<input type="file" accept="audio/*,video/*,.mp3,.m4a,.wav,.ogg,.aac,.mp4,.mov,.m4v,.webm" id="f-hymn" hidden${dis}></label></div>
+          <div class="te-hint" id="hy-busy" hidden></div>
+          <div class="te-hint">Läuft in der Halle nach jedem Tor eures Teams. <b>Audio oder Video</b> (MP3, M4A, WAV, MP4, MOV …), <b>höchstens 10 MB</b>. Von Videos wird nur der Ton verwendet. Längere Dateien werden auf die ersten 2 Minuten gekürzt – am besten beginnt die Datei schon an der richtigen Stelle. Bitte nur jugendfreie Songs.</div>
+          <div class="te-hint" style="font-size:11px">MP3-Umwandlung mit LAME (lame.sourceforge.net, LGPL).</div></div>
       </section>
       </div>
       <div class="te-bar"><span class="msg" id="msg">${!open ? 'Frist abgelaufen' : miss.length ? 'Fehlt noch: ' + esc(miss.join(', ')) : dirty ? 'Bereit zum Speichern' : 'Alles gespeichert'}</span><button class="te-b pri" data-act="save"${open && !miss.length ? '' : ' disabled'}>Speichern</button></div>`;
@@ -133,6 +135,47 @@
     else { const k = Math.min(1, 1600 / Math.max(W, H)); c.width = Math.round(W * k); c.height = Math.round(H * k); g.drawImage(img, 0, 0, c.width, c.height); }
     const blob = await new Promise((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error('Bild konnte nicht umgewandelt werden.'))), square ? 'image/png' : 'image/jpeg', 0.85));
     return { blob, url: URL.createObjectURL(blob) };
+  }
+
+  /* ---------- Hymne: Audio oder Video bis 10 MB, gespeichert wird nur der Ton ----------
+     Kleine MP3/M4A/WAV/OGG gehen unverändert durch. Videos und große Dateien werden im Browser
+     in eine MP3 (128 kbit/s, höchstens die ersten 2 Minuten) umgewandelt. */
+  const MAX_IN = 10 * 1024 * 1024, DIRECT_MAX = 3 * 1024 * 1024, MAX_SEC = 120;
+  const isPlainAudio = (f) => /^audio\/(mpeg|mp3|mp4|x-m4a|aac|wav|x-wav|wave|ogg)$/i.test(f.type) || (!f.type && /\.(mp3|m4a|wav|ogg)$/i.test(f.name));
+  let lameP = null;
+  function loadLame() {
+    if (window.lamejs) return Promise.resolve();
+    if (!lameP) lameP = new Promise((res, rej) => { const s = document.createElement('script'); s.src = '/js/vendor/lame.min.js'; s.onload = () => res(); s.onerror = () => rej(new Error('Der MP3-Umwandler konnte nicht geladen werden.')); document.head.appendChild(s); });
+    return lameP;
+  }
+  function decode(buf) {
+    const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return Promise.reject(new Error('Dieser Browser kann keinen Ton auslesen.'));
+    const ctx = new AC();
+    return new Promise((res, rej) => { const p = ctx.decodeAudioData(buf, res, rej); if (p && p.then) p.then(res, rej); }).finally(() => { try { ctx.close(); } catch (e) { /* egal */ } });
+  }
+  async function prepHymn(f, progress) {
+    const base = f.name.replace(/\.[^.]+$/, '') || 'Torhymne';
+    if (isPlainAudio(f) && f.size <= DIRECT_MAX) return { file: f, name: f.name, size: f.size, url: URL.createObjectURL(f) };
+    let audio;
+    try { audio = await decode(await f.arrayBuffer()); } catch (e) { throw new Error('Aus dieser Datei konnte kein Ton gelesen werden. Bitte als MP3 oder MP4 hochladen.'); }
+    if (!audio || !audio.length) throw new Error('Die Datei enthält keinen Ton.');
+    await loadLame();
+    const ch = Math.min(2, audio.numberOfChannels), sr = audio.sampleRate, n = Math.min(audio.length, Math.round(MAX_SEC * sr));
+    const enc = new window.lamejs.Mp3Encoder(ch, sr, 128), out = [], L = audio.getChannelData(0), R = ch > 1 ? audio.getChannelData(1) : null;
+    const BLOCK = 1152, l16 = new Int16Array(BLOCK), r16 = new Int16Array(BLOCK);
+    const toI = (x) => (x < -1 ? -32768 : x > 1 ? 32767 : Math.round(x * (x < 0 ? 32768 : 32767)));
+    for (let i = 0, k = 0; i < n; i += BLOCK, k++) {
+      const len = Math.min(BLOCK, n - i);
+      for (let j = 0; j < len; j++) { l16[j] = toI(L[i + j]); if (R) r16[j] = toI(R[i + j]); }
+      const mp3 = R ? enc.encodeBuffer(l16.subarray(0, len), r16.subarray(0, len)) : enc.encodeBuffer(l16.subarray(0, len));
+      if (mp3.length) out.push(new Uint8Array(mp3));
+      if (k % 200 === 0) { progress(Math.round((i / n) * 100)); await new Promise((r) => setTimeout(r, 0)); }
+    }
+    const end = enc.flush(); if (end.length) out.push(new Uint8Array(end));
+    const blob = new Blob(out, { type: 'audio/mpeg' });
+    const cut = audio.length > n ? ' (erste 2 Min.)' : '';
+    toast('Ton übernommen' + cut + ' ✓');
+    return { file: blob, name: base + '.mp3', size: blob.size, url: URL.createObjectURL(blob), note: cut };
   }
 
   async function save() {
@@ -173,8 +216,10 @@
       if (e.target.id === 'f-logo') { pend.logo = await prepImage(f, true); }
       else if (e.target.id === 'f-photo') { pend.photo = await prepImage(f, false); pend.photoRemove = false; }
       else if (e.target.id === 'f-hymn') {
-        if (f.size > me.maxHymn) { toast('Die Datei ist ' + kb(f.size) + ' groß – höchstens 1 MB. Bitte einen kürzeren Ausschnitt nehmen.'); e.target.value = ''; return; }
-        pend.hymn = { file: f, name: f.name, size: f.size, url: URL.createObjectURL(f) };
+        if (f.size > MAX_IN) { toast('Die Datei ist ' + kb(f.size) + ' groß – höchstens 10 MB.'); e.target.value = ''; return; }
+        const busy = document.getElementById('hy-busy'); if (busy) { busy.hidden = false; busy.textContent = '⏳ Ton wird vorbereitet …'; }
+        try { pend.hymn = await prepHymn(f, (pct) => { if (busy) busy.textContent = '⏳ Ton wird umgewandelt … ' + pct + ' %'; }); }
+        finally { if (busy) busy.hidden = true; e.target.value = ''; }
       } else return;
       dirty = true; editor();
     } catch (x) { toast(x.message); }

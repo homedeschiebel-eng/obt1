@@ -7,7 +7,7 @@ const crypto = require('crypto');
 let L = null, initErr = null;
 try { L = require('./_lib'); } catch (e) { initErr = e; }
 
-const MAX_PLAYERS = 12, MIN_PLAYERS = 5, MAX_HYMN = 1024 * 1024, MAX_IMG = 1.5 * 1024 * 1024;
+const MAX_PLAYERS = 12, MIN_PLAYERS = 5, MAX_HYMN = 10 * 1024 * 1024, MAX_IMG = 1.5 * 1024 * 1024;
 const hymnKey = (id) => 'turnier/hymn-' + id + '.json';
 function sniffAudio(b) {
   if (b.length < 12) return null;
@@ -118,10 +118,10 @@ module.exports = async (req, res) => {
 
     // Speichern: Felder, Logo, Teambild und Hymne in einem Schritt – nur wenn alles Pflichtige da ist
     if (action === 'save') {
-      const b = await L.readJson(req, 6 * 1024 * 1024);
+      const b = await L.readJson(req, 20 * 1024 * 1024);
       const v = cleanInput(b, team);
       const file = (x, max, what) => { if (!x || typeof x !== 'object' || !x.b64) return null; const buf = Buffer.from(String(x.b64), 'base64'); if (buf.length > max) throw err(400, what + ' ist zu groß.'); return buf; };
-      const logoBuf = file(b.logo, MAX_IMG, 'Das Logo'), photoBuf = file(b.photo, MAX_IMG, 'Das Teambild'), hymnBuf = file(b.hymn, MAX_HYMN, 'Die Hymne (höchstens 1 MB)');
+      const logoBuf = file(b.logo, MAX_IMG, 'Das Logo'), photoBuf = file(b.photo, MAX_IMG, 'Das Teambild'), hymnBuf = file(b.hymn, MAX_HYMN, 'Die Hymne (höchstens 10 MB)');
       if (logoBuf && !L.sniff(logoBuf)) throw err(400, 'Das Logo muss ein JPG-, PNG- oder WebP-Bild sein.');
       if (photoBuf && !L.sniff(photoBuf)) throw err(400, 'Das Teambild muss ein JPG-, PNG- oder WebP-Bild sein.');
       const hymnType = hymnBuf ? sniffAudio(hymnBuf) : null;
