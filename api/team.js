@@ -75,7 +75,9 @@ module.exports = async (req, res) => {
     if (action === 'access' || action === 'access-new' || action === 'access-del' || action === 'hymns') {
       if (!admin) return L.send(res, 401, { error: 'Du bist nicht mehr angemeldet.' });
       if (req.method === 'GET' && action === 'access') {
-        const auth = await L.getTeamAuth(), out = {};
+        const auth = await L.getTeamAuth(), out = {}, ids = new Set(((await L.readState()).teams || []).map((t) => t.id));
+        // Zugänge gelöschter Teams aufräumen
+        const stale = Object.keys(auth).filter((id) => !ids.has(id)); if (stale.length) { stale.forEach((id) => delete auth[id]); await L.setTeamAuth(auth); }
         Object.entries(auth).forEach(([id, v]) => { if (v && v.pw) out[id] = { pw: v.pw, at: v.at || 0 }; });
         return L.send(res, 200, { access: out });
       }
@@ -86,10 +88,9 @@ module.exports = async (req, res) => {
       }
       if (req.method !== 'POST' || req.headers['x-csrf'] == null) return L.send(res, 403, { error: 'Ungültige Anfrage.' });
       const b = await L.readJson(req); const id = String(b.id || '');
-      const S = await L.readState();
-      if (!(S.teams || []).some((t) => t.id === id)) return L.send(res, 404, { error: 'Team nicht gefunden.' });
-      const auth = await L.getTeamAuth();
+      const S = await L.readState(), auth = await L.getTeamAuth();
       if (action === 'access-del') { delete auth[id]; await L.setTeamAuth(auth); return L.send(res, 200, { ok: true }); }
+      if (!(S.teams || []).some((t) => t.id === id)) return L.send(res, 404, { error: 'Team nicht gefunden.' });
       const taken = new Set(Object.entries(auth).filter(([k]) => k !== id).map(([, v]) => String(v.pw || '').toLowerCase()));
       taken.add('smv_insta');
       let pw = L.newTeamPassword(taken);

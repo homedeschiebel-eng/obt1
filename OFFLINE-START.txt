@@ -91,6 +91,7 @@ TEAM-ZUGÄNGE (TEAMS PFLEGEN IHR TEAM SELBST)
   (oder "Alle Zugangs-PDFs") drucken bzw. im Druckdialog als PDF speichern und weitergeben.
   Die Teams melden sich unter …/login mit ihrem Passwort an und ändern selbst: Teamname, Kürzel
   (2–3 Zeichen), Trikotfarbe, Logo, Spieler (nur Vornamen, Nr. freiwillig) und Torhymne (max. 1 MB).
+  Passwörter: 8 zufällige Buchstaben und Zahlen. „Platzhalter-Teams löschen“ entfernt „Team 1“ … „Team 12“.
   Die Gruppe können sie nicht ändern. Frist: 20.12., 20:00 Uhr (in der Turnierleitung änderbar).
   WICHTIG: Bis zur Frist nur online arbeiten. Danach (am 21.12. oder am Turniertag morgens) am Laptop
   "Stand von der Website holen" – dann kommen Teams, Logos UND die Team-Hymnen auf den Laptop.

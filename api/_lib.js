@@ -311,13 +311,15 @@ function setPressSession(res, on) {
 const TEAMAUTH_KEY = 'turnier/teamauth.json';
 async function getTeamAuth() { try { return JSON.parse((await rawGet(TEAMAUTH_KEY)) || '{}') || {}; } catch (e) { return {}; } }
 async function setTeamAuth(v) { await rawSet(TEAMAUTH_KEY, JSON.stringify(v)); }
-const WORDS = ['Ball', 'Tor', 'Elfer', 'Flanke', 'Pass', 'Kopfball', 'Libero', 'Pokal', 'Trikot', 'Ecke', 'Konter', 'Volley', 'Netz', 'Pfosten', 'Latte', 'Freistoss', 'Anpfiff', 'Dribbling', 'Torwart', 'Sturm'];
+// Zufälliges Passwort: 8 Zeichen aus Buchstaben und Zahlen (ohne leicht verwechselbare wie 0/O, 1/l/I)
+const PW_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
 function newTeamPassword(taken) {
-  for (let i = 0; i < 200; i++) {
-    const pw = WORDS[crypto.randomInt(WORDS.length)] + '-' + String(crypto.randomInt(1000, 10000));
+  for (let i = 0; i < 500; i++) {
+    let pw = ''; for (let k = 0; k < 8; k++) pw += PW_CHARS[crypto.randomInt(PW_CHARS.length)];
+    if (!/[A-Za-z]/.test(pw) || !/\d/.test(pw)) continue;
     if (!taken.has(pw.toLowerCase())) return pw;
   }
-  return 'Team-' + crypto.randomBytes(4).toString('hex');
+  throw new Error('Kein freies Passwort gefunden.');
 }
 const same = (a, b) => { const A = crypto.createHash('sha256').update(String(a)).digest(), B = crypto.createHash('sha256').update(String(b)).digest(); return crypto.timingSafeEqual(A, B); };
 async function findTeamByPassword(pass) {

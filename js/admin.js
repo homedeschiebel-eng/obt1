@@ -516,6 +516,8 @@
     catch (e) { ui.acc = { _err: e.message }; }
     if (ui.tab === 'teams') render();
   }
+  // Platzhalter: automatisch angelegte „Team 1“ … „Team 12“ ohne Logo
+  const placeholders = () => S.teams.filter((t) => /^team\s*\d+$/i.test(String(t.name).trim()) && !t.logo);
   const untilVal = () => S.settings.teamEditUntil || '2026-12-20T20:00';
   function vAccess() {
     if (ui.local) return `<div class="box"><h3>Team-Zugänge</h3><div class="hint">Die Teams tragen ihre Daten online ein. Zugänge und Zugangs-PDFs bitte in der <b>Online-Turnierleitung</b> erzeugen (${esc((ui.sync && ui.sync.url) || 'Website')}/login). Vor dem Turnier am Laptop „Stand von der Website holen“ – dann kommen Teams, Logos und Hymnen mit.</div></div>`;
@@ -523,9 +525,10 @@
     if (ui.acc._err) return `<div class="box"><h3>Team-Zugänge</h3><div class="cmd-msg">${esc(ui.acc._err)}</div></div>`;
     const teams = S.teams.slice().sort((a, b) => (a.group || '').localeCompare(b.group || '') || a.name.localeCompare(b.name, 'de', { numeric: true }));
     const missing = teams.filter((t) => !ui.acc[t.id]).length;
+    const ph = placeholders().length, oldPw = teams.some((t) => ui.acc[t.id] && !/^[A-Za-z0-9]{8}$/.test(ui.acc[t.id].pw));
     return `<div class="box" id="acc-box"><h3>Team-Zugänge <small>Teams ändern selbst: Name, Kürzel, Trikotfarbe, Logo, Spieler (Vornamen, Nr.) und Torhymne – die Gruppe nicht</small></h3>
       <div class="frow" style="align-items:end"><div class="field"><label for="acc-until">Teameditor offen bis (deutsche Zeit)</label><input id="acc-until" type="datetime-local" value="${esc(untilVal())}"></div>
-        <div class="row"><button class="btn" data-act="acc-until">Frist speichern</button>${missing ? `<button class="btn primary" data-act="acc-missing">Fehlende Zugänge erzeugen (${missing})</button>` : ''}<a class="btn cyan" href="/zugang?all=1" target="_blank" rel="noopener">Alle Zugangs-PDFs</a></div></div>
+        <div class="row"><button class="btn" data-act="acc-until">Frist speichern</button>${ph ? `<button class="btn danger" data-act="del-placeholders" data-confirm="Wirklich ${ph} löschen?">Platzhalter-Teams löschen (${ph})</button>` : ''}${missing ? `<button class="btn primary" data-act="acc-missing">Fehlende Zugänge erzeugen (${missing})</button>` : ''}${oldPw ? `<button class="btn" data-act="acc-renew" data-confirm="Alle neu?">Alle Passwörter neu (8 Zeichen)</button>` : ''}<a class="btn cyan" href="/zugang?all=1" target="_blank" rel="noopener">Alle Zugangs-PDFs</a></div></div>
       <div class="alist" style="margin-top:12px">${teams.map((t) => { const a = ui.acc[t.id], h = ui.accHymns[t.id]; return `<div class="ar acc-r"><span class="no">${esc(t.group || '–')}</span><span style="min-width:0"><b>${esc(t.name)}</b><br><small style="color:var(--muted)">${esc(t.short || '–')} · ${t.players.length} Spieler/innen${h ? ' · 🎵 Hymne' : ''}${t.logo ? ' · Logo' : ''}</small></span>
         <span style="font-family:ui-monospace,Consolas,monospace;font-weight:700;font-size:15px">${a ? esc(a.pw) : '<span style="color:var(--muted)">kein Zugang</span>'}</span>
         <span class="row">${a ? `<a class="btn sm cyan" href="/zugang?id=${encodeURIComponent(t.id)}" target="_blank" rel="noopener">PDF</a><button class="btn sm" data-act="acc-new" data-id="${t.id}" data-confirm="Wirklich neu?">Neu</button><button class="btn sm danger" data-act="acc-del" data-id="${t.id}" data-confirm="Wirklich sperren?">Sperren</button>` : `<button class="btn sm primary" data-act="acc-new" data-id="${t.id}">Zugang erzeugen</button>`}</span></div>`; }).join('')}</div>
@@ -821,6 +824,20 @@
     if (!S) return;
     const a = b.dataset.act, m = cur();
     if (a === 'acc-new' || a === 'acc-del') { const id = b.dataset.id; api('/api/team?action=' + a.replace('acc-', 'access-'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) }).then(() => { toast(a === 'acc-new' ? 'Zugang erzeugt.' : 'Zugang gesperrt.'); return loadAccess(true); }).catch((x) => toast(x.message, true)); return; }
+    if (a === 'del-placeholders') {
+      const del = new Set(placeholders().map((t) => t.id)); if (!del.size) return;
+      const played = S.matches.some((m) => m.stage !== 'test' && (del.has(m.home) || del.has(m.away)) && (m.status !== 'scheduled' || (m.events || []).length));
+      if (played) { toast('Mit Platzhalter-Teams wurden schon Turnierspiele gespielt – bitte erst „Alle Ergebnisse löschen“.', true); return; }
+      act((S) => {
+        S.teams = S.teams.filter((t) => !del.has(t.id));
+        S.matches = S.matches.filter((m) => m.stage === 'test' || !(del.has(m.home) || del.has(m.away)));
+        if (S.current && !S.matches.some((m) => m.id === S.current)) S.current = null;
+      });
+      (async () => { for (const id of del) if (ui.acc && ui.acc[id]) await api('/api/team?action=access-del', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) }).catch(() => {}); await loadAccess(true); })();
+      toast(del.size + ' Platzhalter-Teams gelöscht. Den Spielplan erstellst du neu, sobald alle Teams und Gruppen feststehen.');
+      return;
+    }
+    if (a === 'acc-renew') { (async () => { for (const t of S.teams) await api('/api/team?action=access-new', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: t.id }) }); toast('Alle Passwörter neu erzeugt – bitte die neuen Zugangs-PDFs verteilen.'); await loadAccess(true); })().catch((x) => toast(x.message, true)); return; }
     if (a === 'acc-missing') { (async () => { for (const t of S.teams) if (!ui.acc[t.id]) await api('/api/team?action=access-new', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: t.id }) }); toast('Zugänge erzeugt.'); await loadAccess(true); })().catch((x) => toast(x.message, true)); return; }
     if (a === 'acc-until') { const v = (document.getElementById('acc-until') || {}).value || ''; if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(v)) { toast('Bitte Datum und Uhrzeit angeben.', true); return; } act((S) => { S.settings.teamEditUntil = v; }); toast('Frist gespeichert.'); return; }
     if (a === 'tab') { ui.tab = b.dataset.t; try { sessionStorage.setItem('pt-tab', ui.tab); } catch (x) { /* egal */ } render(); scrollTo(0, 0); return; }
