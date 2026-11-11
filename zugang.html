@@ -75,17 +75,18 @@ li b{color:var(--navy)}
     var url = SITE + '/login', s = st.settings || {};
     return '<div class="sheet"><header class="top"><span class="logo school"></span><div><small>Parler-Gymnasium · SMV · Oberstufen-Turnier ' + esc(s.season || '2026') + '</small><h1>Team-<span>Zugang</span></h1>' +
       '<div class="when">Dienstag, 22. Dezember 2026 · ab 11:30 Uhr · ' + esc(s.location || 'Großsporthalle Schwäbisch Gmünd') + '</div></div><span class="logo smv"></span></header>' +
-      '<main class="mid"><div class="team"><b>' + esc(t.name) + '</b>' + (t.group ? '<span>Gruppe ' + esc(t.group) + '</span>' : '') + '</div>' +
+      '<main class="mid"><div class="team"><b>' + esc(t.name) + '</b></div>' +
       '<div class="login"><div><div class="step">1 · Seite öffnen</div><div class="url">' + esc(url.replace(/^https?:\/\//, '')) + '</div><div class="step">2 · Mit diesem Passwort anmelden</div><div class="pw">' + esc(pw) + '</div></div>' +
       '<div class="qr">' + qr(url) + '<small>scannen zum Öffnen</small></div></div>' +
       '<div><h2>Das tragt ihr selbst ein</h2><ul>' +
-      '<li><i>1</i><span><b>Teamname</b> und <b>Kürzel</b> – 2 bis 3 Zeichen, Buchstaben oder Zahlen (z. B. DYN, A26)</span></li>' +
-      '<li><i>2</i><span><b>Voraussichtliche Trikotfarbe</b> – wird eure Teamfarbe auf Website und Hallenanzeige</span></li>' +
-      '<li><i>3</i><span><b>Teamlogo</b> (freiwillig) – JPG oder PNG</span></li>' +
-      '<li><i>4</i><span><b>Spieler/innen – nur Vornamen</b>, höchstens 12, Rückennummer freiwillig</span></li>' +
-      '<li><i>5</i><span><b>Torhymne</b> (freiwillig) – MP3, höchstens 1 MB (am besten 20–40 Sekunden ab der richtigen Stelle)</span></li>' +
+      '<li><i>1</i><span><b>Teamname</b> und <b>Kürzel</b> (Pflicht) – 2 bis 3 Zeichen, Buchstaben oder Zahlen (z. B. DYN, A26)</span></li>' +
+      '<li><i>2</i><span><b>Voraussichtliche Trikotfarbe</b> (Pflicht) – wird eure Teamfarbe auf Website und Hallenanzeige</span></li>' +
+      '<li><i>3</i><span><b>Teamlogo</b> (Pflicht) – JPG oder PNG</span></li>' +
+      '<li><i>4</i><span><b>Kader</b> (Pflicht) – <b>nur Vornamen</b>, 5 bis 12 Spieler/innen, Rückennummer freiwillig</span></li>' +
+      '<li><i>5</i><span><b>Torhymne</b> (Pflicht) – MP3, höchstens 1 MB (am besten 20–40 Sekunden ab der richtigen Stelle)</span></li>' +
+      '<li><i>6</i><span><b>Teambild</b> (freiwillig) – für eure Teamseite auf der Website</span></li>' +
       '</ul></div>' +
-      '<div class="dl"><b>Bis ' + esc(until(s.teamEditUntil)) + '</b><span>Danach ist der Teameditor gesperrt – Änderungen gehen dann nur noch über die SMV. Die Gruppe legt die SMV fest.</span></div>' +
+      '<div class="dl"><b>Bis ' + esc(until(s.teamEditUntil)) + '</b><span>Speichern geht nur, wenn alle Pflichtangaben da sind. Danach ist der Teameditor nicht mehr erreichbar. Gruppen und Spielplan stehen ab dem 20.12. auf der Website.</span></div>' +
       '<div class="note">Das Passwort gilt nur für euer Team – bitte nicht weitergeben. Bei Fragen meldet euch bei der SMV.</div></main>' +
       '<footer class="foot"><b>Ein Turnier der SMV</b><span>SMV Parler-Gymnasium · Haußmannstraße 34 · 73525 Schwäbisch Gmünd</span></footer></div>';
   }
@@ -95,7 +96,7 @@ li b{color:var(--navy)}
   ]).then(function (res) {
     var acc = res[0].access || {}, st = PT.normalize(res[1].state || {}), id = params.get('id');
     var teams = st.teams.filter(function (t) { return id ? t.id === id : true; }).filter(function (t) { return acc[t.id]; })
-      .sort(function (a, b) { return (a.group || '').localeCompare(b.group || '') || a.name.localeCompare(b.name, 'de', { numeric: true }); });
+      .sort(function (a, b) { return a.name.localeCompare(b.name, 'de', { numeric: true }); });
     if (!teams.length) { document.getElementById('out').innerHTML = '<div class="msg">Für ' + (id ? 'dieses Team' : 'kein Team') + ' gibt es einen Zugang. Bitte in der Turnierleitung unter „Teams → Team-Zugänge“ erzeugen.</div>'; return; }
     document.getElementById('out').innerHTML = teams.map(function (t) { return sheet(t, acc[t.id].pw, st); }).join('');
     document.title = teams.length === 1 ? 'Team-Zugang ' + teams[0].name : 'Team-Zugänge Oberstufen-Turnier';

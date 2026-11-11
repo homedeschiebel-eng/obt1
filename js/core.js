@@ -51,6 +51,7 @@
     const old = !!(S.settings && S.settings.title !== undefined && !S.settings.day);
     S.settings = Object.assign({ title: 'Oberstufen-Turnier', school: 'Parler-Gymnasium', season: '2026', date: '', day: '2026-12-22', location: 'Großsporthalle Schwäbisch Gmünd', sport: 'Fußball', ticker: '', start: '11:30', gap: 1, koBreak: 10, koFormat: 'qf', third: true, win: 3, draw: 1, durGroup: 7, durKo: 10, durFinal: 12, vote: 'off', voteRound: 'r1' }, S.settings || {});
     if (!S.settings.teamEditUntil) S.settings.teamEditUntil = '2026-12-20T20:00';
+    if (!S.settings.planPublicAt) S.settings.planPublicAt = '2026-12-20T00:00';
     S.teams = S.teams || []; S.matches = S.matches || []; S.sponsors = S.sponsors || [];
     S.teams.forEach((t) => { t.players = t.players || []; });
     S.matches.forEach((m) => { m.events = m.events || []; m.clock = m.clock || { run: false, since: null, acc: 0 }; });

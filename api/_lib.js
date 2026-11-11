@@ -184,7 +184,7 @@ const color = (v) => (/^#[0-9a-f]{6}$/i.test(String(v || '')) ? v : '#2E6BFF');
 function cleanState(inp) {
   inp = obj(inp); const s = obj(inp.settings);
   const settings = {};
-  ['title', 'school', 'season', 'date', 'location', 'sport', 'ticker', 'start', 'koFormat', 'vote', 'voteRound', 'impName', 'impAddr', 'impMail', 'impPhone', 'impExtra', 'impDsb', 'impDelete', 'teamEditUntil'].forEach((k) => { settings[k] = cut(s[k], /^(ticker|impAddr|impExtra|impDelete)$/.test(k) ? 600 : 120); });
+  ['title', 'school', 'season', 'date', 'location', 'sport', 'ticker', 'start', 'koFormat', 'vote', 'voteRound', 'impName', 'impAddr', 'impMail', 'impPhone', 'impExtra', 'impDsb', 'impDelete', 'teamEditUntil', 'planPublicAt'].forEach((k) => { settings[k] = cut(s[k], /^(ticker|impAddr|impExtra|impDelete)$/.test(k) ? 600 : 120); });
   settings.day = /^\d{4}-\d{2}-\d{2}$/.test(String(s.day || '')) ? s.day : '';
   ['win', 'draw', 'durGroup', 'durKo', 'durFinal', 'gap', 'koBreak', 'planV'].forEach((k) => { settings[k] = Math.max(0, Math.min(90, num(s[k], 0))); });
   settings.third = !!s.third;
@@ -352,6 +352,18 @@ function berlinMs(str) {
 }
 const TEAM_DEADLINE = '2026-12-20T20:00';
 const teamDeadline = (settings) => berlinMs((settings && settings.teamEditUntil) || TEAM_DEADLINE) || berlinMs(TEAM_DEADLINE);
+// Gruppen und Spielplan sind öffentlich erst ab diesem Zeitpunkt (Standard 20.12., 0:00 Uhr)
+const PLAN_PUBLIC = '2026-12-20T00:00';
+const planHidden = (settings) => Date.now() < (berlinMs((settings && settings.planPublicAt) || PLAN_PUBLIC) || berlinMs(PLAN_PUBLIC));
+// Öffentliche Fassung des Turnierstands: ohne Gruppen und ohne Turnierspiele (Testspiele bleiben)
+function publicView(s) {
+  if (!planHidden(s.settings)) return s;
+  const out = Object.assign({}, s, { settings: Object.assign({}, s.settings, { planHidden: true }) });
+  out.teams = (s.teams || []).map((t) => Object.assign({}, t, { group: '' }));
+  out.matches = (s.matches || []).filter((m) => m.stage === 'test');
+  if (!out.matches.some((m) => m.id === s.current)) out.current = null;
+  return out;
+}
 
 // Sperre nach Fehlversuchen (pro Server-Instanz, als Bremse gedacht)
 const fails = new Map();
@@ -360,4 +372,4 @@ function isLocked(req) { const f = fails.get(ipOf(req)); return !!(f && f.until 
 function noteFail(req) { const k = ipOf(req), f = fails.get(k) || { n: 0, until: 0 }; f.n++; if (f.n >= 8) { f.until = Date.now() + 15 * 60e3; f.n = 0; } fails.set(k, f); return f.until > Date.now(); }
 function clearFails(req) { fails.delete(ipOf(req)); }
 
-module.exports = { rawGet, rawSet, redis, VERSION, send, q, readBody, readJson, mode, envNames, check, readState, writeState, cleanState, sniff, putImage, getImage, authInfo, isAdmin, setSession, checkPassword, setPassword, isLocked, noteFail, clearFails, checkPress, isPress, setPressSession, getTeamAuth, setTeamAuth, newTeamPassword, findTeamByPassword, setTeamSession, teamOf, teamDeadline, berlinMs, TEAM_DEADLINE };
+module.exports = { rawGet, rawSet, redis, VERSION, send, q, readBody, readJson, mode, envNames, check, readState, writeState, cleanState, sniff, putImage, getImage, authInfo, isAdmin, setSession, checkPassword, setPassword, isLocked, noteFail, clearFails, checkPress, isPress, setPressSession, getTeamAuth, setTeamAuth, newTeamPassword, findTeamByPassword, setTeamSession, teamOf, teamDeadline, berlinMs, TEAM_DEADLINE, planHidden, publicView, PLAN_PUBLIC };

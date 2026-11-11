@@ -44,7 +44,7 @@ module.exports = async (req, res) => {
       const okAdmin = await L.checkPassword(pass);
       if (!okAdmin && L.checkPress(pass)) { L.clearFails(req); L.setPressSession(res, true); return L.send(res, 200, { ok: true, role: 'press' }); }
       // Team-Passwort → eigener Teameditor
-      if (!okAdmin) { const tid = await L.findTeamByPassword(pass); if (tid) { L.clearFails(req); const auth = await L.getTeamAuth(); await L.setTeamSession(res, tid, auth[tid].pw); return L.send(res, 200, { ok: true, role: 'team' }); } }
+      if (!okAdmin) { const tid = await L.findTeamByPassword(pass); if (tid) { L.clearFails(req); const st = await L.readState(); if (Date.now() >= L.teamDeadline(st.settings || {})) return L.send(res, 403, { error: 'Der Teameditor ist geschlossen (Frist abgelaufen). Bei Fragen meldet euch bei der SMV.' }); const auth = await L.getTeamAuth(); await L.setTeamSession(res, tid, auth[tid].pw); return L.send(res, 200, { ok: true, role: 'team' }); } }
       if (!okAdmin) {
         await new Promise((r) => setTimeout(r, 700));
         const locked = L.noteFail(req);

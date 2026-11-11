@@ -56,6 +56,21 @@ h1.te-h span{color:var(--cyan)}
 .te-bar .msg{font-weight:600;font-size:14px;color:var(--muted);max-width:420px}
 .te-bar .msg.ok{color:#3DDC97}.te-bar .msg.err{color:#FF8DA1}
 .te-grp{display:inline-block;background:var(--blue);padding:2px 9px;border-radius:5px;font-weight:800;font-size:14px}
+.te-b.big{display:flex;width:100%;min-height:54px;font-size:18px;margin-bottom:14px;box-sizing:border-box}
+.te-back{display:inline-block;color:var(--muted);font-weight:700;text-decoration:none;margin-bottom:8px}
+.req{color:#FF8DA1;font-style:normal}
+.te-hero{display:flex;gap:14px;align-items:center;padding:16px;background:linear-gradient(135deg,#112A66,#0B1A45);border:1px solid var(--row-line);border-top:6px solid var(--c);margin-bottom:14px}
+.te-hero .mono{width:84px;height:84px;font-size:28px}
+.te-hero b{display:block;font-family:var(--f-d);font-style:italic;font-weight:900;text-transform:uppercase;font-size:28px;line-height:1}
+.te-hero small{display:block;color:var(--muted);font-weight:600;margin-top:4px}
+.te-col{display:inline-flex;gap:6px;align-items:center;font-size:13px;color:var(--muted);margin-top:6px}.te-col i{width:16px;height:16px;border-radius:50%;border:1px solid rgba(255,255,255,.4)}
+.te-state{padding:12px 14px;margin-bottom:14px;font-weight:600;line-height:1.45}
+.te-state.todo{background:rgba(255,138,61,.12);border:1px solid #FF8A3D}
+.te-state.ok{background:rgba(61,220,151,.12);border:1px solid #3DDC97}
+.te-photo{display:block;width:100%;max-height:340px;object-fit:cover;border-radius:6px}
+.te-kader{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px}
+.te-kader li{display:flex;gap:10px;align-items:center;padding:8px 10px;background:#081129;border:1px solid var(--row-line);font-weight:700}
+.te-kader li span{font-family:var(--f-d);font-style:italic;font-weight:900;color:var(--cyan);min-width:22px}
 #toast{position:fixed;left:50%;bottom:86px;transform:translateX(-50%);background:#0E2257;border:1px solid var(--blue);padding:10px 16px;font-weight:700;z-index:50;max-width:calc(100vw - 32px)}
 @media (max-width:520px){.te-row{grid-template-columns:1fr 92px}.te-p{grid-template-columns:22px 1fr 64px 42px}}
 </style>

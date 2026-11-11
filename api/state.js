@@ -18,8 +18,11 @@ module.exports = async (req, res) => {
 
     if (req.method === 'GET') {
       const fresh = !!L.q(req, 'fresh');
+      // Turnierleitung sieht alles – nie im CDN zwischenspeichern
+      if (await L.isAdmin(req)) return L.send(res, 200, { state: await L.readState() }, { 'Cache-Control': 'private, no-store' });
+      // Besucher: vor dem Veröffentlichungstermin ohne Gruppen und Spielplan
       if (!fresh && cache && Date.now() - cache.t < 700) return L.send(res, 200, cache.v, PUBLIC);
-      const v = { state: await L.readState() };
+      const v = { state: L.publicView(await L.readState()) };
       cache = { t: Date.now(), v };
       return L.send(res, 200, v, fresh ? null : PUBLIC);
     }
@@ -34,7 +37,7 @@ module.exports = async (req, res) => {
     const next = L.cleanState(b.state);
     next.rev = curRev + 1; next.updated = Date.now();
     await L.writeState(next);
-    cache = { t: Date.now(), v: { state: next } };
+    cache = { t: Date.now(), v: { state: L.publicView(next) } };
     return L.send(res, 200, { ok: true, rev: next.rev, updated: next.updated });
   } catch (e) {
     return L.send(res, e.status || 500, { error: e.message || 'Unbekannter Fehler' });

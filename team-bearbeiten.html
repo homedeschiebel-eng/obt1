@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Team bearbeiten · Parler Oberstufen-Turnier</title>
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#04060D">
+<link rel="icon" href="/img/favicon.png">
+<link rel="apple-touch-icon" href="/img/icon-180.png">
+<link rel="stylesheet" href="/css/fonts.css">
+<link rel="stylesheet" href="/css/site.css">
+<style>
+body{background:#0A1430;color:#fff;margin:0}
+.te{max-width:760px;margin:0 auto;padding:16px 16px 120px}
+.te-top{display:flex;align-items:center;gap:12px;margin:4px 0 16px}
+.te-top .lk{display:flex;align-items:center;gap:10px}
+.te-top .logo{display:block;background:#fff;-webkit-mask:var(--m) center/contain no-repeat;mask:var(--m) center/contain no-repeat}
+.te-top .ls{--m:url("/img/schule.png");width:38px;height:38px}
+.te-top .lm{--m:url("/img/smv.png");width:34px;height:38px}
+.te-top .sep{width:1px;height:30px;background:rgba(255,255,255,.35)}
+.te-sp{flex:1}
+.te-b{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--row-line);background:var(--row-b);color:#fff;border-radius:8px;padding:10px 14px;font:700 15px var(--f-b);cursor:pointer;text-decoration:none;min-height:44px}
+.te-b.pri{background:var(--blue);border-color:var(--blue)}
+.te-b.sm{min-height:36px;padding:6px 11px;font-size:14px}
+.te-b.del{border-color:#7A2A3A;color:#FF9FB0}
+.te-b:disabled{opacity:.45;cursor:not-allowed}
+h1.te-h{margin:0 0 4px;font-family:var(--f-d);font-style:italic;font-weight:900;text-transform:uppercase;font-size:34px;line-height:1}
+h1.te-h span{color:var(--cyan)}
+.te-sub{color:var(--muted);font-weight:600;margin:0 0 16px}
+.te-dl{display:block;line-height:1.45;padding:12px 14px;border:1px solid var(--row-line);background:#0D1A3D;border-left:4px solid var(--cyan);margin-bottom:16px;font-weight:600}
+.te-dl.closed{border-left-color:#FF8A3D}
+.te-card{background:#0D1A3D;border:1px solid var(--row-line);padding:16px;margin-bottom:14px}
+.te-card h2{margin:0 0 12px;font-family:var(--f-d);font-style:italic;font-weight:900;text-transform:uppercase;font-size:21px}
+.te-card h2 small{font-family:var(--f-b);font-style:normal;text-transform:none;font-weight:600;font-size:13px;color:var(--muted);margin-left:6px}
+.te-row{display:grid;grid-template-columns:1fr 120px;gap:12px}
+.te-f{display:grid;gap:5px;margin-bottom:12px}
+.te-f label{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.te-f input[type=text],.te-f input[type=number]{width:100%;box-sizing:border-box;padding:11px 12px;font:600 17px var(--f-b);border:1px solid var(--row-line);background:#081129;color:#fff;border-radius:7px}
+.te-f input:focus{outline:2px solid var(--cyan);outline-offset:1px}
+.te-hint{font-size:13px;color:var(--muted);line-height:1.45}
+.te-colors{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.te-sw{width:38px;height:38px;border-radius:50%;border:2px solid rgba(255,255,255,.25);cursor:pointer;padding:0}
+.te-sw[aria-pressed=true]{outline:3px solid #fff;outline-offset:2px}
+.te-colors input[type=color]{width:46px;height:40px;border:0;background:none;padding:0;cursor:pointer}
+.te-logo{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.te-logo .mono{width:84px;height:84px;font-size:28px}
+.te-pl{display:grid;gap:8px}
+.te-p{display:grid;grid-template-columns:28px 1fr 84px 44px;gap:8px;align-items:center}
+.te-p .n{font-family:var(--f-d);font-style:italic;font-weight:900;color:var(--cyan);text-align:center;font-size:18px}
+.te-p input{width:100%;box-sizing:border-box;padding:10px;font:600 16px var(--f-b);border:1px solid var(--row-line);background:#081129;color:#fff;border-radius:7px}
+.te-p button{height:42px}
+.te-hy{display:grid;gap:10px}
+.te-hy audio{width:100%}
+.te-bar{position:fixed;left:0;right:0;bottom:0;background:rgba(4,6,13,.96);border-top:1px solid var(--row-line);padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px));display:flex;gap:12px;align-items:center;justify-content:center;z-index:20}
+.te-bar .msg{font-weight:600;font-size:14px;color:var(--muted);max-width:420px}
+.te-bar .msg.ok{color:#3DDC97}.te-bar .msg.err{color:#FF8DA1}
+.te-grp{display:inline-block;background:var(--blue);padding:2px 9px;border-radius:5px;font-weight:800;font-size:14px}
+.te-b.big{display:flex;width:100%;min-height:54px;font-size:18px;margin-bottom:14px;box-sizing:border-box}
+.te-back{display:inline-block;color:var(--muted);font-weight:700;text-decoration:none;margin-bottom:8px}
+.req{color:#FF8DA1;font-style:normal}
+.te-hero{display:flex;gap:14px;align-items:center;padding:16px;background:linear-gradient(135deg,#112A66,#0B1A45);border:1px solid var(--row-line);border-top:6px solid var(--c);margin-bottom:14px}
+.te-hero .mono{width:84px;height:84px;font-size:28px}
+.te-hero b{display:block;font-family:var(--f-d);font-style:italic;font-weight:900;text-transform:uppercase;font-size:28px;line-height:1}
+.te-hero small{display:block;color:var(--muted);font-weight:600;margin-top:4px}
+.te-col{display:inline-flex;gap:6px;align-items:center;font-size:13px;color:var(--muted);margin-top:6px}.te-col i{width:16px;height:16px;border-radius:50%;border:1px solid rgba(255,255,255,.4)}
+.te-state{padding:12px 14px;margin-bottom:14px;font-weight:600;line-height:1.45}
+.te-state.todo{background:rgba(255,138,61,.12);border:1px solid #FF8A3D}
+.te-state.ok{background:rgba(61,220,151,.12);border:1px solid #3DDC97}
+.te-photo{display:block;width:100%;max-height:340px;object-fit:cover;border-radius:6px}
+.te-kader{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px}
+.te-kader li{display:flex;gap:10px;align-items:center;padding:8px 10px;background:#081129;border:1px solid var(--row-line);font-weight:700}
+.te-kader li span{font-family:var(--f-d);font-style:italic;font-weight:900;color:var(--cyan);min-width:22px}
+#toast{position:fixed;left:50%;bottom:86px;transform:translateX(-50%);background:#0E2257;border:1px solid var(--blue);padding:10px 16px;font-weight:700;z-index:50;max-width:calc(100vw - 32px)}
+@media (max-width:520px){.te-row{grid-template-columns:1fr 92px}.te-p{grid-template-columns:22px 1fr 64px 42px}}
+</style>
+</head>
+<body>
+<div id="app"><div class="te" style="color:#A3B3DA">Wird geladen …</div></div>
+<script src="/js/core.js"></script>
+<script>window.PT_TEAM_EDIT = true;</script>
+<script src="/js/team.js"></script>
+</body>
+</html>

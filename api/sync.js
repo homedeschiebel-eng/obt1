@@ -143,7 +143,9 @@ function startAuto() {
 
 /* ---------- Einmal von der Website holen ---------- */
 async function pull(base) {
-  const { j } = await req(base + '/api/state?fresh=1&t=' + Date.now());
+  const cfg0 = loadCfg(); let ck = ''; if (cfg0.pass) { try { ck = await login(base, cfg0.pass); } catch (e) { /* ohne Anmeldung: öffentliche Fassung */ } }
+  const { j } = await req(base + '/api/state?fresh=1&t=' + Date.now(), ck ? { headers: { Cookie: ck } } : {});
+  if (j.state && j.state.settings && j.state.settings.planHidden) throw new Error('Für den vollständigen Stand (mit Gruppen und Spielplan) bitte zuerst das Passwort der Online-Turnierleitung eintragen.');
   if (!j.state || !Array.isArray(j.state.matches)) throw new Error('Die Website hat keinen Turnierstand geliefert.');
   let images = 0; const map = {};
   const cfg = loadCfg();

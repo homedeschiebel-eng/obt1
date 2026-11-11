@@ -1,5 +1,5 @@
 // Teameditor: jedes Team pflegt bis zur Frist (Standard 20.12., 20:00 Uhr) sein eigenes Team.
-//   Team (Cookie pt_t):  GET ?action=me · POST ?action=save · POST ?action=logo[&del=1] · POST ?action=hymn[&del=1] · POST ?action=logout
+//   Team (Cookie pt_t):  GET ?action=me · POST ?action=save (alles in einem Schritt: Felder, Logo, Teambild, Hymne) · POST ?action=logout
 //   Hymne abspielen:     GET ?action=hymn&id=t1   (eigenes Team oder Turnierleitung)
 //   Turnierleitung:      GET ?action=access · POST ?action=access-new {id} · POST ?action=access-del {id} · GET ?action=hymns
 // Die Gruppe kann ein Team nicht ändern – die legt nur die Turnierleitung fest.
@@ -7,7 +7,7 @@ const crypto = require('crypto');
 let L = null, initErr = null;
 try { L = require('./_lib'); } catch (e) { initErr = e; }
 
-const MAX_PLAYERS = 12, MAX_HYMN = 1024 * 1024;
+const MAX_PLAYERS = 12, MIN_PLAYERS = 5, MAX_HYMN = 1024 * 1024, MAX_IMG = 1.5 * 1024 * 1024;
 const hymnKey = (id) => 'turnier/hymn-' + id + '.json';
 function sniffAudio(b) {
   if (b.length < 12) return null;
@@ -19,6 +19,7 @@ function sniffAudio(b) {
 }
 async function hymnMeta(id) { try { const h = JSON.parse((await L.rawGet(hymnKey(id))) || 'null'); return h && h.b64 ? { name: h.name, size: h.size, at: h.at } : null; } catch (e) { return null; } }
 const err = (status, msg) => Object.assign(new Error(msg), { status });
+const fmtBerlin = (ms) => new Date(ms).toLocaleString('de-DE', { timeZone: 'Europe/Berlin', day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' }).replace(', ', ', ') + ' Uhr';
 
 // Änderung am Turnierstand: lesen, ändern, als neue Version speichern
 async function changeState(fn) {
@@ -28,7 +29,7 @@ async function changeState(fn) {
   await L.writeState(next);
   return out;
 }
-function publicTeam(t) { return { id: t.id, name: t.name, short: t.short, group: t.group, color: t.color, logo: t.logo, players: t.players.map((p) => ({ id: p.id, name: p.name, no: p.no })) }; }
+function publicTeam(t) { return { id: t.id, name: t.name, short: t.short, group: t.group, color: t.color, logo: t.logo, photo: t.photo, players: t.players.map((p) => ({ id: p.id, name: p.name, no: p.no })) }; }
 
 function cleanInput(b, team) {
   const name = String(b.name || '').replace(/\s+/g, ' ').trim();
@@ -38,6 +39,7 @@ function cleanInput(b, team) {
   const color = /^#[0-9a-f]{6}$/i.test(String(b.color || '')) ? String(b.color) : team.color;
   const list = Array.isArray(b.players) ? b.players : [];
   if (list.length > MAX_PLAYERS) throw err(400, 'Höchstens ' + MAX_PLAYERS + ' Spieler/innen pro Team.');
+  if (list.length < MIN_PLAYERS) throw err(400, 'Bitte mindestens ' + MIN_PLAYERS + ' Spieler/innen eintragen.');
   const known = new Map(team.players.map((p) => [p.id, p])), nos = new Set();
   const players = list.map((p, i) => {
     const n = String((p && p.name) || '').replace(/\s+/g, ' ').trim();
@@ -107,36 +109,37 @@ module.exports = async (req, res) => {
     if (!team) return L.send(res, 404, { error: 'Dieses Team gibt es nicht mehr. Bitte bei der SMV melden.' });
     const until = L.teamDeadline(S.settings || {}), open = Date.now() < until;
 
+    if (!open) return L.send(res, 410, { error: 'Der Teameditor ist seit ' + fmtBerlin(until) + ' geschlossen. Bei Fragen meldet euch bei der SMV.', closed: true });
     if (req.method === 'GET' && action === 'me') {
-      return L.send(res, 200, { team: publicTeam(team), open, until, untilText: (S.settings || {}).teamEditUntil || L.TEAM_DEADLINE, hymn: await hymnMeta(tid), maxPlayers: MAX_PLAYERS, maxHymn: MAX_HYMN });
+      return L.send(res, 200, { team: Object.assign(publicTeam(team), L.planHidden(S.settings) ? { group: '' } : {}), groupsAt: (S.settings || {}).planPublicAt || L.PLAN_PUBLIC, open, until, untilText: (S.settings || {}).teamEditUntil || L.TEAM_DEADLINE, hymn: await hymnMeta(tid), maxPlayers: MAX_PLAYERS, minPlayers: MIN_PLAYERS, maxHymn: MAX_HYMN });
     }
     if (req.method !== 'POST' || req.headers['x-csrf'] == null) return L.send(res, 403, { error: 'Ungültige Anfrage.' });
     if (!open) return L.send(res, 403, { error: 'Die Frist ist abgelaufen – Änderungen gehen jetzt nur noch über die SMV.' });
 
+    // Speichern: Felder, Logo, Teambild und Hymne in einem Schritt – nur wenn alles Pflichtige da ist
     if (action === 'save') {
-      const v = cleanInput(await L.readJson(req, 64 * 1024), team);
-      const t = await changeState((cur) => { const x = cur.teams.find((y) => y.id === tid); if (!x) throw err(404, 'Team nicht gefunden.'); Object.assign(x, v); return publicTeam(x); });
-      return L.send(res, 200, { ok: true, team: t });
-    }
-    if (action === 'logo') {
-      let url = '';
-      if (!L.q(req, 'del')) {
-        const buf = await L.readBody(req, 1.5 * 1024 * 1024), type = L.sniff(buf);
-        if (!type) return L.send(res, 400, { error: 'Bitte ein JPG-, PNG- oder WebP-Bild wählen.' });
-        url = await L.putImage(buf, type);
+      const b = await L.readJson(req, 6 * 1024 * 1024);
+      const v = cleanInput(b, team);
+      const file = (x, max, what) => { if (!x || typeof x !== 'object' || !x.b64) return null; const buf = Buffer.from(String(x.b64), 'base64'); if (buf.length > max) throw err(400, what + ' ist zu groß.'); return buf; };
+      const logoBuf = file(b.logo, MAX_IMG, 'Das Logo'), photoBuf = file(b.photo, MAX_IMG, 'Das Teambild'), hymnBuf = file(b.hymn, MAX_HYMN, 'Die Hymne (höchstens 1 MB)');
+      if (logoBuf && !L.sniff(logoBuf)) throw err(400, 'Das Logo muss ein JPG-, PNG- oder WebP-Bild sein.');
+      if (photoBuf && !L.sniff(photoBuf)) throw err(400, 'Das Teambild muss ein JPG-, PNG- oder WebP-Bild sein.');
+      const hymnType = hymnBuf ? sniffAudio(hymnBuf) : null;
+      if (hymnBuf && !hymnType) throw err(400, 'Die Hymne muss eine Audiodatei sein (MP3, M4A, WAV oder OGG).');
+      const oldHymn = await hymnMeta(tid);
+      const missing = [];
+      if (!logoBuf && !team.logo) missing.push('Teamlogo');
+      if (!hymnBuf && !oldHymn) missing.push('Torhymne');
+      if (missing.length) throw err(400, 'Es fehlt noch: ' + missing.join(', ') + '.');
+      // erst Dateien speichern, dann den Turnierstand
+      const logo = logoBuf ? await L.putImage(logoBuf, L.sniff(logoBuf)) : team.logo;
+      const photo = photoBuf ? await L.putImage(photoBuf, L.sniff(photoBuf)) : (b.photo === 'remove' ? '' : team.photo);
+      if (hymnBuf) {
+        const name = String((b.hymn && b.hymn.name) || 'Torhymne').replace(/[\r\n]/g, ' ').slice(0, 120);
+        await L.rawSet(hymnKey(tid), JSON.stringify({ name, type: hymnType, size: hymnBuf.length, at: Date.now(), b64: hymnBuf.toString('base64') }));
       }
-      await changeState((cur) => { const x = cur.teams.find((y) => y.id === tid); if (x) x.logo = url; });
-      return L.send(res, 200, { ok: true, logo: url });
-    }
-    if (action === 'hymn') {
-      if (L.q(req, 'del')) { await L.rawSet(hymnKey(tid), 'null'); return L.send(res, 200, { ok: true, hymn: null }); }
-      const buf = await L.readBody(req, MAX_HYMN + 1024);
-      if (buf.length > MAX_HYMN) return L.send(res, 400, { error: 'Die Datei ist zu groß (höchstens 1 MB). Bitte einen kürzeren Ausschnitt nehmen.' });
-      const type = sniffAudio(buf);
-      if (!type) return L.send(res, 400, { error: 'Das ist keine Audiodatei (MP3, M4A, WAV oder OGG).' });
-      const name = decodeURIComponent(String(req.headers['x-name'] || 'Torhymne')).replace(/[\r\n]/g, ' ').slice(0, 120);
-      await L.rawSet(hymnKey(tid), JSON.stringify({ name, type, size: buf.length, at: Date.now(), b64: buf.toString('base64') }));
-      return L.send(res, 200, { ok: true, hymn: { name, size: buf.length, at: Date.now() } });
+      const t2 = await changeState((cur) => { const x = cur.teams.find((y) => y.id === tid); if (!x) throw err(404, 'Team nicht gefunden.'); Object.assign(x, v, { logo, photo }); return publicTeam(x); });
+      return L.send(res, 200, { ok: true, team: Object.assign(t2, L.planHidden(S.settings) ? { group: '' } : {}), hymn: await hymnMeta(tid) });
     }
     return L.send(res, 400, { error: 'Unbekannte Aktion.' });
   } catch (e) {
