@@ -135,7 +135,10 @@
   const AUD = {
     async get(key) {
       if (ui.local) { const r = await fetch('/api/audio?key=' + encodeURIComponent(key), { cache: 'no-store', credentials: 'same-origin' }); if (!r.ok) return null; return { blob: await r.blob(), name: decodeURIComponent(r.headers.get('X-Name') || 'Torhymne') }; }
-      const v = await IDB.get(key); return v ? (v.blob ? v : { blob: v, name: 'Torhymne' }) : null;
+      const v = await IDB.get(key); if (v) return v.blob ? v : { blob: v, name: 'Torhymne' };
+      // online von einem Team hochgeladene Hymne
+      if (key.startsWith('team:')) { try { const r = await fetch('/api/team?action=hymn&id=' + encodeURIComponent(key.slice(5)), { cache: 'no-store', credentials: 'same-origin' }); if (r.ok) return { blob: await r.blob(), name: decodeURIComponent(r.headers.get('X-Name') || 'Torhymne') }; } catch (e) { /* keine */ } }
+      return null;
     },
     async set(key, file) {
       if (ui.local) { const r = await fetch('/api/audio?key=' + encodeURIComponent(key), { method: 'POST', credentials: 'same-origin', headers: { 'x-csrf': '1', 'X-Name': encodeURIComponent(file.name), 'Content-Type': file.type || 'application/octet-stream' }, body: file }); const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || 'Speichern fehlgeschlagen.'); }
@@ -502,7 +505,31 @@
   function vTeams() {
     return `<div class="box"><h3>Teams <small>${S.teams.length} Teams</small> <button class="btn sm primary" data-act="new-team">+ Team</button></h3>
     <div class="tlist">${S.teams.slice().sort((a, b) => (a.group || '').localeCompare(b.group || '') || a.name.localeCompare(b.name, 'de', { numeric: true })).map((t) => `<div class="ti" style="--c:${esc(t.color)}"><div class="t">${monoHTML(t, 'l')}<div><b>${esc(t.name)}</b><br><small>${esc([t.cls, t.group ? 'Gruppe ' + t.group : 'ohne Gruppe', t.players.length + ' Spieler/innen'].filter(Boolean).join(' · '))}</small></div></div><small>${esc(t.players.slice(0, 8).map((p) => (PT.hasNo(p) ? p.no : '–') + ' ' + p.name).join(' · '))}${t.players.length > 8 ? ' …' : ''}</small><small>${players['team:' + t.id] ? '♪ Torhymne: ' + esc(players['team:' + t.id].name) : (anthemsLoaded ? '♪ keine eigene Torhymne' : '')}</small><div class="row"><button class="btn sm primary" data-act="edit-team" data-id="${t.id}">Team & Kader bearbeiten</button></div></div>`).join('')}</div></div>
-    <div class="hint">Ändert sich die Gruppeneinteilung, im Reiter „Spielplan“ den Spielplan neu erstellen.</div>`;
+    <div class="hint">Ändert sich die Gruppeneinteilung, im Reiter „Spielplan“ den Spielplan neu erstellen.</div>
+    ${vAccess()}`;
+  }
+  /* ---------- Team-Zugänge: jedes Team pflegt bis zur Frist sein Team selbst ---------- */
+  ui.acc = null; ui.accHymns = {};
+  async function loadAccess(force) {
+    if (ui.local || (ui.acc && !force)) return;
+    try { const [a, h] = await Promise.all([api('/api/team?action=access'), api('/api/team?action=hymns')]); ui.acc = a.access || {}; ui.accHymns = h.hymns || {}; }
+    catch (e) { ui.acc = { _err: e.message }; }
+    if (ui.tab === 'teams') render();
+  }
+  const untilVal = () => S.settings.teamEditUntil || '2026-12-20T20:00';
+  function vAccess() {
+    if (ui.local) return `<div class="box"><h3>Team-Zugänge</h3><div class="hint">Die Teams tragen ihre Daten online ein. Zugänge und Zugangs-PDFs bitte in der <b>Online-Turnierleitung</b> erzeugen (${esc((ui.sync && ui.sync.url) || 'Website')}/login). Vor dem Turnier am Laptop „Stand von der Website holen“ – dann kommen Teams, Logos und Hymnen mit.</div></div>`;
+    if (!ui.acc) { setTimeout(loadAccess, 0); return `<div class="box"><h3>Team-Zugänge</h3><div class="hint">Wird geladen …</div></div>`; }
+    if (ui.acc._err) return `<div class="box"><h3>Team-Zugänge</h3><div class="cmd-msg">${esc(ui.acc._err)}</div></div>`;
+    const teams = S.teams.slice().sort((a, b) => (a.group || '').localeCompare(b.group || '') || a.name.localeCompare(b.name, 'de', { numeric: true }));
+    const missing = teams.filter((t) => !ui.acc[t.id]).length;
+    return `<div class="box" id="acc-box"><h3>Team-Zugänge <small>Teams ändern selbst: Name, Kürzel, Trikotfarbe, Logo, Spieler (Vornamen, Nr.) und Torhymne – die Gruppe nicht</small></h3>
+      <div class="frow" style="align-items:end"><div class="field"><label for="acc-until">Teameditor offen bis (deutsche Zeit)</label><input id="acc-until" type="datetime-local" value="${esc(untilVal())}"></div>
+        <div class="row"><button class="btn" data-act="acc-until">Frist speichern</button>${missing ? `<button class="btn primary" data-act="acc-missing">Fehlende Zugänge erzeugen (${missing})</button>` : ''}<a class="btn cyan" href="/zugang?all=1" target="_blank" rel="noopener">Alle Zugangs-PDFs</a></div></div>
+      <div class="alist" style="margin-top:12px">${teams.map((t) => { const a = ui.acc[t.id], h = ui.accHymns[t.id]; return `<div class="ar acc-r"><span class="no">${esc(t.group || '–')}</span><span style="min-width:0"><b>${esc(t.name)}</b><br><small style="color:var(--muted)">${esc(t.short || '–')} · ${t.players.length} Spieler/innen${h ? ' · 🎵 Hymne' : ''}${t.logo ? ' · Logo' : ''}</small></span>
+        <span style="font-family:ui-monospace,Consolas,monospace;font-weight:700;font-size:15px">${a ? esc(a.pw) : '<span style="color:var(--muted)">kein Zugang</span>'}</span>
+        <span class="row">${a ? `<a class="btn sm cyan" href="/zugang?id=${encodeURIComponent(t.id)}" target="_blank" rel="noopener">PDF</a><button class="btn sm" data-act="acc-new" data-id="${t.id}" data-confirm="Wirklich neu?">Neu</button><button class="btn sm danger" data-act="acc-del" data-id="${t.id}" data-confirm="Wirklich sperren?">Sperren</button>` : `<button class="btn sm primary" data-act="acc-new" data-id="${t.id}">Zugang erzeugen</button>`}</span></div>`; }).join('')}</div>
+      <div class="hint" style="margin-top:10px">Das Team meldet sich unter …/login mit seinem Passwort an und landet direkt in seinem Teameditor. „PDF“ öffnet das Zugangsblatt zum Drucken (im Druckdialog „Als PDF speichern“). „Neu“ macht das alte Passwort ungültig. Nach der Frist kann nur noch die Turnierleitung ändern.</div></div>`;
   }
   function vPartner() {
     return `<div class="box"><h3>Partner & Sponsoren <button class="btn sm primary" data-act="new-sponsor">+ Partner</button></h3>
@@ -793,6 +820,9 @@
     }
     if (!S) return;
     const a = b.dataset.act, m = cur();
+    if (a === 'acc-new' || a === 'acc-del') { const id = b.dataset.id; api('/api/team?action=' + a.replace('acc-', 'access-'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) }).then(() => { toast(a === 'acc-new' ? 'Zugang erzeugt.' : 'Zugang gesperrt.'); return loadAccess(true); }).catch((x) => toast(x.message, true)); return; }
+    if (a === 'acc-missing') { (async () => { for (const t of S.teams) if (!ui.acc[t.id]) await api('/api/team?action=access-new', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: t.id }) }); toast('Zugänge erzeugt.'); await loadAccess(true); })().catch((x) => toast(x.message, true)); return; }
+    if (a === 'acc-until') { const v = (document.getElementById('acc-until') || {}).value || ''; if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(v)) { toast('Bitte Datum und Uhrzeit angeben.', true); return; } act((S) => { S.settings.teamEditUntil = v; }); toast('Frist gespeichert.'); return; }
     if (a === 'tab') { ui.tab = b.dataset.t; try { sessionStorage.setItem('pt-tab', ui.tab); } catch (x) { /* egal */ } render(); scrollTo(0, 0); return; }
     if (a === 'logout') { api('/api/auth?action=logout', { method: 'POST' }).finally(() => showLogin()); return; }
     if (a === 'pick') { ui.pick[b.dataset.side] = b.dataset.t; render(); return; }
@@ -841,7 +871,7 @@
       api('/api/sync?action=' + action, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url, pass, enabled }) })
         .then(async (j) => {
           document.getElementById('sync-pass').value = '';
-          if (action === 'pull') { S = await PT.fetchState(true); H = PT.make(S); logosChecked = false; toast(`Übernommen: ${j.teams} Teams, ${j.matches} Spiele, ${j.images} Bilder.`); }
+          if (action === 'pull') { S = await PT.fetchState(true); H = PT.make(S); logosChecked = false; toast(`Übernommen: ${j.teams} Teams, ${j.matches} Spiele, ${j.images} Bilder, ${j.hymns || 0} Team-Hymnen.` + (j.hymnNote ? ' ' + j.hymnNote : '')); for (const k of Object.keys(players)) unloadPlayer(k); preloadAnthems(); }
           else toast(action === 'push' ? 'Auf die Website übertragen.' : (enabled ? 'Automatische Übertragung ist an.' : 'Automatische Übertragung ist aus.'));
           await pollSync(); render();
         })
@@ -936,6 +966,7 @@
     bindForm('login-form', async () => {
       const j = await api('/api/auth?action=login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pass: document.getElementById('pass').value }) });
       if (j && j.role === 'press') { location.href = '/presse'; return; }
+      if (j && j.role === 'team') { location.href = '/team'; return; }
       if (/^\/login\/?$/.test(location.pathname)) { location.href = '/turnierleitung'; return; }
       start();
     });

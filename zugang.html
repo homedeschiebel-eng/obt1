@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Team-Zugang · Oberstufen-Turnier</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="/img/favicon.png">
+<link rel="stylesheet" href="/css/fonts.css">
+<style>
+/* A4-Zugangsblatt pro Team – nur für die Turnierleitung */
+:root{--navy:#0A1430;--navy-2:#173A86;--blue:#2E6BFF;--cyan:#1E9BE0;--ink:#0A0F1E;--muted:#4E5A78;--soft:#EEF3FF;
+  --f-d:"Barlow Condensed","Arial Narrow",Impact,sans-serif;--f-b:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif}
+*{box-sizing:border-box}
+html,body{margin:0;background:#C9CFDD;color:var(--ink);font-family:var(--f-b)}
+@page{size:A4 portrait;margin:0}
+.sheet{width:210mm;height:297mm;margin:10mm auto;background:#fff;display:grid;grid-template-rows:auto 1fr auto;overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,.25);-webkit-print-color-adjust:exact;print-color-adjust:exact;page-break-after:always;break-after:page}
+.top{background:radial-gradient(80% 140% at 85% 0%,#2E6BFF 0%,transparent 60%),linear-gradient(160deg,#173A86,#0A1430 70%);color:#fff;padding:10mm 14mm 8mm;display:grid;grid-template-columns:auto 1fr auto;gap:7mm;align-items:center}
+.logo{display:block;background:#fff;-webkit-mask:var(--m) center/contain no-repeat;mask:var(--m) center/contain no-repeat}
+.school{--m:url("/img/schule.png");width:24mm;aspect-ratio:488/480}
+.smv{--m:url("/img/smv.png");height:25mm;aspect-ratio:269/299}
+.top small{display:block;font-family:var(--f-d);font-weight:700;letter-spacing:.22em;text-transform:uppercase;font-size:4mm;color:#9EC9FF}
+.top h1{margin:1mm 0 1.5mm;font-family:var(--f-d);font-style:italic;font-weight:900;text-transform:uppercase;font-size:15mm;line-height:.9}
+.top h1 span{color:#5CC2FF}
+.top .when{font-weight:600;font-size:4.2mm;color:#DCE6FF}
+.mid{padding:9mm 14mm 6mm;display:grid;gap:6mm;align-content:start}
+.team{display:flex;align-items:baseline;gap:4mm;flex-wrap:wrap}
+.team b{font-family:var(--f-d);font-style:italic;font-weight:900;text-transform:uppercase;font-size:13mm;line-height:.95;color:var(--navy)}
+.team span{background:var(--blue);color:#fff;font-family:var(--f-d);font-style:italic;font-weight:800;text-transform:uppercase;font-size:5mm;padding:.6mm 3mm;border-radius:1.5mm}
+.login{display:grid;grid-template-columns:1fr auto;gap:8mm;align-items:center;border:1.4mm solid var(--navy);border-radius:4mm;padding:6mm 7mm}
+.step{font-family:var(--f-d);font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-size:4.4mm;margin-bottom:1mm}
+.url{font-family:var(--f-d);font-weight:800;font-size:6.2mm;color:var(--navy);margin-bottom:5mm;white-space:nowrap}
+.pw{font-family:ui-monospace,"Cascadia Mono",Consolas,"Liberation Mono",monospace;font-weight:700;font-size:11mm;letter-spacing:.04em;color:var(--ink);background:var(--soft);border-radius:2.5mm;padding:2.5mm 5mm;display:inline-block}
+.qr svg{display:block;width:40mm;height:40mm}
+.qr small{display:block;text-align:center;font-size:3.2mm;color:var(--muted);margin-top:1mm}
+h2{margin:0 0 2.5mm;font-family:var(--f-d);font-style:italic;font-weight:900;text-transform:uppercase;font-size:7mm;color:var(--navy)}
+ul{margin:0;padding:0;list-style:none;display:grid;gap:2.4mm}
+li{display:grid;grid-template-columns:7mm 1fr;gap:2mm;font-size:4.2mm;line-height:1.35}
+li i{width:6mm;height:6mm;border-radius:50%;background:var(--blue);color:#fff;display:grid;place-items:center;font-style:normal;font-family:var(--f-d);font-weight:900;font-size:3.6mm;margin-top:.3mm}
+li b{color:var(--navy)}
+.dl{background:var(--navy);color:#fff;border-radius:3mm;padding:5mm 7mm;display:flex;gap:5mm;align-items:center}
+.dl b{font-family:var(--f-d);font-style:italic;font-weight:900;text-transform:uppercase;font-size:7mm;color:#5CC2FF;white-space:nowrap}
+.dl span{font-size:4.2mm;line-height:1.35;color:#DCE6FF}
+.note{font-size:3.6mm;color:var(--muted);line-height:1.4}
+.foot{background:var(--navy);color:#B9C8EE;padding:4.5mm 14mm;display:flex;justify-content:space-between;gap:6mm;align-items:center;font-size:3.6mm}
+.foot b{color:#fff;font-family:var(--f-d);font-style:italic;font-weight:800;text-transform:uppercase;font-size:4.6mm}
+.bar{max-width:210mm;margin:0 auto;padding:12px 16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;font:14px var(--f-b)}
+.bar button{background:#2E6BFF;color:#fff;border:0;border-radius:5px;padding:9px 16px;font-weight:700;cursor:pointer}
+.msg{max-width:560px;margin:60px auto;padding:20px;background:#fff;border-left:6px solid #2E6BFF;font:16px var(--f-b)}
+@media print{html,body{background:#fff}.sheet{margin:0;box-shadow:none}.bar{display:none}}
+@media screen and (max-width:820px){.sheet{zoom:calc(100vw / 230mm)}}
+</style>
+</head>
+<body>
+<div class="bar"><button type="button" id="print">Drucken / als PDF speichern</button><span id="info"></span></div>
+<div id="out"><div class="msg">Wird geladen …</div></div>
+<script src="/js/core.js"></script>
+<script src="/js/qrcode.js"></script>
+<script>
+(function () {
+  var esc = PT.esc, params = new URLSearchParams(location.search);
+  var local = /^(localhost|127\.0\.0\.1|\[::1\]|\d+\.\d+\.\d+\.\d+)$/.test(location.hostname);
+  var SITE = local ? 'https://pg-oberstufenfussballturnier.vercel.app' : location.origin;
+  function qr(url) {
+    var q = qrcode(0, 'M'); q.addData(url); q.make(); var n = q.getModuleCount(), m = 2, d = '';
+    for (var r = 0; r < n; r++) for (var c = 0; c < n; c++) if (q.isDark(r, c)) d += 'M' + (c + m) + ' ' + (r + m) + 'h1v1h-1z';
+    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + (n + 2 * m) + ' ' + (n + 2 * m) + '" shape-rendering="crispEdges"><rect width="100%" height="100%" fill="#fff"/><path d="' + d + '" fill="#0A1430"/></svg>';
+  }
+  function until(s) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(s || '2026-12-20T20:00'); if (!m) return s;
+    var d = new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]);
+    return d.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) + ', ' + m[4] + ':' + m[5] + ' Uhr';
+  }
+  function sheet(t, pw, st) {
+    var url = SITE + '/login', s = st.settings || {};
+    return '<div class="sheet"><header class="top"><span class="logo school"></span><div><small>Parler-Gymnasium · SMV · Oberstufen-Turnier ' + esc(s.season || '2026') + '</small><h1>Team-<span>Zugang</span></h1>' +
+      '<div class="when">Dienstag, 22. Dezember 2026 · ab 11:30 Uhr · ' + esc(s.location || 'Großsporthalle Schwäbisch Gmünd') + '</div></div><span class="logo smv"></span></header>' +
+      '<main class="mid"><div class="team"><b>' + esc(t.name) + '</b>' + (t.group ? '<span>Gruppe ' + esc(t.group) + '</span>' : '') + '</div>' +
+      '<div class="login"><div><div class="step">1 · Seite öffnen</div><div class="url">' + esc(url.replace(/^https?:\/\//, '')) + '</div><div class="step">2 · Mit diesem Passwort anmelden</div><div class="pw">' + esc(pw) + '</div></div>' +
+      '<div class="qr">' + qr(url) + '<small>scannen zum Öffnen</small></div></div>' +
+      '<div><h2>Das tragt ihr selbst ein</h2><ul>' +
+      '<li><i>1</i><span><b>Teamname</b> und <b>Kürzel</b> – 2 bis 3 Zeichen, Buchstaben oder Zahlen (z. B. DYN, A26)</span></li>' +
+      '<li><i>2</i><span><b>Voraussichtliche Trikotfarbe</b> – wird eure Teamfarbe auf Website und Hallenanzeige</span></li>' +
+      '<li><i>3</i><span><b>Teamlogo</b> (freiwillig) – JPG oder PNG</span></li>' +
+      '<li><i>4</i><span><b>Spieler/innen – nur Vornamen</b>, höchstens 12, Rückennummer freiwillig</span></li>' +
+      '<li><i>5</i><span><b>Torhymne</b> (freiwillig) – MP3, höchstens 1 MB (am besten 20–40 Sekunden ab der richtigen Stelle)</span></li>' +
+      '</ul></div>' +
+      '<div class="dl"><b>Bis ' + esc(until(s.teamEditUntil)) + '</b><span>Danach ist der Teameditor gesperrt – Änderungen gehen dann nur noch über die SMV. Die Gruppe legt die SMV fest.</span></div>' +
+      '<div class="note">Das Passwort gilt nur für euer Team – bitte nicht weitergeben. Bei Fragen meldet euch bei der SMV.</div></main>' +
+      '<footer class="foot"><b>Ein Turnier der SMV</b><span>SMV Parler-Gymnasium · Haußmannstraße 34 · 73525 Schwäbisch Gmünd</span></footer></div>';
+  }
+  Promise.all([
+    fetch('/api/team?action=access', { credentials: 'same-origin', cache: 'no-store' }).then(function (r) { if (r.status === 401) { location.replace('/login'); throw new Error('login'); } return r.json(); }),
+    fetch('/api/state?fresh=1', { cache: 'no-store' }).then(function (r) { return r.json(); })
+  ]).then(function (res) {
+    var acc = res[0].access || {}, st = PT.normalize(res[1].state || {}), id = params.get('id');
+    var teams = st.teams.filter(function (t) { return id ? t.id === id : true; }).filter(function (t) { return acc[t.id]; })
+      .sort(function (a, b) { return (a.group || '').localeCompare(b.group || '') || a.name.localeCompare(b.name, 'de', { numeric: true }); });
+    if (!teams.length) { document.getElementById('out').innerHTML = '<div class="msg">Für ' + (id ? 'dieses Team' : 'kein Team') + ' gibt es einen Zugang. Bitte in der Turnierleitung unter „Teams → Team-Zugänge“ erzeugen.</div>'; return; }
+    document.getElementById('out').innerHTML = teams.map(function (t) { return sheet(t, acc[t.id].pw, st); }).join('');
+    document.title = teams.length === 1 ? 'Team-Zugang ' + teams[0].name : 'Team-Zugänge Oberstufen-Turnier';
+    document.getElementById('info').textContent = teams.length === 1 ? 'Tipp: Im Druckdialog „Als PDF speichern“ wählen.' : teams.length + ' Teams – jedes auf einer eigenen Seite.';
+  }).catch(function (e) { if (e.message !== 'login') document.getElementById('out').innerHTML = '<div class="msg">Fehler: ' + esc(e.message) + '</div>'; });
+  document.getElementById('print').addEventListener('click', function () { window.print(); });
+})();
+</script>
+</body>
+</html>

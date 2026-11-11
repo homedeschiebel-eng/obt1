@@ -43,6 +43,8 @@ module.exports = async (req, res) => {
       // Presse-Passwort im selben Anmeldefeld → weiter zu den Insta-Posts
       const okAdmin = await L.checkPassword(pass);
       if (!okAdmin && L.checkPress(pass)) { L.clearFails(req); L.setPressSession(res, true); return L.send(res, 200, { ok: true, role: 'press' }); }
+      // Team-Passwort → eigener Teameditor
+      if (!okAdmin) { const tid = await L.findTeamByPassword(pass); if (tid) { L.clearFails(req); const auth = await L.getTeamAuth(); await L.setTeamSession(res, tid, auth[tid].pw); return L.send(res, 200, { ok: true, role: 'team' }); } }
       if (!okAdmin) {
         await new Promise((r) => setTimeout(r, 700));
         const locked = L.noteFail(req);

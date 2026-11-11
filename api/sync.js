@@ -155,13 +155,32 @@ async function pull(base) {
     } catch (e) { /* Bild fehlt dann offline */ }
   }
   saveCfg(cfg);
+  // Torhymnen, die Teams online hochgeladen haben (braucht das Online-Passwort)
+  let hymns = 0, hymnNote = '';
+  if (cfg.pass) {
+    try {
+      const cookie = await login(base, cfg.pass);
+      const dir = path.join(__dirname, '..', '.data', 'audio');
+      for (const t of j.state.teams || []) {
+        try {
+          const r = await fetch(base + '/api/team?action=hymn&id=' + encodeURIComponent(t.id), { headers: { Cookie: cookie }, cache: 'no-store' });
+          if (!r.ok) continue;
+          const buf = Buffer.from(await r.arrayBuffer()); if (!buf.length) continue;
+          fs.mkdirSync(dir, { recursive: true });
+          fs.writeFileSync(path.join(dir, 'team_' + t.id + '.bin'), buf);
+          fs.writeFileSync(path.join(dir, 'team_' + t.id + '.json'), JSON.stringify({ name: decodeURIComponent(r.headers.get('x-name') || 'Torhymne'), type: r.headers.get('content-type') || 'audio/mpeg', size: buf.length, at: Date.now() }));
+          hymns++;
+        } catch (e) { /* diese Hymne fehlt dann */ }
+      }
+    } catch (e) { hymnNote = 'Hymnen nicht geholt: ' + e.message; }
+  } else hymnNote = 'Für die Team-Hymnen bitte das Online-Passwort eintragen.';
   const next = L.cleanState(j.state); mapUrls(next, map);
   const cur = await L.readState();
   next.rev = (cur.rev || 0) + 1; next.updated = Date.now();
   await L.writeState(next);
   status.pushedRev = next.rev; // frisch geholt = gleicher Stand wie online
   const c2 = loadCfg(); c2.lastOnlineRev = j.state.rev || 0; c2.conflict = null; saveCfg(c2); status.state = c2.enabled ? 'ok' : 'aus'; status.lastErr = '';
-  return { matches: next.matches.length, teams: next.teams.length, images };
+  return { matches: next.matches.length, teams: next.teams.length, images, hymns, hymnNote };
 }
 
 const handler = async (req0, res) => {

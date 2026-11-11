@@ -184,7 +184,7 @@ const color = (v) => (/^#[0-9a-f]{6}$/i.test(String(v || '')) ? v : '#2E6BFF');
 function cleanState(inp) {
   inp = obj(inp); const s = obj(inp.settings);
   const settings = {};
-  ['title', 'school', 'season', 'date', 'location', 'sport', 'ticker', 'start', 'koFormat', 'vote', 'voteRound', 'impName', 'impAddr', 'impMail', 'impPhone', 'impExtra', 'impDsb', 'impDelete'].forEach((k) => { settings[k] = cut(s[k], /^(ticker|impAddr|impExtra|impDelete)$/.test(k) ? 600 : 120); });
+  ['title', 'school', 'season', 'date', 'location', 'sport', 'ticker', 'start', 'koFormat', 'vote', 'voteRound', 'impName', 'impAddr', 'impMail', 'impPhone', 'impExtra', 'impDsb', 'impDelete', 'teamEditUntil'].forEach((k) => { settings[k] = cut(s[k], /^(ticker|impAddr|impExtra|impDelete)$/.test(k) ? 600 : 120); });
   settings.day = /^\d{4}-\d{2}-\d{2}$/.test(String(s.day || '')) ? s.day : '';
   ['win', 'draw', 'durGroup', 'durKo', 'durFinal', 'gap', 'koBreak', 'planV'].forEach((k) => { settings[k] = Math.max(0, Math.min(90, num(s[k], 0))); });
   settings.third = !!s.third;
@@ -306,6 +306,51 @@ function setPressSession(res, on) {
   const val = on ? hmac(pressKey(), Date.now() + hours * 3600e3) : '';
   res.setHeader('Set-Cookie', 'pt_p=' + encodeURIComponent(val) + '; Path=/; HttpOnly; SameSite=Lax' + secure + '; Max-Age=' + (on ? hours * 3600 : 0));
 }
+/* ---------- Team-Zugänge: jedes Team bearbeitet bis zur Frist sein eigenes Team ----------
+   Passwörter liegen getrennt vom öffentlichen Turnierstand (nur die Turnierleitung kann sie lesen). */
+const TEAMAUTH_KEY = 'turnier/teamauth.json';
+async function getTeamAuth() { try { return JSON.parse((await rawGet(TEAMAUTH_KEY)) || '{}') || {}; } catch (e) { return {}; } }
+async function setTeamAuth(v) { await rawSet(TEAMAUTH_KEY, JSON.stringify(v)); }
+const WORDS = ['Ball', 'Tor', 'Elfer', 'Flanke', 'Pass', 'Kopfball', 'Libero', 'Pokal', 'Trikot', 'Ecke', 'Konter', 'Volley', 'Netz', 'Pfosten', 'Latte', 'Freistoss', 'Anpfiff', 'Dribbling', 'Torwart', 'Sturm'];
+function newTeamPassword(taken) {
+  for (let i = 0; i < 200; i++) {
+    const pw = WORDS[crypto.randomInt(WORDS.length)] + '-' + String(crypto.randomInt(1000, 10000));
+    if (!taken.has(pw.toLowerCase())) return pw;
+  }
+  return 'Team-' + crypto.randomBytes(4).toString('hex');
+}
+const same = (a, b) => { const A = crypto.createHash('sha256').update(String(a)).digest(), B = crypto.createHash('sha256').update(String(b)).digest(); return crypto.timingSafeEqual(A, B); };
+async function findTeamByPassword(pass) {
+  if (!pass) return null; const auth = await getTeamAuth(); let hit = null;
+  for (const [id, v] of Object.entries(auth)) if (v && v.pw && same(String(pass).trim(), v.pw)) hit = id;
+  return hit;
+}
+async function teamKey() { return crypto.createHash('sha256').update('ptt|' + ((await secret()) || Buffer.from('')).toString('hex') + '|' + (process.env.SESSION_SECRET || '')).digest(); }
+async function setTeamSession(res, teamId, pw) {
+  const secure = process.env.VERCEL ? '; Secure' : '', hours = 24 * 14;
+  let val = '';
+  if (teamId) { const exp = Date.now() + hours * 3600e3; val = teamId + '.' + exp + '.' + crypto.createHmac('sha256', await teamKey()).update(teamId + '|' + exp + '|' + pw).digest('hex'); }
+  res.setHeader('Set-Cookie', 'pt_t=' + encodeURIComponent(val) + '; Path=/; HttpOnly; SameSite=Lax' + secure + '; Max-Age=' + (teamId ? hours * 3600 : 0));
+}
+// Liefert die Team-ID der Anmeldung – oder null. Ein neu erzeugtes Passwort macht alte Anmeldungen ungültig.
+async function teamOf(req) {
+  const v = cookies(req).pt_t || ''; const [id, exp, sig] = v.split('.');
+  if (!id || !sig || !(+exp > Date.now())) return null;
+  const auth = await getTeamAuth(); const a = auth[id]; if (!a || !a.pw) return null;
+  const want = crypto.createHmac('sha256', await teamKey()).update(id + '|' + exp + '|' + a.pw).digest('hex');
+  return same(sig, want) ? id : null;
+}
+// Frist (deutsche Zeit, z. B. „2026-12-20T20:00“) → Zeitpunkt in ms
+function berlinMs(str) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(String(str || '')); if (!m) return null;
+  const guess = Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]);
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: 'Europe/Berlin', hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }).formatToParts(new Date(guess)).map((p) => [p.type, p.value]));
+  const asBerlin = Date.UTC(+parts.year, +parts.month - 1, +parts.day, +parts.hour, +parts.minute, +parts.second);
+  return guess - (asBerlin - guess);
+}
+const TEAM_DEADLINE = '2026-12-20T20:00';
+const teamDeadline = (settings) => berlinMs((settings && settings.teamEditUntil) || TEAM_DEADLINE) || berlinMs(TEAM_DEADLINE);
+
 // Sperre nach Fehlversuchen (pro Server-Instanz, als Bremse gedacht)
 const fails = new Map();
 const ipOf = (req) => String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
@@ -313,4 +358,4 @@ function isLocked(req) { const f = fails.get(ipOf(req)); return !!(f && f.until 
 function noteFail(req) { const k = ipOf(req), f = fails.get(k) || { n: 0, until: 0 }; f.n++; if (f.n >= 8) { f.until = Date.now() + 15 * 60e3; f.n = 0; } fails.set(k, f); return f.until > Date.now(); }
 function clearFails(req) { fails.delete(ipOf(req)); }
 
-module.exports = { rawGet, rawSet, redis, VERSION, send, q, readBody, readJson, mode, envNames, check, readState, writeState, cleanState, sniff, putImage, getImage, authInfo, isAdmin, setSession, checkPassword, setPassword, isLocked, noteFail, clearFails, checkPress, isPress, setPressSession };
+module.exports = { rawGet, rawSet, redis, VERSION, send, q, readBody, readJson, mode, envNames, check, readState, writeState, cleanState, sniff, putImage, getImage, authInfo, isAdmin, setSession, checkPassword, setPassword, isLocked, noteFail, clearFails, checkPress, isPress, setPressSession, getTeamAuth, setTeamAuth, newTeamPassword, findTeamByPassword, setTeamSession, teamOf, teamDeadline, berlinMs, TEAM_DEADLINE };
