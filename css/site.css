@@ -427,3 +427,9 @@ body.menu-open{overflow:hidden}
 /* Statistik ohne Gelbe Karten: Spiele · Tore · 2 Min. */
 .plist.st3 .ps,.plist.st3 .ph{grid-template-columns:34px minmax(0,1fr) repeat(3,56px)}
 @media (max-width:640px){.plist.st3 .ps,.plist.st3 .ph{grid-template-columns:26px minmax(0,1fr) 44px 44px}}
+
+/* Start: dezenter Ladebalken, bis die Turnierdaten da sind */
+.boot{height:3px;margin:0;overflow:hidden;background:rgba(46,107,255,.15)}
+.boot i{display:block;height:100%;width:35%;background:var(--cyan);animation:boot 1s ease-in-out infinite}
+@keyframes boot{0%{transform:translateX(-100%)}100%{transform:translateX(300%)}}
+@media (prefers-reduced-motion:reduce){.boot i{animation:none;width:100%;opacity:.5}}

@@ -337,7 +337,7 @@
       const n = await PT.fetchState(false);
       const changed = !S || n.rev !== S.rev || n.updated !== S.updated;
       if (!online) { online = true; S = null; }
-      if (changed || !S) { const first = !S; S = n; H = PT.make(S); if (first) fixOldHash(); render(); }
+      if (changed || !S || S._cached) { const first = !S; S = n; H = PT.make(S); if (first) fixOldHash(); render(); try { localStorage.setItem('pt-last', JSON.stringify(n)); } catch (x) { /* egal */ } }
     } catch (e) {
       if (!S) app.innerHTML = `<div class="wrap" style="padding-block:60px"><div class="notice">${e.setup ? '<b>Die Seite ist noch nicht fertig eingerichtet.</b> ' : '<b>Keine Verbindung.</b> '}${esc(e.message)}<br>Es wird automatisch erneut versucht.${e.setup ? ' <a href="/turnierleitung">Diagnose öffnen</a>' : ''}</div></div>`;
       else if (online) { online = false; render(); }
@@ -384,6 +384,10 @@
   addEventListener('hashchange', () => { fixOldHash(); closeMenu(); render(); scrollTo(0, 0); });
   document.addEventListener('input', (e) => { if (e.target.id === 'v-q') { vt.q = e.target.value; render(); } });
   fixOldHash();
-  PT.syncTime().then(() => load()).then(schedule);
+  // Sofort den zuletzt gesehenen Stand zeigen (wird gleich durch den aktuellen ersetzt)
+  try { const c = JSON.parse(localStorage.getItem('pt-last') || 'null'); if (c && c.settings && Array.isArray(c.teams)) { S = PT.normalize(c); S._cached = true; H = PT.make(S); render(); } } catch (e) { /* kein gespeicherter Stand */ }
+  // Uhrzeit und Turnierstand gleichzeitig holen statt nacheinander
+  PT.syncTime().then(() => { if (S && !S._cached) render(); });
+  load().then(schedule);
   setInterval(PT.syncTime, 5 * 60e3);
 })();

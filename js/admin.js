@@ -1036,8 +1036,8 @@
     ui.pwSource = me.passwordSource; ui.local = !!me.local;
     if (ui.local) { try { ui.sync = await api('/api/sync?action=status'); } catch (e) { ui.sync = null; } }
     try {
-      await PT.syncTime();
-      S = await PT.fetchState(true); H = PT.make(S); render();
+      const [, st] = await Promise.all([PT.syncTime(), PT.fetchState(true)]);
+      S = st; H = PT.make(S); render();
       if (S._migrated) { delete S._migrated; act(() => {}); }
       setTimeout(fixTeamLogos, 800);
       if (!PULT || hymnHere()) preloadAnthems();

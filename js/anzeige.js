@@ -65,6 +65,7 @@
   // Bildschirm wach halten, wenn möglich
   async function wake() { try { if (navigator.wakeLock) await navigator.wakeLock.request('screen'); } catch (e) { /* nicht unterstützt */ } }
   document.addEventListener('visibilitychange', () => { if (!document.hidden) { wake(); load(); } });
-  PT.syncTime().then(load).then(() => { wake(); setInterval(() => { if (!document.hidden) load(); }, 1500); });
+  PT.syncTime();
+  load().then(() => { wake(); setInterval(() => { if (!document.hidden) load(); }, 1500); });
   setInterval(PT.syncTime, 5 * 60e3);
 })();
