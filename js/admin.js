@@ -512,6 +512,8 @@
     <div class="hint">Ändert sich die Gruppeneinteilung, im Reiter „Spielplan“ den Spielplan neu erstellen.</div>
     ${vAccess()}`;
   }
+  ui.pushInfo = null;
+  async function loadPushInfo() { if (ui.local) return; try { ui.pushInfo = await api('/api/push?action=count'); } catch (e) { ui.pushInfo = { available: false, devices: 0 }; } const el = document.getElementById('push-info'); if (el && ui.tab === 'settings') render(); }
   /* ---------- Team-Zugänge: jedes Team pflegt bis zur Frist sein Team selbst ---------- */
   ui.acc = null; ui.accHymns = {};
   async function loadAccess(force) {
@@ -575,6 +577,9 @@
       ${ui.local ? `<div class="row" style="margin-top:12px"><label class="check"><input id="hy-here" type="checkbox" ${hymnHere() ? 'checked' : ''}> Hymnen auf <b>diesem Gerät</b> abspielen (am Laptop an lassen – Tore vom iPad-Bedienpult spielen dann hier)</label></div>` : ''}
       <div class="row" style="margin-top:12px"><label class="check"><input id="hy-on" type="checkbox" ${anthemCfg().on ? 'checked' : ''}> Nach jedem Tor abspielen</label><span style="flex:1"></span><button type="button" class="btn" data-act="hy-test">▶ Probe</button><button type="button" class="btn" data-act="hy-stop">■ Stopp</button><button type="button" class="btn danger" data-act="hy-del">Entfernen</button></div>
       <div class="hint" style="margin-top:8px">${ui.local ? 'Die Dateien liegen auf diesem Laptop (Ordner .data) und werden nicht ins Internet hochgeladen. Tore vom iPad-Bedienpult starten die Hymne hier am Laptop – diese Seite dafür offen lassen (darf im Hintergrund sein).' : 'Die Dateien bleiben in diesem Browser gespeichert und werden nicht ins Internet hochgeladen.'} Die Hymne jedes Teams legst du im Reiter „Teams“ → Team bearbeiten fest. Neues Tor = laufende Hymne bricht ab, die neue startet sofort.</div></div>
+    ${ui.local ? '' : `<div class="box" id="push-box"><h3>Benachrichtigungen <small>Zuschauer, die einem Team folgen, bekommen Anpfiff, Tore, Abpfiff und „Gleich seid ihr dran“ aufs Handy</small></h3>
+      <div class="hint" id="push-info">${ui.pushInfo ? '' : (setTimeout(loadPushInfo, 0), '')}${ui.pushInfo ? (ui.pushInfo.available ? `<b style="color:#fff">${ui.pushInfo.devices}</b> Geräte angemeldet${Object.keys(ui.pushInfo.perTeam || {}).length ? ' · ' + Object.entries(ui.pushInfo.perTeam).map(([id, n]) => esc((S.teams.find((t) => t.id === id) || { name: '?' }).name) + ': ' + n).join(' · ') : ''}` : 'Auf dem Server fehlt das Paket „web-push“ – nach dem nächsten Deploy verfügbar.') : 'Wird geladen …'}</div>
+      <div class="row" style="margin-top:10px"><button type="button" class="btn danger" data-act="push-clear" data-confirm="Wirklich alle löschen?">Alle Anmeldungen löschen (nach dem Turnier)</button></div></div>`}
     <div class="box" id="vote-box"><h3>Voting „Spieler des Turniers“ <small>Zuschauer stimmen am Handy ab – eine Stimme pro Gerät</small></h3>
       <div class="hint" style="margin-bottom:10px">Status: <b style="color:#fff">${{ off: 'aus', open: 'offen – Zuschauer können abstimmen', closed: 'geschlossen – Ergebnis noch verborgen', show: 'Ergebnis wird auf der Website gezeigt' }[s.vote || 'off']}</b></div>
       <div class="row"><button type="button" class="btn primary" data-act="vote" data-v="open"${s.vote === 'open' ? ' disabled' : ''}>Voting öffnen</button><button type="button" class="btn" data-act="vote" data-v="closed"${s.vote !== 'open' ? ' disabled' : ''}>Voting schließen</button><button type="button" class="btn cyan" data-act="vote" data-v="show"${s.vote === 'show' ? ' disabled' : ''}>Ergebnis zeigen</button><button type="button" class="btn" data-act="vote" data-v="off"${!s.vote || s.vote === 'off' ? ' disabled' : ''}>Ausblenden</button><span style="flex:1"></span><button type="button" class="btn danger" data-act="vote-reset" data-confirm="Alle Stimmen verwerfen und neu starten?">Neu starten</button></div>
@@ -827,6 +832,7 @@
     }
     if (!S) return;
     const a = b.dataset.act, m = cur();
+    if (a === 'push-clear') { api('/api/push?action=clear', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }).then(() => { toast('Alle Benachrichtigungs-Anmeldungen gelöscht.'); ui.pushInfo = null; loadPushInfo(); }).catch((x) => toast(x.message, true)); return; }
     if (a === 'acc-new' || a === 'acc-del') { const id = b.dataset.id; api('/api/team?action=' + a.replace('acc-', 'access-'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) }).then(() => { toast(a === 'acc-new' ? 'Zugang erzeugt.' : 'Zugang gesperrt.'); return loadAccess(true); }).catch((x) => toast(x.message, true)); return; }
     if (a === 'del-placeholders') {
       const del = new Set(placeholders().map((t) => t.id)); if (!del.size) return;

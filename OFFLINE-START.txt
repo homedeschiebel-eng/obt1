@@ -102,6 +102,12 @@ TEAM-ZUGÄNGE (TEAMS PFLEGEN IHR TEAM SELBST)
   WICHTIG: Bis zur Frist nur online arbeiten. Danach (am 21.12. oder am Turniertag morgens) am Laptop
   "Stand von der Website holen" – dann kommen Teams, Logos UND die Team-Hymnen auf den Laptop.
 
+BENACHRICHTIGUNGEN FÜR ZUSCHAUER
+  Zuschauer können auf der Website einem Team folgen und Benachrichtigungen einschalten
+  (Anpfiff, Tor, Abpfiff, „Gleich seid ihr dran“). Die Meldungen verschickt die WEBSITE, sobald
+  der Laptop den Stand überträgt – der Laptop braucht dafür also Internet (Automatisch übertragen an).
+  Nach dem Turnier: Online-Turnierleitung -> Einstellungen -> "Alle Anmeldungen löschen".
+
 INSTA-POSTS (PRESSE)
   https://pg-oberstufenfussballturnier.vercel.app/login  ->  Passwort SMV_Insta führt direkt zu den Insta-Posts
   (das Turnierleitungs-Passwort führt im selben Feld zur Turnierleitung)

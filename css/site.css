@@ -433,3 +433,30 @@ body.menu-open{overflow:hidden}
 .boot i{display:block;height:100%;width:35%;background:var(--cyan);animation:boot 1s ease-in-out infinite}
 @keyframes boot{0%{transform:translateX(-100%)}100%{transform:translateX(300%)}}
 @media (prefers-reduced-motion:reduce){.boot i{animation:none;width:100%;opacity:.5}}
+
+/* Team folgen */
+.follow{margin:6px 0 26px;padding:16px;background:linear-gradient(135deg,#112A66,#0B1A45);border:1px solid var(--row-line);border-left:5px solid var(--c,var(--cyan))}
+.fb-star{font:800 18px var(--f-b);border:1px solid var(--cyan);background:transparent;color:#fff;border-radius:8px;padding:10px 16px;cursor:pointer}
+.fb-star.on{background:var(--cyan);color:#04121F}
+.fb-push{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.fb-b{font:700 15px var(--f-b);border:1px solid var(--row-line);background:var(--blue);color:#fff;border-radius:8px;padding:9px 14px;cursor:pointer}
+.fb-b.on{background:#3A1A2A;border-color:#7A2A3A}
+.fb-b.ghost{background:transparent}
+.fb-b:disabled{opacity:.5}
+.fb-hint{margin:10px 0 0;color:var(--muted);font-size:14px;line-height:1.5}
+.fb-msg{margin:8px 0 0;font-weight:700;font-size:14px;color:#9EE6C4}
+.myteams{display:grid;gap:10px;margin:0 0 26px}
+.mt{display:flex;gap:12px;align-items:center;padding:12px 14px;background:linear-gradient(90deg,rgba(30,155,224,.18),rgba(30,155,224,.04));border:1px solid var(--cyan);border-left:5px solid var(--c);color:#fff;text-decoration:none}
+.mt small{display:block;font-family:var(--f-d);font-style:italic;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--cyan);font-size:13px}
+.mt b{font-family:var(--f-d);font-style:italic;font-weight:900;text-transform:uppercase;font-size:21px}
+.mt-i{display:block;color:#DCE6FF;font-size:14px;margin-top:2px}
+.mt-i b{font-family:var(--f-b);font-style:normal;text-transform:none;font-size:14px;font-weight:800}
+.mt-i .lv{background:var(--live);color:#fff;padding:0 6px;border-radius:3px;font-size:12px}
+.mt-hint{display:block;margin:0 0 22px;padding:10px 14px;border:1px dashed var(--row-line);color:var(--muted);font-weight:600;text-decoration:none}
+.mt-hint:hover{color:#fff;border-color:var(--cyan)}
+.pr.fav{box-shadow:inset 4px 0 0 var(--cyan);background:linear-gradient(90deg,rgba(30,155,224,.16),transparent 60%)}
+.st-r.fav{background:linear-gradient(90deg,rgba(30,155,224,.22),transparent 70%)}
+.st-r.fav .nm::after{content:" ★";color:var(--cyan)}
+.tcard{position:relative}
+.tcard .favstar{position:absolute;top:8px;right:10px;color:var(--cyan);font-size:20px;z-index:2}
+#pt-toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:#0E2257;border:1px solid var(--cyan);color:#fff;padding:11px 16px;font-weight:700;z-index:80;max-width:calc(100vw - 32px);box-shadow:0 10px 30px rgba(0,0,0,.5)}

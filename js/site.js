@@ -70,7 +70,7 @@
     if (m.status === 'live') res = `<span class="res live">${r.h}:${r.a}<small data-clock="${m.id}">${H.clockText(m)}</small></span>`;
     else if (m.status === 'done') res = `<span class="res">${r.h}:${r.a}${m.pen ? `<small>${m.pen.h}:${m.pen.a} n.N.</small>` : ''}</span>`;
     else res = `<span class="res pending">– : –</span>`;
-    return `<a class="pr ${m.status}" href="${P('spiel-' + m.id)}"><span class="meta"><span class="no">${H.isTest(m) ? 'T' : esc(m.no || '')}</span><span class="tm"><span data-exp="${m.id}">${H.expTime(m)}</span>${m.status === 'done' ? '' : H.delayHTML(m)}</span><span class="rd">${H.isTest(m) ? esc(H.dayText(m)) + '<br>' : ''}${esc(m.label || STAGES[m.stage].l)}</span></span>${side('h')}${res}${side('a')}</a>`;
+    return `<a class="pr ${m.status}${favMatch(m) ? ' fav' : ''}" href="${P('spiel-' + m.id)}"><span class="meta"><span class="no">${H.isTest(m) ? 'T' : esc(m.no || '')}</span><span class="tm"><span data-exp="${m.id}">${H.expTime(m)}</span>${m.status === 'done' ? '' : H.delayHTML(m)}</span><span class="rd">${H.isTest(m) ? esc(H.dayText(m)) + '<br>' : ''}${esc(m.label || STAGES[m.stage].l)}</span></span>${side('h')}${res}${side('a')}</a>`;
   }
 
   function standTable(g, compact) {
@@ -78,7 +78,7 @@
     if (!rows.length) return `<div class="empty">Noch keine Teams${g ? ' in Gruppe ' + esc(g) : ''}.</div>`;
     const qn = H.qualN(), c = compact ? ' c' : '', cl = H.clinch(g), done = H.groupDone(g);
     const tags = (id) => { const x = cl[id]; if (!x || done) return ''; return (x.q ? `<abbr class="tag q" title="Sicher in der K.-o.-Phase">Q</abbr>` : '') + (x.out ? `<abbr class="tag a" title="Sicher ausgeschieden">A</abbr>` : '') + (x.place ? `<abbr class="tag p" title="Platz ${x.place} ist sicher">P</abbr>` : ''); };
-    const row = (r, i) => `<a class="st-r${c}${i < qn ? ' q' : ''}" href="${P('team-' + r.t.id)}"><span>${i + 1}</span><span class="club">${monoHTML(r.t, 's')}<span class="nm">${esc(r.t.name)}</span>${tags(r.t.id)}${r.live ? '<span class="lvd" title="spielt gerade"></span>' : ''}</span><span>${r.sp}</span>${compact ? '' : `<span class="x">${r.s}</span><span class="x">${r.u}</span><span class="x">${r.n}</span>`}<span>${r.tf}:${r.ta}</span><span>${r.tf - r.ta > 0 ? '+' : ''}${r.tf - r.ta}</span><span class="pts">${r.pts}</span></a>`;
+    const row = (r, i) => `<a class="st-r${c}${i < qn ? ' q' : ''}${isFav(r.t.id) ? ' fav' : ''}" href="${P('team-' + r.t.id)}"><span>${i + 1}</span><span class="club">${monoHTML(r.t, 's')}<span class="nm">${esc(r.t.name)}</span>${tags(r.t.id)}${r.live ? '<span class="lvd" title="spielt gerade"></span>' : ''}</span><span>${r.sp}</span>${compact ? '' : `<span class="x">${r.s}</span><span class="x">${r.u}</span><span class="x">${r.n}</span>`}<span>${r.tf}:${r.ta}</span><span>${r.tf - r.ta > 0 ? '+' : ''}${r.tf - r.ta}</span><span class="pts">${r.pts}</span></a>`;
     const head = `<div class="st-h${c}"><span>#</span><span>Team</span><span>Sp</span>${compact ? '' : '<span class="x">S</span><span class="x">U</span><span class="x">N</span>'}<span>Tore</span><span>Diff</span><span>Pkt</span></div>`;
     return `<div class="stand">${head}${qn ? `<div class="qgrp"><span class="ql">${H.qualLabel()}</span>${rows.slice(0, qn).map(row).join('')}</div>` : ''}${rows.slice(qn).map((r, i) => row(r, i + qn)).join('')}</div>`;
   }
@@ -112,14 +112,85 @@
     const when = m ? new Date(+m[1], +m[2] - 1, +m[3]).toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' }) + (m[4] + m[5] !== '0000' ? ', ' + m[4] + ':' + m[5] + ' Uhr' : '') : 'bald';
     return `<div class="empty">📅 Gruppen und Spielplan werden am <b>${esc(when)}</b> veröffentlicht. Bis dahin findet ihr hier schon alle <a href="/teams">Teams</a>.</div>`;
   }
+  /* ---------- Team folgen & Benachrichtigungen ----------
+     Welche Teams jemand verfolgt, steht nur in seinem Browser. Für Benachrichtigungen speichert der Server
+     nur die Push-Adresse des Browsers und die Team-IDs – keine Namen. */
+  const follows = () => { try { const v = JSON.parse(localStorage.getItem('pt-follow') || '[]'); return Array.isArray(v) ? v.filter((id) => !S || S.teams.some((t) => t.id === id)) : []; } catch (e) { return []; } };
+  const isFav = (id) => follows().includes(id);
+  const favMatch = (m) => ['h', 'a'].some((s) => { const t = H.teamOf(m, s); return t && isFav(t.id); });
+  const pushOK = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+  const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const standalone = () => (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+  const push = { on: false, busy: false, msg: '' };
+  const pushFlag = (v) => { try { if (v) localStorage.setItem('pt-push', '1'); else localStorage.removeItem('pt-push'); } catch (e) { /* egal */ } };
+  const b64u = (s) => { const raw = atob((s + '='.repeat((4 - (s.length % 4)) % 4)).replace(/-/g, '+').replace(/_/g, '/')); return Uint8Array.from(raw, (c) => c.charCodeAt(0)); };
+  async function postJSON(url, body) { const r = await fetch(url, { method: 'POST', headers: { 'x-csrf': '1', 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || 'Fehler (Status ' + r.status + ')'); return j; }
+  async function currentSub() { if (!pushOK()) return null; const r = await navigator.serviceWorker.getRegistration('/'); return r ? r.pushManager.getSubscription() : null; }
+  async function pushEnable() {
+    if (!pushOK()) throw new Error(isIOS && !standalone() ? 'Am iPhone gehen Benachrichtigungen nur, wenn du die Seite zum Home-Bildschirm hinzufügst (Teilen → „Zum Home-Bildschirm“) und sie von dort öffnest.' : 'Dieser Browser unterstützt keine Benachrichtigungen.');
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') throw new Error('Benachrichtigungen wurden nicht erlaubt. Du kannst sie in den Einstellungen deines Browsers für diese Seite freigeben.');
+    const reg = await navigator.serviceWorker.register('/sw.js'); await navigator.serviceWorker.ready;
+    const k = await (await fetch('/api/push?action=key', { cache: 'no-store' })).json();
+    if (!k.key) throw new Error('Benachrichtigungen sind gerade nicht verfügbar.');
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) { try { sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64u(k.key) }); } catch (e) { throw new Error('Benachrichtigungen konnten nicht eingeschaltet werden – dein Browser blockiert sie. Prüfe in den Einstellungen, ob Benachrichtigungen für diese Seite erlaubt sind (im privaten Modus gehen sie meist nicht).'); } }
+    await postJSON('/api/push?action=sub', { sub: sub.toJSON(), teams: follows() });
+    pushFlag(true); push.on = true;
+  }
+  async function pushDisable() { const sub = await currentSub(); if (sub) { await postJSON('/api/push?action=unsub', { endpoint: sub.endpoint }).catch(() => {}); await sub.unsubscribe().catch(() => {}); } pushFlag(false); push.on = false; }
+  async function pushSync() { if (!push.on) return; const sub = await currentSub(); if (!sub) { push.on = false; pushFlag(false); return; } await postJSON('/api/push?action=sub', { sub: sub.toJSON(), teams: follows() }).catch(() => {}); if (!follows().length) { push.on = false; pushFlag(false); } }
+  function setFollow(id, on) {
+    const l = follows().filter((x) => x !== id); if (on) l.push(id);
+    try { localStorage.setItem('pt-follow', JSON.stringify(l)); } catch (e) { /* egal */ }
+    pushSync(); render();
+  }
+  function followBox(t) {
+    const fav = isFav(t.id);
+    let pb = '';
+    if (fav) {
+      if (!pushOK()) pb = `<p class="fb-hint">${isIOS && !standalone() ? '🔔 Für Benachrichtigungen am iPhone: unten auf <b>Teilen</b> → <b>„Zum Home-Bildschirm“</b>, dann die Seite über das neue Symbol öffnen und hier einschalten.' : '🔕 Dieser Browser unterstützt keine Benachrichtigungen.'}</p>`;
+      else pb = `<div class="fb-push"><button class="fb-b${push.on ? ' on' : ''}" data-act="push"${push.busy ? ' disabled' : ''}>${push.on ? '🔕 Benachrichtigungen ausschalten' : '🔔 Benachrichtigungen einschalten'}</button>${push.on ? '<button class="fb-b ghost" data-act="push-test">Probe senden</button>' : ''}</div>
+        <p class="fb-hint">${push.on ? 'An: Du bekommst eine Meldung bei <b>Anpfiff</b>, jedem <b>Tor</b>, <b>Abpfiff</b> – und zwei Spiele vorher <b>„Gleich seid ihr dran“</b>.' : 'Meldungen bei Anpfiff, Toren, Abpfiff und zwei Spiele vorher „Gleich seid ihr dran“ – auch wenn die Seite geschlossen ist.'}</p>${push.msg ? `<p class="fb-msg">${esc(push.msg)}</p>` : ''}`;
+    }
+    return `<section class="follow" style="--c:${esc(t.color)}"><button class="fb-star${fav ? ' on' : ''}" data-act="follow" data-id="${t.id}" aria-pressed="${fav}">${fav ? '★ Du folgst diesem Team' : '☆ Team folgen'}</button>
+      ${fav ? pb : '<p class="fb-hint">Folge dem Team: Seine Spiele erscheinen oben auf der Startseite und sind im Spielplan markiert. Danach kannst du Benachrichtigungen einschalten.</p>'}</section>`;
+  }
+  // „Dein Team“ oben auf der Startseite
+  function myTeams() {
+    const f = follows().map((id) => H.T(id)).filter(Boolean);
+    if (!f.length) return S.teams.length ? `<a class="mt-hint" href="/teams">☆ Folge deinem Team – dann siehst du hier sofort, wann es spielt.</a>` : '';
+    return `<section class="myteams">${f.map((t) => {
+      const ms = H.sorted().filter((m) => H.teamOf(m, 'h') === t || H.teamOf(m, 'a') === t);
+      const live = ms.find((m) => m.status === 'live'), next = ms.find((m) => m.status === 'scheduled');
+      let info;
+      if (planHidden()) info = 'Spielplan kommt am 20.12.';
+      else if (live) { const r = H.sc(live); info = `<b class="lv">LIVE</b> ${esc(H.tName(live, 'h'))} <b>${r.h}:${r.a}</b> ${esc(H.tName(live, 'a'))} · <span data-clock="${live.id}">${H.clockText(live)}</span>`; }
+      else if (next) { const opp = H.teamOf(next, 'h') === t ? H.tName(next, 'a') : H.tName(next, 'h'); info = `Nächstes Spiel: <b>ca. ${esc(H.expTime(next))} Uhr</b> gegen ${esc(opp)} · Spiel ${esc(next.no)}`; }
+      else info = ms.length ? 'Alle Spiele gespielt.' : 'Noch keine Spiele angesetzt.';
+      return `<a class="mt" href="${P(live ? 'spiel-' + live.id : next ? 'spiel-' + next.id : 'team-' + t.id)}" style="--c:${esc(t.color)}">${monoHTML(t, 's')}<span><small>★ Dein Team</small><b>${esc(t.name)}</b><span class="mt-i">${info}</span></span></a>`;
+    }).join('')}</section>`;
+  }
+  let toastT = null;
+  function toast(msg) { let el = document.getElementById('pt-toast'); if (!el) { el = document.createElement('div'); el.id = 'pt-toast'; el.setAttribute('role', 'status'); document.body.appendChild(el); } el.textContent = msg; el.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => { el.hidden = true; }, 5000); }
+  // Seite offen: Tor des eigenen Teams direkt melden
+  function goalAlerts(prev, next) {
+    const f = follows(); if (!f.length || !prev || prev._cached) return;
+    const HN = PT.make(next), old = new Map(prev.matches.map((m) => [m.id, new Set(m.events.map((e) => e.id))]));
+    next.matches.forEach((m) => { const seen = old.get(m.id); if (!seen) return; m.events.filter((e) => !seen.has(e.id) && (e.type === 'goal' || e.type === 'og')).forEach((e) => {
+      const ids = ['h', 'a'].map((s) => HN.teamOf(m, s)).filter(Boolean).map((t) => t.id); if (!ids.some((id) => f.includes(id))) return;
+      const t = HN.teamOf(m, e.side), r = HN.sc(m); toast(`⚽ Tor für ${t ? t.name : '?'}! ${HN.tName(m, 'h')} ${r.h}:${r.a} ${HN.tName(m, 'a')}`); try { navigator.vibrate && navigator.vibrate(200); } catch (x) { /* egal */ }
+    }); });
+  }
+
   function vLive() {
-    if (planHidden()) return { hero: stageHero(H.featured()), main: `${voteCard()}<section><h2 class="sh">Spielplan &amp; Gruppen</h2>${hiddenNote()}</section>` };
+    if (planHidden()) return { hero: stageHero(H.featured()), main: `${myTeams()}${voteCard()}<section><h2 class="sh">Spielplan &amp; Gruppen</h2>${hiddenNote()}</section>` };
     const f = H.featured(), list = H.sorted();
     const up = list.filter((m) => m.status === 'scheduled' && m !== f).slice(0, 5);
     const done = list.filter((m) => m.status === 'done' && m !== f).slice(-5).reverse();
     return {
       hero: stageHero(f),
-      main: `${voteCard()}
+      main: `${myTeams()}${voteCard()}
       <div class="grid2">
         <section><h2 class="sh">Nächste Spiele <a href="/spielplan">Spielplan</a></h2>${up.length ? `<div class="plan">${up.map(planRow).join('')}</div>` : '<div class="empty">Keine weiteren Spiele geplant.</div>'}</section>
         <section><h2 class="sh">Letzte Ergebnisse <a href="/spielplan">Alle</a></h2>${done.length ? `<div class="plan">${done.map(planRow).join('')}</div>` : '<div class="empty">Noch keine Ergebnisse.</div>'}</section>
@@ -231,13 +302,14 @@
     <div class="plist st3">${l.length ? `<div class="ph"><span>#</span><span style="text-align:left">Spieler/in</span><span class="x">Spiele</span><span>Tore</span><span>2 Min.</span></div>${l.map((x, i) => { if (x.g !== prev) { rank = i + 1; prev = x.g; } return `<a class="ps" href="${P('team-' + x.t.id)}"><span class="rk">${rank}</span><span class="who"><span class="avatar" style="--c:${esc(x.t.color)}">${esc(PT.noText(x.p))}</span><span><b>${esc(x.p.name)}</b><small>${esc(x.t.name)}</small></span></span><span class="x">${x.sp}</span><span class="big">${x.g}</span><span>${x.r}</span></a>`; }).join('')}` : '<div class="empty">Noch keine Tore oder Karten.</div>'}</div></div>`;
   }
   function vTeams() {
-    return S.teams.length ? `<div class="tgrid">${S.teams.slice().sort((a, b) => (a.group || '').localeCompare(b.group || '') || a.name.localeCompare(b.name, 'de', { numeric: true })).map((t) => `<a class="tcard" href="${P('team-' + t.id)}" style="--c:${esc(t.color)}">${t.photo ? `<span class="ph" style="background-image:url('${esc(t.photo)}')"></span>` : `<span class="ghost">${esc(PT.short(t))}</span>`}<span class="tinfo">${monoHTML(t, 'l')}<h3>${esc(t.name)}</h3><small>${[t.cls, t.group ? 'Gruppe ' + t.group : '', t.players.length + ' Spieler/innen'].filter(Boolean).map(esc).join(' · ')}</small></span></a>`).join('')}</div>` : '<div class="empty">Noch keine Teams angelegt.</div>';
+    return S.teams.length ? `<div class="tgrid">${S.teams.slice().sort((a, b) => (a.group || '').localeCompare(b.group || '') || a.name.localeCompare(b.name, 'de', { numeric: true })).map((t) => `<a class="tcard${isFav(t.id) ? ' fav' : ''}" href="${P('team-' + t.id)}" style="--c:${esc(t.color)}">${isFav(t.id) ? '<span class="favstar" title="Du folgst diesem Team">★</span>' : ''}${t.photo ? `<span class="ph" style="background-image:url('${esc(t.photo)}')"></span>` : `<span class="ghost">${esc(PT.short(t))}</span>`}<span class="tinfo">${monoHTML(t, 'l')}<h3>${esc(t.name)}</h3><small>${[t.cls, t.group ? 'Gruppe ' + t.group : '', t.players.length + ' Spieler/innen'].filter(Boolean).map(esc).join(' · ')}</small></span></a>`).join('')}</div>` : '<div class="empty">Noch keine Teams angelegt.</div>';
   }
   function vTeam(id) {
     const t = H.T(id); if (!t) return '<div class="empty">Dieses Team gibt es nicht. <a href="/teams">Zu allen Teams</a></div>';
     const ms = H.sorted().filter((m) => H.teamOf(m, 'h') === t || H.teamOf(m, 'a') === t);
     const st = H.playerStats().filter((x) => x.t === t);
     return `<a class="back" href="/teams">← Alle Teams</a>
+    ${followBox(t)}
     <section><h2 class="sh">Kader <small>${t.players.length} Spieler/innen</small></h2>${t.players.length ? `<div class="roster">${t.players.slice().sort(PT.byNo).map((p) => { const x = st.find((s) => s.p === p) || { g: 0, y: 0, r: 0 }; return `<div class="pl"><span class="no">${esc(PT.noText(p))}</span><b>${esc(p.name)}</b><span class="gl"><strong>${x.g}</strong>Tore${x.r ? `<br>${x.r}× 2 Min.` : ''}</span></div>`; }).join('')}</div>` : '<div class="empty">Noch keine Spieler eingetragen.</div>'}</section>
     <section><h2 class="sh">Spiele</h2>${planHidden() ? hiddenNote() : ms.length ? `<div class="plan">${ms.map(planRow).join('')}</div>` : '<div class="empty">Noch keine Spiele angesetzt.</div>'}</section>`;
   }
@@ -337,7 +409,7 @@
       const n = await PT.fetchState(false);
       const changed = !S || n.rev !== S.rev || n.updated !== S.updated;
       if (!online) { online = true; S = null; }
-      if (changed || !S || S._cached) { const first = !S; S = n; H = PT.make(S); if (first) fixOldHash(); render(); try { localStorage.setItem('pt-last', JSON.stringify(n)); } catch (x) { /* egal */ } }
+      if (changed || !S || S._cached) { const first = !S; goalAlerts(S, n); S = n; H = PT.make(S); if (first) fixOldHash(); render(); try { localStorage.setItem('pt-last', JSON.stringify(n)); } catch (x) { /* egal */ } }
     } catch (e) {
       if (!S) app.innerHTML = `<div class="wrap" style="padding-block:60px"><div class="notice">${e.setup ? '<b>Die Seite ist noch nicht fertig eingerichtet.</b> ' : '<b>Keine Verbindung.</b> '}${esc(e.message)}<br>Es wird automatisch erneut versucht.${e.setup ? ' <a href="/turnierleitung">Diagnose öffnen</a>' : ''}</div></div>`;
       else if (online) { online = false; render(); }
@@ -348,6 +420,9 @@
   document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
   document.addEventListener('click', (e) => {
     const b = e.target.closest('[data-act]'); if (!b) return;
+    if (b.dataset.act === 'follow') { setFollow(b.dataset.id, !isFav(b.dataset.id)); return; }
+    if (b.dataset.act === 'push') { push.busy = true; push.msg = ''; render(); (push.on ? pushDisable() : pushEnable()).then(() => { push.msg = push.on ? 'Benachrichtigungen sind an.' : 'Benachrichtigungen sind aus.'; }).catch((x) => { push.msg = x.message; }).finally(() => { push.busy = false; render(); }); return; }
+    if (b.dataset.act === 'push-test') { currentSub().then((s) => (s ? postJSON('/api/push?action=test', { endpoint: s.endpoint }) : Promise.reject(new Error('Nicht angemeldet.')))).then(() => toast('Probe gesendet – gleich sollte eine Benachrichtigung kommen.')).catch((x) => toast(x.message)); return; }
     if (b.dataset.act === 'filter') { ui.filter = b.dataset.f; render(); }
     if (b.dataset.act === 'vpick') { vt.pick = b.dataset.p; render(); const c = document.querySelector('.vconfirm'); if (c) c.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
     if (b.dataset.act === 'vcancel') { vt.pick = null; render(); }
@@ -389,5 +464,6 @@
   // Uhrzeit und Turnierstand gleichzeitig holen statt nacheinander
   PT.syncTime().then(() => { if (S && !S._cached) render(); });
   load().then(schedule);
+  (async () => { try { let flag = false; try { flag = localStorage.getItem('pt-push') === '1'; } catch (e) { /* egal */ } const sub = flag ? await currentSub() : null; push.on = !!sub; if (flag && !sub) pushFlag(false); if (push.on && S && !S._cached) render(); } catch (e) { /* egal */ } })();
   setInterval(PT.syncTime, 5 * 60e3);
 })();

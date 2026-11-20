@@ -38,6 +38,8 @@ module.exports = async (req, res) => {
     next.rev = curRev + 1; next.updated = Date.now();
     await L.writeState(next);
     cache = { t: Date.now(), v: { state: L.publicView(next) } };
+    // Benachrichtigungen an Zuschauer, die einem der beteiligten Teams folgen (höchstens 6 s warten)
+    try { await Promise.race([require('./_push').notify(cur, next), new Promise((r) => setTimeout(r, 6000))]); } catch (e) { /* Benachrichtigungen sind nicht kritisch */ }
     return L.send(res, 200, { ok: true, rev: next.rev, updated: next.updated });
   } catch (e) {
     return L.send(res, e.status || 500, { error: e.message || 'Unbekannter Fehler' });

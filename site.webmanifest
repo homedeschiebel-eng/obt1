@@ -1,0 +1,13 @@
+{
+  "name": "Oberstufen-Turnier · Parler-Gymnasium",
+  "short_name": "Turnier",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0A1430",
+  "theme_color": "#04060D",
+  "icons": [
+    { "src": "/img/icon-180.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "/img/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
