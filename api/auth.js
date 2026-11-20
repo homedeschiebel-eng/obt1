@@ -1,6 +1,8 @@
 // Anmeldung der Turnierleitung: ?action=me | check | setup | login | logout | password
 // Presse (Insta-Posts): ?action=press-me | press-login | press-logout
 let L = null, initErr = null;
+// Anmeldungen für die Statistik zählen (nur Anzahl je Rolle)
+const countLogin = async (role) => { try { await require('./stats').countLogin(role); } catch (e) { /* egal */ } };
 try { L = require('./_lib'); } catch (e) { initErr = e; }
 
 module.exports = async (req, res) => {
@@ -42,15 +44,15 @@ module.exports = async (req, res) => {
       if (L.isLocked(req)) return L.send(res, 429, { error: 'Zu viele Fehlversuche. Die Anmeldung ist für 15 Minuten gesperrt.' });
       // Presse-Passwort im selben Anmeldefeld → weiter zu den Insta-Posts
       const okAdmin = await L.checkPassword(pass);
-      if (!okAdmin && L.checkPress(pass)) { L.clearFails(req); L.setPressSession(res, true); return L.send(res, 200, { ok: true, role: 'press' }); }
+      if (!okAdmin && L.checkPress(pass)) { L.clearFails(req); L.setPressSession(res, true); await countLogin('press'); return L.send(res, 200, { ok: true, role: 'press' }); }
       // Team-Passwort → eigener Teameditor
-      if (!okAdmin) { const tid = await L.findTeamByPassword(pass); if (tid) { L.clearFails(req); const st = await L.readState(); if (Date.now() >= L.teamDeadline(st.settings || {})) return L.send(res, 403, { error: 'Der Teameditor ist geschlossen (Frist abgelaufen). Bei Fragen meldet euch bei der SMV.' }); const auth = await L.getTeamAuth(); await L.setTeamSession(res, tid, auth[tid].pw); return L.send(res, 200, { ok: true, role: 'team' }); } }
+      if (!okAdmin) { const tid = await L.findTeamByPassword(pass); if (tid) { L.clearFails(req); const st = await L.readState(); if (Date.now() >= L.teamDeadline(st.settings || {})) return L.send(res, 403, { error: 'Der Teameditor ist geschlossen (Frist abgelaufen). Bei Fragen meldet euch bei der SMV.' }); const auth = await L.getTeamAuth(); await L.setTeamSession(res, tid, auth[tid].pw); await countLogin('team'); return L.send(res, 200, { ok: true, role: 'team' }); } }
       if (!okAdmin) {
         await new Promise((r) => setTimeout(r, 700));
         const locked = L.noteFail(req);
         return L.send(res, locked ? 429 : 401, { error: locked ? 'Zu viele Fehlversuche. Die Anmeldung ist für 15 Minuten gesperrt.' : 'Das Passwort stimmt nicht.' });
       }
-      L.clearFails(req); await L.setSession(res, true);
+      L.clearFails(req); await L.setSession(res, true); await countLogin('admin');
       return L.send(res, 200, { ok: true });
     }
     if (action === 'password') {

@@ -38,10 +38,11 @@
       <li><b>Voting „Spieler des Turniers“:</b> Damit jedes Gerät nur einmal abstimmen kann, speichert dein Browser eine zufällige Kennung. Auf dem Server liegt davon nur eine verschlüsselte Prüfsumme – keine Namen oder Kontaktdaten. Die Teilnahme ist freiwillig.</li>
       <li><b>Turnierleitung, Teams und Presse:</b> Für die Anmeldung wird ein technisch notwendiges Cookie gesetzt. Zuschauer sind davon nicht betroffen.</li>
       <li><b>Speicher im Browser:</b> Dein Browser speichert lokal den zuletzt geladenen Turnierstand (damit die Seite schneller startet), welchen Teams du folgst und – beim Voting – dass du schon abgestimmt hast. Diese Angaben bleiben auf deinem Gerät und dienen nur dazu, die von dir genutzten Funktionen bereitzustellen (§ 25 Abs. 2 Nr. 2 TDDDG). Du kannst sie jederzeit über die Browser-Einstellungen löschen.</li>
+      <li><b>Besucher-Statistik (nur mit deiner Einwilligung):</b> Wenn du im Banner „Erlauben“ wählst, zählen wir, welche Seiten wie lange angesehen werden, mit welchem Gerätetyp (Handy, Tablet, Computer), wie du auf die Seite gekommen bist und aus welcher Stadt ungefähr. Dafür speichert dein Browser eine zufällige Kennung. Die Stadt ermittelt der Hosting-Anbieter aus der Verbindung; die IP-Adresse selbst wird nicht gespeichert. Auf dem Server liegen nur Zählerstände pro Tag – keine Namen und keine einzelnen Verläufe (Art. 6 Abs. 1 lit. a DSGVO, § 25 Abs. 1 TDDDG). Es gibt keine Analyse-Dienste von Drittanbietern. Die Statistik wird nach dem Turnier gelöscht. Deine Einwilligung kannst du hier jederzeit ändern: <span id="cs-state"></span> <button type="button" class="cs-btn" data-cs="yes">Erlauben</button> <button type="button" class="cs-btn" data-cs="no">Widerrufen</button></li>
       <li><b>Benachrichtigungen (freiwillig):</b> Wenn du einem Team folgst und Benachrichtigungen einschaltest, fragt dein Gerät um Erlaubnis. Gespeichert werden dann die Push-Adresse deines Browsers und die Teams, denen du folgst – keine Namen oder Kontaktdaten (Art. 6 Abs. 1 lit. a DSGVO). Die Meldungen werden über den Push-Dienst deines Browsers zugestellt (z. B. Google, Apple oder Mozilla). Ausschalten kannst du sie jederzeit auf der Teamseite oder in den Einstellungen; nach dem Turnier werden alle Push-Adressen gelöscht.</li>
     </ul>
-    <h3>Keine Werbung, kein Tracking</h3>
-    <p>Für Zuschauer werden keine Cookies gesetzt, es gibt keine Analyse- oder Werbedienste und keine eingebundenen Inhalte von Drittanbietern. Auch die Schriften liegen direkt auf dieser Website.</p>
+    <h3>Keine Werbung, keine Drittanbieter</h3>
+    <p>Für Zuschauer werden keine Cookies gesetzt. Es gibt keine Werbung, keine Analyse-Dienste von Drittanbietern und keine eingebundenen fremden Inhalte. Auch die Schriften liegen direkt auf dieser Website. Die eigene Besucher-Statistik läuft nur mit deiner Einwilligung (siehe oben).</p>
     <h3>Dienstleister</h3>
     <p>Die Website wird bei <b>Vercel Inc.</b> (USA) betrieben; die Turnierdaten liegen in einem Datenspeicher, der über Vercel bereitgestellt wird (z. B. Upstash Redis oder Vercel Blob). Für Übermittlungen in die USA stützen sich die Anbieter auf den EU-US Data Privacy Framework bzw. Standardvertragsklauseln der EU-Kommission.</p>
     <h3>Speicherdauer</h3>
@@ -77,6 +78,16 @@
     document.getElementById('eb').textContent = (s.title || 'Oberstufen-Turnier') + (s.season ? ' ' + s.season : '');
     document.getElementById('ft').textContent = [s.school, s.date].filter(Boolean).join(' · ');
   }).catch(function () { show({}); });
+})();
+</script>
+<style>.cs-btn{font:700 13px var(--f-b,system-ui);border:1px solid var(--cyan,#1E9BE0);background:transparent;color:inherit;border-radius:6px;padding:3px 10px;margin:2px 4px 0 0;cursor:pointer}</style>
+<script>
+// Einwilligung zur Statistik anzeigen und ändern
+(function () {
+  var st = document.getElementById('cs-state'); if (!st) return;
+  function show() { var v = null; try { v = localStorage.getItem('pt-consent'); } catch (e) { v = null; } st.textContent = v === 'yes' ? 'Aktuell: erlaubt.' : v === 'no' ? 'Aktuell: abgelehnt.' : 'Aktuell: noch nicht entschieden.'; }
+  document.addEventListener('click', function (e) { var b = e.target.closest('[data-cs]'); if (!b) return; try { localStorage.setItem('pt-consent', b.getAttribute('data-cs')); if (b.getAttribute('data-cs') !== 'yes') localStorage.removeItem('pt-vid'); } catch (x) { /* egal */ } show(); });
+  show();
 })();
 </script>
 </body>

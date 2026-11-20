@@ -544,6 +544,38 @@
     return `<div class="box"><h3>Partner & Sponsoren <button class="btn sm primary" data-act="new-sponsor">+ Partner</button></h3>
     ${S.sponsors.length ? `<div class="tlist">${S.sponsors.map((s) => `<div class="ti" style="--c:var(--cyan)"><div style="background:var(--paper);color:var(--paper-ink);padding:8px 12px;min-height:60px;display:flex;align-items:center">${s.logo ? `<img src="${esc(s.logo)}" alt="" style="max-height:48px">` : `<span class="wm">${esc(s.name)}</span>`}</div><b style="font-size:19px">${esc(s.name)}</b><small>${esc(s.level)}${s.slogan ? ' · ' + esc(s.slogan) : ''}</small><div class="row"><button class="btn sm primary" data-act="edit-sponsor" data-id="${s.id}">Bearbeiten</button></div></div>`).join('')}</div>` : '<div class="hint">Noch keine Partner eingetragen. Sie erscheinen im weißen Partnerbereich der Website.</div>'}</div>`;
   }
+  /* ---------- Besucher-Statistik (nur Besucher mit Zustimmung) ---------- */
+  ui.st = null; ui.stDay = '';
+  async function loadVisitors(day) {
+    try { ui.st = await api('/api/stats?action=report' + (day ? '&day=' + day : '')); ui.stDay = ui.st.day; } catch (e) { ui.st = { err: e.message }; }
+    if (ui.tab === 'stats') render();
+  }
+  const pageName = (p) => p === '/' ? 'Startseite (Live)' : p.startsWith('/teams/') ? 'Team: ' + p.slice(7) : p.startsWith('/spiel/') ? 'Spiel ' + p.slice(7) : ({ '/spielplan': 'Spielplan', '/tabelle': 'Tabelle', '/k-o-baum': 'K.-o.-Baum', '/statistiken': 'Statistiken', '/voting': 'Voting', '/teams': 'Alle Teams', '/partner': 'Partner' }[p] || p);
+  const dur = (s) => { s = Math.round(s); return s < 60 ? s + ' s' : Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0') + ' min'; };
+  function vVisitors() {
+    if (!ui.st) { setTimeout(() => loadVisitors(ui.stDay), 0); return '<div class="box"><div class="hint">Wird geladen …</div></div>'; }
+    if (ui.st.err) return `<div class="box"><div class="cmd-msg">${esc(ui.st.err)}</div></div>`;
+    const s = ui.st, sum = (o) => Object.values(o || {}).reduce((a, b) => a + b, 0), top = (o, n) => Object.entries(o || {}).sort((a, b) => b[1] - a[1]).slice(0, n || 99);
+    const views = sum(s.pv), durT = sum(s.dur), durN = sum(s.durn);
+    const pages = Object.keys(s.pv || {}).map((p) => ({ p, v: s.pv[p], d: s.durn[p] ? s.dur[p] / s.durn[p] : 0 })).sort((a, b) => b.v - a.v);
+    const bars = (o, label) => { const l = top(o), max = Math.max(1, ...l.map((x) => x[1])); return l.length ? `<div class="vb">${l.map(([k, v]) => `<div class="vb-r"><span>${esc(label ? label(k) : k)}</span><i style="width:${Math.round((v / max) * 100)}%"></i><b>${v}</b></div>`).join('')}</div>` : '<div class="hint">Noch keine Daten.</div>'; };
+    const hm = {}; for (let h = 8; h <= 20; h++) hm[h] = 0; Object.entries(s.hour || {}).forEach(([h, v]) => { hm[+h] = v; });
+    const hours = Object.keys(hm).map(Number).sort((x, y) => x - y).map((h) => [String(h), hm[h]]);
+    const hmax = Math.max(1, ...hours.map((x) => x[1]));
+    const roles = { admin: 'Turnierleitung', team: 'Teams', press: 'Presse' };
+    return `<div class="box"><h3>Besucher-Statistik <small>gezählt werden nur Besucher, die im Banner zugestimmt haben – ohne IP-Adressen und Namen</small></h3>
+      <div class="row" style="align-items:end"><div class="field"><label for="st-day">Tag</label><select id="st-day">${(s.days.length ? s.days : [s.day]).map((d) => `<option value="${d}"${d === s.day ? ' selected' : ''}>${new Date(d + 'T12:00').toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' })}</option>`).join('')}</select></div>
+        <button class="btn" data-act="st-reload">Aktualisieren</button><span style="flex:1"></span><button class="btn danger" data-act="st-clear" data-confirm="Wirklich alles löschen?">Statistik löschen</button></div>
+      <div class="vk">${[['Besucher', s.visitors], ['Seitenaufrufe', views], ['Ø Zeit pro Seite', durN ? dur(durT / durN) : '–'], ['Jetzt online', s.live]].map(([l, v]) => `<div><b>${v}</b><span>${l}</span></div>`).join('')}</div></div>
+      <div class="box"><h3>Seiten <small>Aufrufe und durchschnittliche Verweildauer</small></h3>${pages.length ? `<div class="vt"><div class="vt-h"><span>Seite</span><span>Aufrufe</span><span>Ø Zeit</span></div>${pages.map((x) => `<div class="vt-r"><span>${esc(pageName(x.p))}</span><span>${x.v}</span><span>${x.d ? dur(x.d) : '–'}</span></div>`).join('')}</div>` : '<div class="hint">Noch keine Daten.</div>'}</div>
+      <div class="grid2" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px">
+        <div class="box"><h3>Woher <small>ungefähre Stadt</small></h3>${bars(Object.fromEntries(top(s.city, 12)))}</div>
+        <div class="box"><h3>Uhrzeit <small>Seitenaufrufe pro Stunde</small></h3><div class="vh" style="grid-template-columns:repeat(${hours.length},1fr)">${hours.map(([h, v]) => `<div title="${h} Uhr: ${v}"><i style="height:${Math.round((v / hmax) * 100)}%"></i><span>${+h}</span></div>`).join('')}</div></div>
+        <div class="box"><h3>Geräte</h3>${bars(s.dev)}</div>
+        <div class="box"><h3>Herkunft <small>wie Besucher auf die Seite kamen</small></h3>${bars(s.ref)}</div>
+        <div class="box"><h3>Anmeldungen <small>Logins an diesem Tag</small></h3>${bars(s.login, (k) => roles[k] || k)}</div>
+      </div>`;
+  }
   function vSettings() {
     const s = S.settings;
     return `<form class="box" id="set-form"><h3>Turnierdaten</h3><div style="display:grid;gap:12px">
@@ -591,7 +623,7 @@
   }
 
   /* ---------- Rahmen ---------- */
-  const TABS = [['cockpit', 'Live-Cockpit'], ['plan', 'Spielplan'], ['teams', 'Teams'], ['partner', 'Partner'], ['settings', 'Einstellungen']];
+  const TABS = [['cockpit', 'Live-Cockpit'], ['plan', 'Spielplan'], ['teams', 'Teams'], ['partner', 'Partner'], ['stats', 'Statistik'], ['settings', 'Einstellungen']];
   function render() {
     if (!S) return;
     const ae = document.activeElement;
@@ -599,7 +631,7 @@
     ui.needsRender = false;
     const focusCmd = ae && ae.id === 'cmd', cmdVal = focusCmd ? ae.value : '';
     if (PULT) { app.innerHTML = vPult(); paintSave(); return; }
-    const v = { cockpit: vCockpit, plan: vPlan, teams: vTeams, partner: vPartner, settings: vSettings }[ui.tab] || vCockpit;
+    const v = { cockpit: vCockpit, plan: vPlan, teams: vTeams, partner: vPartner, stats: vVisitors, settings: vSettings }[ui.tab] || vCockpit;
     app.innerHTML = `<header class="tl-head"><div class="wrap">
       <a class="brand" href="/" target="_blank" rel="noopener"><span class="logo logo-school" role="img" aria-label="Logo"></span><span class="bt"><small>Turnierleitung</small><b>${esc(S.settings.title).replace(/-?(Turnier)$/i, ' <span>$1</span>')}</b></span></a>
       <nav class="tl-nav">${TABS.map(([k, l]) => `<button data-act="tab" data-t="${k}" aria-pressed="${ui.tab === k}">${l}</button>`).join('')}</nav>
@@ -851,7 +883,9 @@
     if (a === 'acc-missing') { (async () => { for (const t of S.teams) if (!ui.acc[t.id]) await api('/api/team?action=access-new', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: t.id }) }); toast('Zugänge erzeugt.'); await loadAccess(true); })().catch((x) => toast(x.message, true)); return; }
     if (a === 'plan-public') { const v = (document.getElementById('plan-public') || {}).value || ''; if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(v)) { toast('Bitte Datum und Uhrzeit angeben.', true); return; } act((S) => { S.settings.planPublicAt = v; }); toast('Gespeichert.'); return; }
     if (a === 'acc-until') { const v = (document.getElementById('acc-until') || {}).value || ''; if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(v)) { toast('Bitte Datum und Uhrzeit angeben.', true); return; } act((S) => { S.settings.teamEditUntil = v; }); toast('Frist gespeichert.'); return; }
-    if (a === 'tab') { ui.tab = b.dataset.t; try { sessionStorage.setItem('pt-tab', ui.tab); } catch (x) { /* egal */ } render(); scrollTo(0, 0); return; }
+    if (a === 'st-reload') { loadVisitors(ui.stDay); return; }
+    if (a === 'st-clear') { api('/api/stats?action=clear', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }).then(() => { toast('Statistik gelöscht.'); ui.st = null; loadVisitors(); }).catch((x) => toast(x.message, true)); return; }
+    if (a === 'tab') { if (b.dataset.t === 'stats') ui.st = null; ui.tab = b.dataset.t; try { sessionStorage.setItem('pt-tab', ui.tab); } catch (x) { /* egal */ } render(); scrollTo(0, 0); return; }
     if (a === 'logout') { api('/api/auth?action=logout', { method: 'POST' }).finally(() => showLogin()); return; }
     if (a === 'pick') { ui.pick[b.dataset.side] = b.dataset.t; render(); return; }
     if (a === 'pad') { ui.pad = { side: b.dataset.side, type: b.dataset.t }; render(); return; }
@@ -952,6 +986,7 @@
       if (v && v === m[o]) { toast('Ein Team kann nicht gegen sich selbst spielen.', true); render(); return; }
       act(A.setTeam(m.id, k, v)); return;
     }
+    if (id === 'st-day') { loadVisitors(e.target.value); return; }
     if (id === 'hy-file') { const f = e.target.files[0]; if (!f) return; AUD.set('default', f).then(() => { toast('Torhymne gespeichert: ' + f.name); render(); }).catch((x) => toast('Konnte nicht gespeichert werden: ' + x.message, true)); return; }
     if (id === 'hy-here') { const c = anthemCfg(); c.here = e.target.checked; saveCfg(c); if (c.here) { if (!anthemsLoaded) preloadAnthems(); hymnListen(); } else stopAnthem(false); toast(c.here ? 'Dieses Gerät spielt jetzt die Hymnen.' : 'Dieses Gerät spielt keine Hymnen mehr.'); return; }
     if (id === 'hy-on' || id === 'hy-max' || id === 'hy-vol') { const c = anthemCfg(); c.on = document.getElementById('hy-on').checked; c.max = Math.max(0, parseInt(document.getElementById('hy-max').value, 10) || 0); c.vol = +document.getElementById('hy-vol').value; saveCfg(c); if (current && id === 'hy-vol') current.audio.volume = c.vol; return; }

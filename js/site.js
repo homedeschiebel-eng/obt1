@@ -391,7 +391,52 @@
     lastStrip = strip;
     if (keepId) { const el = document.getElementById(keepId); if (el) { el.focus(); try { if (selS != null) el.setSelectionRange(selS, selS); } catch (x) { /* egal */ } } }
     document.title = (live ? '● ' + H.tName(H.live(), 'h') + ' ' + H.sc(H.live()).h + ':' + H.sc(H.live()).a + ' ' + H.tName(H.live(), 'a') + ' · ' : '') + 'Parler Oberstufen-Turnier';
+    if (!S._cached) trackView();
   }
+
+  /* ---------- Statistik – nur mit Zustimmung im Banner ----------
+     Gezählt werden Seite, Verweildauer, Gerätetyp und Herkunft; die ungefähre Stadt ergänzt der Server.
+     Ohne Zustimmung wird nichts gesendet und keine Kennung gespeichert. */
+  const consent = () => { try { return localStorage.getItem('pt-consent'); } catch (e) { return 'no'; } };
+  function vid() { try { let v = localStorage.getItem('pt-vid'); if (!v) { v = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2) + Date.now().toString(36); localStorage.setItem('pt-vid', v); } return v; } catch (e) { return ''; } }
+  const devType = () => (/iPad|Tablet/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && Math.min(screen.width, screen.height) >= 700) ? 'Tablet' : /Mobi|Android|iPhone/i.test(navigator.userAgent) ? 'Handy' : 'Computer');
+  const refHost = () => { try { const q = new URLSearchParams(location.search).get('q'); if (q) return q; if (!document.referrer) return 'direkt'; const h = new URL(document.referrer).hostname.replace(/^www\./, ''); return h === location.hostname ? 'direkt' : h; } catch (e) { return 'direkt'; } };
+  const curPath = () => { let p = location.pathname; try { p = decodeURIComponent(p); } catch (e) { /* egal */ } return p.replace(/\/+$/, '') || '/'; };
+  const tv = { path: null, since: 0, first: true };
+  function sendHit(o, beacon) {
+    if (consent() !== 'yes') return;
+    const body = JSON.stringify(Object.assign({ vid: vid() }, o));
+    try { if (beacon && navigator.sendBeacon) { navigator.sendBeacon('/api/stats?action=hit', new Blob([body], { type: 'application/json' })); return; } fetch('/api/stats?action=hit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, keepalive: true }).catch(() => {}); } catch (e) { /* egal */ }
+  }
+  function trackLeave(beacon) { if (tv.path && tv.since) { const secs = Math.round((Date.now() - tv.since) / 1000); if (secs > 0) sendHit({ t: 'leave', path: tv.path, secs }, beacon); } tv.since = 0; }
+  function trackView() {
+    if (consent() !== 'yes') return;
+    const p = curPath(); if (p === tv.path && tv.since) return;
+    if (p === tv.path && !tv.since) { tv.since = Date.now(); return; }
+    trackLeave(false); tv.path = p; tv.since = Date.now();
+    // Stadt, Gerät und Herkunft nur einmal pro Besuch (Tab) zählen, nicht bei jedem Neuladen
+    let first = tv.first; tv.first = false; try { if (sessionStorage.getItem('pt-sess')) first = false; else sessionStorage.setItem('pt-sess', '1'); } catch (e) { /* egal */ }
+    sendHit({ t: 'view', path: p, first, ref: first ? refHost() : '', dev: devType() });
+  }
+  document.addEventListener('visibilitychange', () => { if (document.hidden) trackLeave(true); else if (consent() === 'yes' && tv.path) tv.since = Date.now(); });
+  addEventListener('pagehide', () => trackLeave(true));
+  setInterval(() => { if (!document.hidden && consent() === 'yes' && tv.path) sendHit({ t: 'ping', path: tv.path }); }, 60000);
+  // Banner beim ersten Besuch: Ablehnen und Erlauben gleich groß
+  function consentBanner() {
+    if (document.getElementById('consent')) return;
+    const el = document.createElement('div'); el.id = 'consent'; el.className = 'consent'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'Statistik-Einwilligung');
+    el.innerHTML = `<div class="cs-in"><b>Darf die SMV mitzählen?</b>
+      <p>Wir würden gern anonym zählen, welche Seiten wie lange angesehen werden und aus welcher Stadt ungefähr – damit wir das Turnier besser planen können. Dafür speichert dein Browser eine zufällige Kennung. Keine Werbung, keine Weitergabe, keine Namen. Du kannst das jederzeit unter <a href="/impressum">Datenschutz</a> ändern.</p>
+      <div class="cs-b"><button type="button" data-consent="no">Ablehnen</button><button type="button" data-consent="yes">Erlauben</button></div></div>`;
+    document.body.appendChild(el);
+  }
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-consent]'); if (!b) return;
+    try { localStorage.setItem('pt-consent', b.dataset.consent); if (b.dataset.consent !== 'yes') localStorage.removeItem('pt-vid'); } catch (x) { /* egal */ }
+    const el = document.getElementById('consent'); if (el) el.remove();
+    if (b.dataset.consent === 'yes' && S && !S._cached) trackView();
+  });
+  if (consent() !== 'yes' && consent() !== 'no') consentBanner();
 
   /* ---------- Uhren laufen lassen ---------- */
   setInterval(() => {
