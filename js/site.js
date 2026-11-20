@@ -426,7 +426,7 @@
     if (document.getElementById('consent')) return;
     const el = document.createElement('div'); el.id = 'consent'; el.className = 'consent'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'Statistik-Einwilligung');
     el.innerHTML = `<div class="cs-in"><b>Darf die SMV mitzählen?</b>
-      <p>Wir würden gern anonym zählen, welche Seiten wie lange angesehen werden und aus welcher Stadt ungefähr – damit wir das Turnier besser planen können. Dafür speichert dein Browser eine zufällige Kennung. Keine Werbung, keine Weitergabe, keine Namen. Du kannst das jederzeit unter <a href="/impressum">Datenschutz</a> ändern.</p>
+      <p>Wir würden gern anonym zählen, welche Seiten wie lange angesehen werden und aus welcher Stadt ungefähr – damit wir das Turnier besser planen können. Dafür speichert dein Browser eine zufällige Kennung. Keine Werbung, keine Weitergabe, keine Namen. Du kannst das jederzeit unter <a href="/impressum#datenschutz">Datenschutz</a> ändern.</p>
       <div class="cs-b"><button type="button" data-consent="no">Ablehnen</button><button type="button" data-consent="yes">Erlauben</button></div></div>`;
     document.body.appendChild(el);
   }
