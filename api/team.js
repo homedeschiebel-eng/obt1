@@ -1,4 +1,4 @@
-// Teameditor: jedes Team pflegt bis zur Frist (Standard 20.12., 20:00 Uhr) sein eigenes Team.
+// Teameditor: jedes Team pflegt bis zur Frist (Standard 13.12., 20:00 Uhr) sein eigenes Team.
 //   Team (Cookie pt_t):  GET ?action=me · POST ?action=save (alles in einem Schritt: Felder, Logo, Teambild, Hymne) · POST ?action=logout
 //   Hymne abspielen:     GET ?action=hymn&id=t1   (eigenes Team oder Turnierleitung)
 //   Turnierleitung:      GET ?action=access · POST ?action=access-new {id} · POST ?action=access-del {id} · GET ?action=hymns

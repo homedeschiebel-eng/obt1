@@ -4,7 +4,7 @@
   "title": "Oberstufen-Turnier",
   "school": "Parler-Gymnasium",
   "season": "2026",
-  "date": "Dienstag, 22. Dezember 2026",
+  "date": "Dienstag, 15. Dezember 2026",
   "location": "Großsporthalle Schwäbisch Gmünd",
   "sport": "Fußball",
   "ticker": "",
@@ -17,13 +17,14 @@
   "durGroup": 7,
   "durKo": 10,
   "durFinal": 12,
-  "day": "2026-12-22",
+  "day": "2026-12-15",
   "impName": "Schülermitverantwortung (SMV) des Parler-Gymnasiums\nvertreten durch\nDenzel Schiebel (Schülersprecher)\nEduard Losing (Verbindungslehrkraft)",
   "impAddr": "Parler-Gymnasium\nHaußmannstraße 34\n73525 Schwäbisch Gmünd",
   "impMail": "schiebelde@parler-gymnasium.de",
   "impPhone": "0177 4216418",
   "koBreak": 10,
-  "planV": 2
+  "planV": 2,
+  "dateV": 1
  },
  "teams": [
   {

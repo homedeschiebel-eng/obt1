@@ -92,12 +92,12 @@ TEAM-ZUGÄNGE (TEAMS PFLEGEN IHR TEAM SELBST)
   Die Teams melden sich unter …/login mit ihrem Passwort an und ändern selbst: Teamname, Kürzel
   (2–3 Zeichen), Trikotfarbe, Logo, Spieler (nur Vornamen, Nr. freiwillig) und Torhymne (Audio oder Video bis 10 MB – verwendet wird nur der Ton, max. 2 Minuten).
   Passwörter: 8 zufällige Buchstaben und Zahlen. „Platzhalter-Teams löschen“ entfernt „Team 1“ … „Team 12“.
-  Die Gruppe können sie nicht ändern. Frist: 20.12., 20:00 Uhr (in der Turnierleitung änderbar).
+  Die Gruppe können sie nicht ändern. Frist: 13.12., 20:00 Uhr (in der Turnierleitung änderbar).
   Nach dem Login kommt zuerst die Team-Übersicht, bearbeitet wird auf einer eigenen Seite.
   Pflicht: Teamname, Kürzel, Trikotfarbe, Logo, Kader (5–12, nur Vornamen) und Torhymne.
   Teambild ist freiwillig. Speichern geht nur, wenn alles Pflichtige da ist und die Frist läuft.
   Ab der Frist ist der Teameditor nicht mehr erreichbar (auch der Login mit Team-Passwort nicht).
-  Gruppen und Spielplan sind für Besucher erst ab 20.12. sichtbar (Turnierleitung -> Spielplan ->
+  Gruppen und Spielplan sind für Besucher erst ab 14.12. sichtbar (Turnierleitung -> Spielplan ->
   Sichtbarkeit). Die Turnierleitung und der Laptop sehen immer alles.
   WICHTIG: Bis zur Frist nur online arbeiten. Danach (am 21.12. oder am Turniertag morgens) am Laptop
   "Stand von der Website holen" – dann kommen Teams, Logos UND die Team-Hymnen auf den Laptop.
@@ -120,7 +120,7 @@ INSTA-POSTS (PRESSE)
 TESTSPIELE (z. B. für eine Vorführung)
   Turnierleitung -> Spielplan -> "+ Testspiel": eigenes Datum, eigene Uhrzeit, zwei Teams.
   Testspiele laufen wie echte Spiele (Uhr, Tore, Anzeige, Website), zählen aber nicht für
-  Tabelle, Statistik und K.-o.-Baum. Der Spielplan vom 22.12. bleibt unverändert.
+  Tabelle, Statistik und K.-o.-Baum. Der Spielplan vom 15.12. bleibt unverändert.
   Danach: "Alle Testspiele löschen".
 
 TIPP

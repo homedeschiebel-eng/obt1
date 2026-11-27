@@ -164,7 +164,17 @@ async function check() {
 async function readState() {
   const text = await rawGet(STATE_KEY);
   if (!text) return Object.assign(JSON.parse(JSON.stringify(START)), { rev: 0 });
-  return JSON.parse(text);
+  return moveDate(JSON.parse(text));
+}
+// Turniertag verlegt (22.12. → 15.12.): ältere gespeicherte Stände sofort mit den neuen Fristen lesen,
+// gespeichert wird die Umstellung beim nächsten Öffnen der Turnierleitung (gleiche Regel wie in js/core.js)
+function moveDate(s) {
+  const st = s && s.settings; if (!st || (+st.dateV || 0) >= 1) return s;
+  if (!st.day || st.day === '2026-12-22') { st.day = '2026-12-15'; st.date = 'Dienstag, 15. Dezember 2026'; }
+  if (/22\. Dezember 2026/.test(st.date || '')) st.date = 'Dienstag, 15. Dezember 2026';
+  if (!st.teamEditUntil || st.teamEditUntil === '2026-12-20T20:00') st.teamEditUntil = '2026-12-13T20:00';
+  if (!st.planPublicAt || st.planPublicAt === '2026-12-20T00:00') st.planPublicAt = '2026-12-14T00:00';
+  return s;
 }
 async function writeState(s) { await rawSet(STATE_KEY, JSON.stringify(s)); }
 
@@ -186,7 +196,7 @@ function cleanState(inp) {
   const settings = {};
   ['title', 'school', 'season', 'date', 'location', 'sport', 'ticker', 'start', 'koFormat', 'vote', 'voteRound', 'impName', 'impAddr', 'impMail', 'impPhone', 'impExtra', 'impDsb', 'impDelete', 'teamEditUntil', 'planPublicAt'].forEach((k) => { settings[k] = cut(s[k], /^(ticker|impAddr|impExtra|impDelete)$/.test(k) ? 600 : 120); });
   settings.day = /^\d{4}-\d{2}-\d{2}$/.test(String(s.day || '')) ? s.day : '';
-  ['win', 'draw', 'durGroup', 'durKo', 'durFinal', 'gap', 'koBreak', 'planV'].forEach((k) => { settings[k] = Math.max(0, Math.min(90, num(s[k], 0))); });
+  ['win', 'draw', 'durGroup', 'durKo', 'durFinal', 'gap', 'koBreak', 'planV', 'dateV'].forEach((k) => { settings[k] = Math.max(0, Math.min(90, num(s[k], 0))); });
   settings.third = !!s.third;
   const teams = arr(inp.teams).slice(0, 40).map((t) => {
     t = obj(t);
@@ -342,7 +352,7 @@ async function teamOf(req) {
   const want = crypto.createHmac('sha256', await teamKey()).update(id + '|' + exp + '|' + a.pw).digest('hex');
   return same(sig, want) ? id : null;
 }
-// Frist (deutsche Zeit, z. B. „2026-12-20T20:00“) → Zeitpunkt in ms
+// Frist (deutsche Zeit, z. B. „2026-12-13T20:00“) → Zeitpunkt in ms
 function berlinMs(str) {
   const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(String(str || '')); if (!m) return null;
   const guess = Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]);
@@ -350,10 +360,10 @@ function berlinMs(str) {
   const asBerlin = Date.UTC(+parts.year, +parts.month - 1, +parts.day, +parts.hour, +parts.minute, +parts.second);
   return guess - (asBerlin - guess);
 }
-const TEAM_DEADLINE = '2026-12-20T20:00';
+const TEAM_DEADLINE = '2026-12-13T20:00';
 const teamDeadline = (settings) => berlinMs((settings && settings.teamEditUntil) || TEAM_DEADLINE) || berlinMs(TEAM_DEADLINE);
-// Gruppen und Spielplan sind öffentlich erst ab diesem Zeitpunkt (Standard 20.12., 0:00 Uhr)
-const PLAN_PUBLIC = '2026-12-20T00:00';
+// Gruppen und Spielplan sind öffentlich erst ab diesem Zeitpunkt (Standard 14.12., 0:00 Uhr)
+const PLAN_PUBLIC = '2026-12-14T00:00';
 const planHidden = (settings) => Date.now() < (berlinMs((settings && settings.planPublicAt) || PLAN_PUBLIC) || berlinMs(PLAN_PUBLIC));
 // Öffentliche Fassung des Turnierstands: ohne Gruppen und ohne Turnierspiele (Testspiele bleiben)
 function publicView(s) {

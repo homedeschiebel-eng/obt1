@@ -164,7 +164,7 @@
       const ms = H.sorted().filter((m) => H.teamOf(m, 'h') === t || H.teamOf(m, 'a') === t);
       const live = ms.find((m) => m.status === 'live'), next = ms.find((m) => m.status === 'scheduled');
       let info;
-      if (planHidden()) info = 'Spielplan kommt am 20.12.';
+      if (planHidden()) { const pm = /^\d{4}-(\d{2})-(\d{2})/.exec(S.settings.planPublicAt || ''); info = 'Spielplan kommt ' + (pm ? 'am ' + (+pm[2]) + '.' + (+pm[1]) + '.' : 'bald'); }
       else if (live) { const r = H.sc(live); info = `<b class="lv">LIVE</b> ${esc(H.tName(live, 'h'))} <b>${r.h}:${r.a}</b> ${esc(H.tName(live, 'a'))} · <span data-clock="${live.id}">${H.clockText(live)}</span>`; }
       else if (next) { const opp = H.teamOf(next, 'h') === t ? H.tName(next, 'a') : H.tName(next, 'h'); info = `Nächstes Spiel: <b>ca. ${esc(H.expTime(next))} Uhr</b> gegen ${esc(opp)} · Spiel ${esc(next.no)}`; }
       else info = ms.length ? 'Alle Spiele gespielt.' : 'Noch keine Spiele angesetzt.';

@@ -524,7 +524,7 @@
   }
   // Platzhalter: automatisch angelegte „Team 1“ … „Team 12“ ohne Logo
   const placeholders = () => S.teams.filter((t) => /^team\s*\d+$/i.test(String(t.name).trim()) && !t.logo);
-  const untilVal = () => S.settings.teamEditUntil || '2026-12-20T20:00';
+  const untilVal = () => S.settings.teamEditUntil || '2026-12-13T20:00';
   function vAccess() {
     if (ui.local) return `<div class="box"><h3>Team-Zugänge</h3><div class="hint">Die Teams tragen ihre Daten online ein. Zugänge und Zugangs-PDFs bitte in der <b>Online-Turnierleitung</b> erzeugen (${esc((ui.sync && ui.sync.url) || 'Website')}/login). Vor dem Turnier am Laptop „Stand von der Website holen“ – dann kommen Teams, Logos und Hymnen mit.</div></div>`;
     if (!ui.acc) { setTimeout(loadAccess, 0); return `<div class="box"><h3>Team-Zugänge</h3><div class="hint">Wird geladen …</div></div>`; }
