@@ -98,6 +98,7 @@
 
       <section class="te-card"><h2>Kader <b class="req">*</b> <small>${t.players.length} von ${me.maxPlayers} · mind. ${me.minPlayers}</small></h2>
         <div class="te-hint" style="margin-bottom:10px">Nur <b>Vornamen</b> – sie erscheinen bei Toren auf Website, Hallenanzeige und Instagram. Rückennummer freiwillig.</div>
+        <div class="te-rule"><b>Wer darf mitspielen?</b> Nur wer auf eurer Papier-Anmeldung steht – Schülerinnen und Schüler der KS1 und KS2, die im Schuljahr 2026/27 am Parler-Gymnasium sind. Keine jüngeren Schüler, keine Geschwister, niemand von außerhalb. Ausnahme: Im Abi-Team dürfen ehemalige Abiturientinnen und Abiturienten spielen, nur vom Abi 2026.</div>
         <div class="te-pl">${t.players.map((p, i) => `<div class="te-p"><span class="n">${i + 1}</span><input type="text" data-pn="${i}" maxlength="20" placeholder="Vorname" value="${esc(p.name)}" aria-label="Vorname Spieler/in ${i + 1}"${dis}><input type="number" data-pno="${i}" min="0" max="99" inputmode="numeric" placeholder="Nr." value="${p.no == null ? '' : esc(p.no)}" aria-label="Rückennummer Spieler/in ${i + 1}"${dis}><button type="button" class="te-b sm del" data-act="p-del" data-i="${i}" aria-label="Spieler/in ${i + 1} entfernen"${dis}>✕</button></div>`).join('')}</div>
         ${t.players.length < me.maxPlayers ? `<button type="button" class="te-b" data-act="p-add" style="margin-top:10px"${dis}>+ Spieler/in</button>` : ''}
       </section>
