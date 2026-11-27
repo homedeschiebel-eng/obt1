@@ -1,6 +1,6 @@
 // Push-Benachrichtigungen für Zuschauer, die einem Team folgen.
 // Ausgelöst, wenn ein neuer Turnierstand gespeichert wird (Turnierleitung oder Laptop-Abgleich):
-//   ⏰ „Gleich seid ihr dran“ (wenn zwei Spiele vorher angepfiffen wird) · ▶️ Anpfiff · ⚽ Tor · 🏁 Abpfiff
+//   ⏰ „Gleich seid ihr dran“ (beim Abpfiff des Spiels direkt davor – ca. 2 Minuten vorher) · ▶️ Anpfiff · ⚽ Tor · 🏁 Abpfiff
 // Gespeichert wird nur die Push-Adresse des Browsers und welche Teams er verfolgt – keine Namen.
 const crypto = require('crypto');
 const L = require('./_lib');
@@ -74,8 +74,6 @@ function messages(prev, next) {
     const sc = H.sc(m), pair = name(m, 'h') + ' ' + sc.h + ':' + sc.a + ' ' + name(m, 'a');
     if (pm.status === 'scheduled' && m.status === 'live' && now - (m.startedAt || now) < FRESH) {
       out.push({ teams: ids(m), key: 'k' + m.id, p: { title: '▶️ Anpfiff: ' + name(m, 'h') + ' – ' + name(m, 'a'), body: label(m) + ' läuft jetzt.', url: url(m), tag: 'm' + m.id } });
-      const soon = real[idx + 2];
-      if (soon && soon.status === 'scheduled') out.push({ teams: ids(soon), key: 's' + soon.id, p: { title: '⏰ Gleich seid ihr dran!', body: label(soon) + ': ' + name(soon, 'h') + ' – ' + name(soon, 'a') + ' · ca. ' + H.expTime(soon) + ' Uhr. Bitte zum Spielfeldrand.', url: url(soon), tag: 's' + soon.id } });
     }
     const seen = new Set((pm.events || []).map((e) => e.id));
     m.events.filter((e) => !seen.has(e.id) && (e.type === 'goal' || e.type === 'og') && now - (e.at || 0) < FRESH).forEach((e) => {
@@ -84,6 +82,8 @@ function messages(prev, next) {
     });
     if (pm.status === 'live' && m.status === 'done' && now - (m.endedAt || now) < FRESH) {
       out.push({ teams: ids(m), key: 'f' + m.id, p: { title: '🏁 Abpfiff: ' + pair, body: label(m) + (m.pen && (m.pen.h || m.pen.a) ? ' · n. E. ' + m.pen.h + ':' + m.pen.a : ''), url: url(m), tag: 'm' + m.id } });
+      const soon = real[idx + 1];
+      if (soon && soon.status === 'scheduled') out.push({ teams: ids(soon), key: 's' + soon.id, p: { title: '⏰ Gleich seid ihr dran!', body: label(soon) + ': ' + name(soon, 'h') + ' – ' + name(soon, 'a') + ' · ca. ' + H.expTime(soon) + ' Uhr. Bitte jetzt zum Spielfeldrand.', url: url(soon), tag: 's' + soon.id } });
     }
   });
   return out;

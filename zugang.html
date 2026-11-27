@@ -75,7 +75,7 @@ li b{color:var(--navy)}
   function sheet(t, pw, st) {
     var url = SITE + '/login', s = st.settings || {};
     return '<div class="sheet"><header class="top"><span class="logo school"></span><div><small>Parler-Gymnasium · SMV · Oberstufen-Turnier ' + esc(s.season || '2026') + '</small><h1>Team-<span>Zugang</span></h1>' +
-      '<div class="when">' + esc(s.date || 'Dienstag, 15. Dezember 2026') + ' · ab ' + esc(s.start || '11:30') + ' Uhr · ' + esc(s.location || 'Großsporthalle Schwäbisch Gmünd') + '</div></div><span class="logo smv"></span></header>' +
+      '<div class="when">' + esc(s.date || 'Dienstag, 15. Dezember 2026') + ' · ab ' + esc(s.start || '10:30') + ' Uhr · ' + esc(s.location || 'Großsporthalle Schwäbisch Gmünd') + '</div></div><span class="logo smv"></span></header>' +
       '<main class="mid"><div class="team"><b>' + esc(t.name) + '</b></div>' +
       '<div class="login"><div><div class="step">1 · Seite öffnen</div><div class="url">' + esc(url.replace(/^https?:\/\//, '')) + '</div><div class="step">2 · Mit diesem Passwort anmelden</div><div class="pw">' + esc(pw) + '</div></div>' +
       '<div class="qr">' + qr(url) + '<small>scannen zum Öffnen</small></div></div>' +

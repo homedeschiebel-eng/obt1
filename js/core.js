@@ -49,7 +49,7 @@
   PT.normalize = (S) => {
     S = S || {};
     const old = !!(S.settings && S.settings.title !== undefined && !S.settings.day);
-    S.settings = Object.assign({ title: 'Oberstufen-Turnier', school: 'Parler-Gymnasium', season: '2026', date: '', day: '2026-12-15', location: 'Großsporthalle Schwäbisch Gmünd', sport: 'Fußball', ticker: '', start: '11:30', gap: 1, koBreak: 10, koFormat: 'qf', third: true, win: 3, draw: 1, durGroup: 7, durKo: 10, durFinal: 12, vote: 'off', voteRound: 'r1' }, S.settings || {});
+    S.settings = Object.assign({ title: 'Oberstufen-Turnier', school: 'Parler-Gymnasium', season: '2026', date: '', day: '2026-12-15', location: 'Großsporthalle Schwäbisch Gmünd', sport: 'Fußball', ticker: '', start: '10:30', gap: 1, koBreak: 10, koFormat: 'qf', third: true, win: 3, draw: 1, durGroup: 7, durKo: 10, durFinal: 12, vote: 'off', voteRound: 'r1' }, S.settings || {});
     if (!S.settings.teamEditUntil) S.settings.teamEditUntil = '2026-12-13T20:00';
     if (!S.settings.planPublicAt) S.settings.planPublicAt = '2026-12-14T00:00';
     S.teams = S.teams || []; S.matches = S.matches || []; S.sponsors = S.sponsors || [];
@@ -72,20 +72,25 @@
     if (old) {
       const wasDefault = !S.settings.start || S.settings.start === '09:00';
       Object.assign(S.settings, { day: '2026-12-15', date: 'Dienstag, 15. Dezember 2026', season: S.settings.season || '2026' });
-      if (wasDefault) { S.settings.start = '11:30'; S.settings.gap = 1; }
+      if (wasDefault) { S.settings.start = '10:30'; S.settings.gap = 1; }
       PT.retime(S); S._migrated = true;
     }
     // Turniertag verlegt: 22.12. → Dienstag, 15.12.2026 (Teameditor bis 13.12. 20 Uhr, Spielplan ab 14.12.)
-    if (PT.moveDate(S.settings)) S._migrated = true;
+    if (PT.moveDate(S.settings, S)) S._migrated = true;
     return S;
   };
-  PT.moveDate = (st) => {
-    if ((+st.dateV || 0) >= 1) return false;
+  PT.moveDate = (st, S) => {
+    if ((+st.dateV || 0) >= 2) return false;
+    if ((+st.dateV || 0) < 1) {
     if (!st.day || st.day === '2026-12-22') { st.day = '2026-12-15'; st.date = 'Dienstag, 15. Dezember 2026'; }
     if (/22\. Dezember 2026/.test(st.date || '')) st.date = 'Dienstag, 15. Dezember 2026';
     if (!st.teamEditUntil || st.teamEditUntil === '2026-12-20T20:00') st.teamEditUntil = '2026-12-13T20:00';
     if (!st.planPublicAt || st.planPublicAt === '2026-12-20T00:00') st.planPublicAt = '2026-12-14T00:00';
-    st.dateV = 1; return true;
+    }
+    // Start vorgezogen: 11:30 → 10:30 (nur solange noch kein Turnierspiel begonnen hat)
+    const begun = S && (S.matches || []).some((m) => m.stage !== 'test' && (m.status !== 'scheduled' || m.startedAt));
+    if (st.start === '11:30' && !begun) { st.start = '10:30'; if (S && PT.retime) PT.retime(S); }
+    st.dateV = 2; return true;
   };
 
   /* ---------- Auswertung zu einem Turnierstand ---------- */
