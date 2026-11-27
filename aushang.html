@@ -79,11 +79,10 @@ html,body{margin:0;background:#C9CFDD;color:var(--ink);font-family:var(--f-b)}
     // Höchste Fehlerkorrektur (H, bis 30 %), damit das SMV-Logo in der Mitte den Code nicht unlesbar macht
     var qr = qrcode(0, 'H'); qr.addData(url); qr.make();
     var n = qr.getModuleCount(), q = 2, d = '';
-    var k = Math.round(n * 0.24); if ((n - k) % 2) k++; var s0 = (n - k) / 2, s1 = s0 + k; // freie Fläche für das Logo
+    var k = Math.round(n * 0.32); if ((n - k) % 2) k++; var s0 = (n - k) / 2, s1 = s0 + k; // freie Fläche für das Logo
     for (var r = 0; r < n; r++) for (var c = 0; c < n; c++) if (qr.isDark(r, c) && !(r >= s0 && r < s1 && c >= s0 && c < s1)) d += 'M' + (c + q) + ' ' + (r + q) + 'h1v1h-1z';
-    var bx = s0 + q + 0.45, bw = k - 0.9, lh = bw * 0.74, lw = lh * 269 / 299;
-    var logo = '<rect x="' + bx + '" y="' + bx + '" width="' + bw + '" height="' + bw + '" rx="' + (bw * 0.2) + '" fill="#0A1430"/>' +
-      '<image href="/img/smv.png" x="' + (bx + (bw - lw) / 2) + '" y="' + (bx + (bw - lh) / 2) + '" width="' + lw + '" height="' + lh + '" preserveAspectRatio="xMidYMid meet"/>';
+    var bx = s0 + q, bw = k, lh = bw * 0.96, lw = lh * 269 / 299; // schwarzes SMV-Logo auf weißer, freier Fläche
+    var logo = '<image href="/img/smv-schwarz.png" x="' + (bx + (bw - lw) / 2) + '" y="' + (bx + (bw - lh) / 2) + '" width="' + lw + '" height="' + lh + '" preserveAspectRatio="xMidYMid meet"/>';
     document.getElementById('qr').innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + (n + 2 * q) + ' ' + (n + 2 * q) + '" role="img" aria-label="QR-Code zu ' + url.replace(/"/g, '') + '"><rect width="100%" height="100%" fill="#fff"/><path d="' + d + '" fill="#0A1430" shape-rendering="crispEdges"/>' + logo + '</svg>';
     document.getElementById('urltxt').textContent = url.replace(/^https?:\/\//, '').replace(/\/$/, '');
   }
